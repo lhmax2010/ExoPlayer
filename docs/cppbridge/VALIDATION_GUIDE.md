@@ -1,6 +1,6 @@
 # C++ Bridge Validation Guide
 
-Last updated: 2026-03-19
+Last updated: 2026-05-15
 
 This guide is for moving the current `exoplayer_cppbridge` work to another machine and validating
 that the JNI bridge, C++ API surface, smoke coverage, and demo app all behave as expected.
@@ -28,7 +28,10 @@ Current readiness snapshot:
   `exoplayer_cppbridge_jni` and `exoplayer_cppbridge_jni_testhooks`
 - explicit opaque-token cleanup helpers now exist for the main C++ query APIs, but they are
   developer-facing convenience helpers rather than a separately validated tester flow in this pass
-- this repository still requires real compile/device execution before it can be called runtime-validated
+- latest local validation on 2026-05-15 passed on the Android 16 AVD
+  `cppbridge_android16_api36`
+- the current connected suite contains 124 instrumentation tests after the runtime/audio/codec/
+  auxiliary-callback and HTTP/HLS/DASH playback parity addenda
 
 ## 1. Validation Goals
 
@@ -162,9 +165,11 @@ Recommended execution order for a fresh environment:
 
 ```bash
 ./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest
+./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest
 ./gradlew :lib-exoplayer-cppbridge:assemble -PcppbridgeIncludeTestEntrypoints=OFF
 ./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=androidx.media3.exoplayer.cppbridge.CppBridgeNativeSmokeTest
 ./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=androidx.media3.exoplayer.cppbridge.CppBridgeNativePlayerInstrumentationTest
+./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest
 ./gradlew :demo-cppbridge:installDebug
 adb shell am start -n androidx.media3.demo.cppbridge/.MainActivity
 ```
@@ -172,11 +177,13 @@ adb shell am start -n androidx.media3.demo.cppbridge/.MainActivity
 Recommended manual order:
 
 1. `assembleDebugAndroidTest`
-2. optional production-only build with `-PcppbridgeIncludeTestEntrypoints=OFF`
-3. `CppBridgeNativeSmokeTest`
-4. `CppBridgeNativePlayerInstrumentationTest`
-5. `:demo-cppbridge:installDebug`
-6. demo manual checklist
+2. `testDebugUnitTest`
+3. optional production-only build with `-PcppbridgeIncludeTestEntrypoints=OFF`
+4. `CppBridgeNativeSmokeTest`
+5. `CppBridgeNativePlayerInstrumentationTest`
+6. full `connectedDebugAndroidTest`
+7. `:demo-cppbridge:installDebug`
+8. demo manual checklist
 
 ## 5. Smoke Classes To Run
 
@@ -202,6 +209,14 @@ Native target note:
 - `exoplayer_cppbridge_jni` contains the production bridge core
 - `exoplayer_cppbridge_jni_testhooks` contains smoke, player-test, and demo JNI entrypoints
 - the default validation build includes both targets
+
+Current high-value parity smokes in this class include:
+
+- `nativeRuntimeControlParitySmokeTest_updatesPhaseOneRuntimeControls`
+- `nativeAudioAndScrubbingParitySmokeTest_updatesAdvancedRuntimeControls`
+- `nativeCodecParametersParitySmokeTest_setsAudioAndVideoCodecParameters`
+- `nativeRendererAndDeviceStateGetterSmokeTest_readsRendererAndDeviceState`
+- `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi`
 
 ## 6. Human Acceptance Checklist
 
@@ -267,6 +282,15 @@ Markers that should appear:
 - `mediaArtworkUri=https://example.com/video-metadata-artwork.jpg`
 - `playlistArtworkUri=https://example.com/metadata-playlist-artwork.jpg`
 - `sourceType=2`
+- `httpPrepared=1`
+- `httpAdvanced=1`
+- `httpSourceType=5`
+- `hlsPrepared=1`
+- `hlsAdvanced=1`
+- `hlsSourceType=2`
+- `dashPrepared=1`
+- `dashAdvanced=1`
+- `dashSourceType=1`
 - `analyticsCb=2`
 - `bufferSize=4096`
 - `droppedFrames=8`
@@ -284,7 +308,7 @@ Markers that should appear:
 - `totalProcessingOffsetUs=67890`
 - `frameCount=8`
 - `volume=0.750000`
-- `audioSessionId=42`
+- `audioSessionId=700042`
 - `skipSilenceEnabled=1`
 - `volume=7`
 - `muted=0`
@@ -319,7 +343,14 @@ Markers that should appear:
 - `nativeAnalyticsPlayerErrorChangedSmokeTest_reportsConcreteAnalyticsEvent` -> `errorCode=4004`; `message=analytics-final-changed`
 - `nativeAnalyticsTracksChangedSmokeTest_reportsConcreteAnalyticsEvent` -> `groupCount=2`; `firstGroupId=video-main`; `containsVideo=1`
 - `nativeAnalyticsMediaItemTransitionSmokeTest_reportsConcreteAnalyticsEvent` -> `mediaId=analytics-transition-final`; `sourceType=2`; `reason=2`
-- `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` -> `cueCount=2`; `cuePresentationTimeUs=456789`; `cue0Text=Query Cue 1`; `cue0TextTokenPresent=1`; `cue0BitmapTokenPresent=1`; `cue1Text=Query Cue 2`; `cue1TextTokenPresent=1`; `cue1BitmapTokenPresent=0`
+- `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` -> `cueCount=2`; `cuePresentationTimeUs=456789`; `cue0Text=Query Cue 1`; `cue0TextTokenPresent=1`; `cue0BitmapTokenPresent=1`; `cue1Text=Query Cue 2`; `cue1TextTokenPresent=1`; `cue1BitmapTokenPresent=0`; `tracksGroupCount=`; `trackGroupVectorCount=`; `bridgeTracksGroupCount=`; `bridgeTrackGroupVectorCount=`
+- `nativeCurrentTracksSmokeTest_returnsTracksSummary` -> `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0RotationDegrees=90`; `track0PixelRatio=1.250000`; `track0Color=1:2:3`; `group1Track0AverageBitrate=160000`; `group1Track0PeakBitrate=192000`
+- `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary` -> `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0RotationDegrees=90`; `track0PixelRatio=1.250000`; `track0Color=1:2:3`; `group1Track0AverageBitrate=160000`; `group1Track0PeakBitrate=192000`
+- `nativePlaylistMutationSmokeTest_returnsUpdatedPlaylistState` -> `moveRangeFirstMediaId=item-4`; `singleRemoveRestoredCount=3`; `nextIndex=1`; `previousIndex=-1`; `hasNext=1`; `hasPrevious=0`
+- `nativeDeviceAndSkipSilenceSmokeTest_returnsDeviceSummary` -> `deviceControlCalls=1`
+- `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` -> `bridgeCodecRegistrationSafe=1`; `frameLabel=Main Camera`; `frameContainerMime=video/mp4`; `frameBitrates=333000:222000:333000`; `frameRotation=180`; `framePixelRatio=1.500000`; `frameColor=1:2:3`; `frameAudioShape=2:48000`; `frameFlags=5:7`; `frameMediaFormatMime=video/avc`; `frameMediaFormatSize=1920x1080`; `frameMediaFormatFrameRate=23.976000`; `frameMediaFormatRotation=90`; `frameMediaFormatColor=1:2:3`
+- `nativeVideoFrameMetadataSimulationFallbackSmokeTest_preservesFallbackFields` -> `fallbackBitrates=123000:123000:-1`; `fallbackColor=1:-1:-1`; `fallbackAudioShape=-1:-1`; `fallbackApplied=1`
+- `nativePriorityTaskManagerWrapperSmokeTest_returnsStructuredSummary` -> `sdkClearPriorityTaskManagerSafe=1`
 - `nativeAnalyticsCuesSmokeTest_reportsConcreteAnalyticsEvent` -> `cueCount=2`; `presentationTimeUs=654321`; `text0=Analytics Cue Final`; `text0TokenPresent=1`; `bitmap0TokenPresent=1`; `text1=Analytics Cue Final 2`; `text1TokenPresent=1`; `bitmap1TokenPresent=0`
 - `nativeAnalyticsMetadataSmokeTest_reportsConcreteAnalyticsEvent` -> `entryCount=2`; `firstEntryType=MdtaMetadataEntry`; `firstEntryText=analytics-metadata-final`
 - `nativeAnalyticsLoadErrorSmokeTest_reportsConcreteAnalyticsEvent` -> `uri=https://example.com/analytics-error-final.m3u8`; `dataType=4`; `trackType=2`; `message=analytics-load-final`; `wasCanceled=0`

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.text.Layout;
 import androidx.media3.common.C;
+import androidx.media3.common.ColorInfo;
 import androidx.media3.common.Effect;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
@@ -94,6 +95,31 @@ public final class CppBridgeConvertersTest {
             "hls-id",
             null,
             2,
+            false,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.localConfiguration).isNotNull();
+    assertThat(mediaItem.localConfiguration.mimeType).isEqualTo("application/x-mpegURL");
+  }
+
+  @Test
+  public void toMediaItem_normalizesHlsMimeTypeAliases() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/live",
+            "hls-id",
+            "application/vnd.apple.mpegurl",
+            0,
             false,
             null,
             null,
@@ -273,6 +299,15 @@ public final class CppBridgeConvertersTest {
                 .setHeight(1080)
                 .setFrameRate(23.976f)
                 .setAverageBitrate(4_000_000)
+                .setPeakBitrate(5_000_000)
+                .setRotationDegrees(90)
+                .setPixelWidthHeightRatio(1.25f)
+                .setColorInfo(
+                    new ColorInfo.Builder()
+                        .setColorSpace(C.COLOR_SPACE_BT709)
+                        .setColorRange(C.COLOR_RANGE_LIMITED)
+                        .setColorTransfer(C.COLOR_TRANSFER_SDR)
+                        .build())
                 .setRoleFlags(C.ROLE_FLAG_MAIN)
                 .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                 .build(),
@@ -336,12 +371,25 @@ public final class CppBridgeConvertersTest {
     assertThat(groups[0].tracks[0].id).isEqualTo("video-1");
     assertThat(groups[0].tracks[0].containerMimeType).isEqualTo("video/mp4");
     assertThat(groups[0].tracks[0].codecs).isEqualTo("avc1.640028");
+    assertThat(groups[0].tracks[0].bitrate).isEqualTo(5_000_000);
+    assertThat(groups[0].tracks[0].averageBitrate).isEqualTo(4_000_000);
+    assertThat(groups[0].tracks[0].peakBitrate).isEqualTo(5_000_000);
     assertThat(groups[0].tracks[0].frameRate).isEqualTo(23.976f);
+    assertThat(groups[0].tracks[0].rotationDegrees).isEqualTo(90);
+    assertThat(groups[0].tracks[0].pixelWidthHeightRatio).isEqualTo(1.25f);
+    assertThat(groups[0].tracks[0].colorStandard).isEqualTo(C.COLOR_SPACE_BT709);
+    assertThat(groups[0].tracks[0].colorRange).isEqualTo(C.COLOR_RANGE_LIMITED);
+    assertThat(groups[0].tracks[0].colorTransfer).isEqualTo(C.COLOR_TRANSFER_SDR);
     assertThat(groups[0].tracks[0].roleFlags).isEqualTo(C.ROLE_FLAG_MAIN);
     assertThat(groups[0].tracks[0].selectionFlags).isEqualTo(C.SELECTION_FLAG_DEFAULT);
     assertThat(groups[0].tracks[0].formatSupport).isEqualTo(C.FORMAT_HANDLED);
     assertThat(groups[0].tracks[0].selected).isTrue();
     assertThat(groups[0].tracks[1].supported).isTrue();
+    assertThat(groups[0].tracks[1].averageBitrate).isEqualTo(2_000_000);
+    assertThat(groups[0].tracks[1].peakBitrate).isEqualTo(Format.NO_VALUE);
+    assertThat(groups[0].tracks[1].colorStandard).isEqualTo(Format.NO_VALUE);
+    assertThat(groups[0].tracks[1].colorRange).isEqualTo(Format.NO_VALUE);
+    assertThat(groups[0].tracks[1].colorTransfer).isEqualTo(Format.NO_VALUE);
     assertThat(groups[0].tracks[1].formatSupport).isEqualTo(C.FORMAT_EXCEEDS_CAPABILITIES);
     assertThat(groups[0].tracks[0].supportedWithinCapabilities).isTrue();
     assertThat(groups[0].tracks[1].supportedWithinCapabilities).isFalse();
@@ -458,14 +506,46 @@ public final class CppBridgeConvertersTest {
     CppMediaItem ssItem =
         CppBridgeConverters.fromMediaItem(
             new MediaItem.Builder().setUri("https://example.com/live.ism/manifest").build());
+    CppMediaItem progressiveItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder().setUri("https://example.com/file.mp4").build());
     CppMediaItem genericManifestItem =
         CppBridgeConverters.fromMediaItem(
             new MediaItem.Builder().setUri("https://example.com/api/manifest").build());
+    CppMediaItem emptyItem = CppBridgeConverters.fromMediaItem(new MediaItem.Builder().build());
 
     assertThat(dashItem.sourceType).isEqualTo(1);
     assertThat(hlsItem.sourceType).isEqualTo(2);
     assertThat(ssItem.sourceType).isEqualTo(3);
-    assertThat(genericManifestItem.sourceType).isEqualTo(0);
+    assertThat(progressiveItem.sourceType).isEqualTo(5);
+    assertThat(genericManifestItem.sourceType).isEqualTo(5);
+    assertThat(emptyItem.sourceType).isEqualTo(0);
+  }
+
+  @Test
+  public void fromMediaItem_infersSourceTypeFromMimeTypeAliases() {
+    CppMediaItem hlsItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/live")
+                .setMimeType("application/vnd.apple.mpegurl")
+                .build());
+    CppMediaItem lowerCaseHlsItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/live")
+                .setMimeType("application/x-mpegurl")
+                .build());
+    CppMediaItem progressiveItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/file")
+                .setMimeType("audio/mp4")
+                .build());
+
+    assertThat(hlsItem.sourceType).isEqualTo(2);
+    assertThat(lowerCaseHlsItem.sourceType).isEqualTo(2);
+    assertThat(progressiveItem.sourceType).isEqualTo(5);
   }
 
   @Test

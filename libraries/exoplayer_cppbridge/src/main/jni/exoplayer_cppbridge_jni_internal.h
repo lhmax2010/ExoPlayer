@@ -69,6 +69,8 @@ class ScopedEnv {
 };
 
 jintArray CreateJavaIntArray(JNIEnv* env, const std::vector<int>& values);
+jbyteArray CreateJavaByteArray(JNIEnv* env, const std::vector<uint8_t>& values);
+jfloatArray CreateJavaFloatArray(JNIEnv* env, const std::vector<float>& values);
 jobjectArray CreateJavaStringArray(JNIEnv* env, const std::vector<std::string>& values);
 jobjectArray CreateJavaVideoEffectArray(
     JNIEnv* env,
@@ -81,6 +83,8 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
 jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues);
 jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks);
 std::vector<std::string> JStringArrayToVector(JNIEnv* env, jobjectArray values);
+std::vector<uint8_t> JByteArrayToVector(JNIEnv* env, jbyteArray values);
+std::vector<float> JFloatArrayToVector(JNIEnv* env, jfloatArray values);
 std::vector<MediaItemDescriptor> JStringArrayToMediaItems(JNIEnv* env, jobjectArray urls);
 AudioAttributesDescriptor FromJavaAudioAttributes(JNIEnv* env, jintArray values);
 MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object);
@@ -96,6 +100,7 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object);
 SeekParametersDescriptor FromJavaSeekParameters(JNIEnv* env, jobject object);
 PlaybackParametersSnapshot FromJavaPlaybackParameters(JNIEnv* env, jobject object);
 ApplicationLooperDescriptor FromJavaApplicationLooper(JNIEnv* env, jobject object);
+CodecParametersDescriptor FromJavaCodecParameterArray(JNIEnv* env, jobjectArray values);
 int ParseIntOrDefault(const std::string& value, int fallback);
 int64_t ParseLongOrDefault(const std::string& value, int64_t fallback);
 float ParseFloatOrDefault(const std::string& value, float fallback);
@@ -342,6 +347,56 @@ void BridgeOnVideoInputFormatChanged(
     int width,
     int height,
     float frame_rate);
+void BridgeOnAudioCodecParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobjectArray codec_parameters);
+void BridgeOnVideoCodecParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobjectArray codec_parameters);
+void BridgeOnVideoFrameAboutToBeRendered(
+    JNIEnv* env,
+    jlong native_handle,
+    int64_t presentation_time_us,
+    int64_t release_time_ns,
+    jstring format_id,
+    jstring sample_mime_type,
+    jstring codecs,
+    int width,
+    int height,
+    float frame_rate,
+    jstring format_label,
+    jstring format_language,
+    jstring format_container_mime_type,
+    int format_bitrate,
+    int format_average_bitrate,
+    int format_peak_bitrate,
+    int format_rotation_degrees,
+    float format_pixel_width_height_ratio,
+    int format_color_standard,
+    int format_color_range,
+    int format_color_transfer,
+    int format_channel_count,
+    int format_sample_rate,
+    int format_role_flags,
+    int format_selection_flags,
+    bool media_format_present,
+    jstring media_format_summary,
+    jstring media_format_mime_type,
+    int media_format_width,
+    int media_format_height,
+    float media_format_frame_rate,
+    int media_format_rotation_degrees,
+    int media_format_color_standard,
+    int media_format_color_range,
+    int media_format_color_transfer);
+void BridgeOnCameraMotion(
+    JNIEnv* env,
+    jlong native_handle,
+    int64_t time_us,
+    jfloatArray rotation);
+void BridgeOnCameraMotionReset(jlong native_handle);
 void BridgeOnImageOutputAvailable(
     JNIEnv* env,
     jlong native_handle,
@@ -371,4 +426,3 @@ std::string BridgeSummarizeVideoEffectsForTest(
 }  // namespace androidx::media3::cppbridge::internal
 
 #endif  // ANDROIDX_MEDIA3_EXOPLAYER_CPPBRIDGE_JNI_INTERNAL_H_
-

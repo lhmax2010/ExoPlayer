@@ -61,6 +61,26 @@ bool ShouldTraceSmokeListenerCallback(const char* callback_name) {
   return false;
 }
 
+struct CodecParametersDelegateRegistration {
+  PlayerListener* delegate = nullptr;
+  std::vector<std::string> keys;
+};
+
+CodecParametersDescriptor FilterCodecParametersByKeys(
+    const CodecParametersDescriptor& codec_parameters,
+    const std::vector<std::string>& keys) {
+  CodecParametersDescriptor filtered;
+  if (keys.empty()) {
+    return filtered;
+  }
+  for (const CodecParameterDescriptor& parameter : codec_parameters.parameters) {
+    if (std::find(keys.begin(), keys.end(), parameter.key) != keys.end()) {
+      filtered.parameters.push_back(parameter);
+    }
+  }
+  return filtered;
+}
+
 class ExoPlayerSdkPriorityTaskManagerImpl : public ExoPlayerSdkPriorityTaskManager {
  public:
   ExoPlayerSdkPriorityTaskManagerImpl(JavaVM* java_vm, jobject priority_task_manager)
@@ -224,6 +244,128 @@ class ForwardingPlayerListener : public PlayerListener {
           "ForwardingPlayerListener RemoveAnalyticsDelegate drained delegatePtr=" +
           BuildPointerSummary(delegate) + "," + BuildStateLocked());
     }
+  }
+
+  void AddAudioCodecParametersDelegate(
+      PlayerListener* delegate,
+      const std::vector<std::string>& keys) {
+    AddCodecParametersDelegate(
+        delegate, keys, &audio_codec_parameter_delegates_, "AddAudioCodecParametersDelegate");
+  }
+
+  void RemoveAudioCodecParametersDelegate(PlayerListener* delegate) {
+    RemoveCodecParametersDelegate(
+        delegate, &audio_codec_parameter_delegates_, "RemoveAudioCodecParametersDelegate");
+  }
+
+  bool HasAudioCodecParametersDelegates() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !audio_codec_parameter_delegates_.empty();
+  }
+
+  std::vector<std::string> GetAudioCodecParameterKeys() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return CollectCodecParameterKeysLocked(audio_codec_parameter_delegates_);
+  }
+
+  void RouteNextAudioCodecParametersCallbackTo(PlayerListener* delegate) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_audio_codec_parameter_callback_delegate_ = delegate;
+    suppress_next_audio_codec_parameter_callback_ = false;
+  }
+
+  void SuppressNextAudioCodecParametersCallback() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_audio_codec_parameter_callback_delegate_ = nullptr;
+    suppress_next_audio_codec_parameter_callback_ = true;
+  }
+
+  void ClearNextAudioCodecParametersCallbackRouting() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_audio_codec_parameter_callback_delegate_ = nullptr;
+    suppress_next_audio_codec_parameter_callback_ = false;
+  }
+
+  void AddVideoCodecParametersDelegate(
+      PlayerListener* delegate,
+      const std::vector<std::string>& keys) {
+    AddCodecParametersDelegate(
+        delegate, keys, &video_codec_parameter_delegates_, "AddVideoCodecParametersDelegate");
+  }
+
+  void RemoveVideoCodecParametersDelegate(PlayerListener* delegate) {
+    RemoveCodecParametersDelegate(
+        delegate, &video_codec_parameter_delegates_, "RemoveVideoCodecParametersDelegate");
+  }
+
+  bool HasVideoCodecParametersDelegates() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !video_codec_parameter_delegates_.empty();
+  }
+
+  std::vector<std::string> GetVideoCodecParameterKeys() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return CollectCodecParameterKeysLocked(video_codec_parameter_delegates_);
+  }
+
+  void RouteNextVideoCodecParametersCallbackTo(PlayerListener* delegate) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_video_codec_parameter_callback_delegate_ = delegate;
+    suppress_next_video_codec_parameter_callback_ = false;
+  }
+
+  void SuppressNextVideoCodecParametersCallback() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_video_codec_parameter_callback_delegate_ = nullptr;
+    suppress_next_video_codec_parameter_callback_ = true;
+  }
+
+  void ClearNextVideoCodecParametersCallbackRouting() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    next_video_codec_parameter_callback_delegate_ = nullptr;
+    suppress_next_video_codec_parameter_callback_ = false;
+  }
+
+  void SetVideoFrameMetadataDelegate(PlayerListener* delegate) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    video_frame_metadata_delegate_ = delegate;
+    if (delegate == nullptr) {
+      callback_drained_.wait(lock, [this]() { return in_flight_callback_count_ == 0; });
+    }
+  }
+
+  bool RemoveVideoFrameMetadataDelegate(PlayerListener* delegate) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (delegate != nullptr && video_frame_metadata_delegate_ != delegate) {
+      return false;
+    }
+    const bool had_delegate = video_frame_metadata_delegate_ != nullptr;
+    video_frame_metadata_delegate_ = nullptr;
+    if (had_delegate) {
+      callback_drained_.wait(lock, [this]() { return in_flight_callback_count_ == 0; });
+    }
+    return had_delegate;
+  }
+
+  void SetCameraMotionDelegate(PlayerListener* delegate) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    camera_motion_delegate_ = delegate;
+    if (delegate == nullptr) {
+      callback_drained_.wait(lock, [this]() { return in_flight_callback_count_ == 0; });
+    }
+  }
+
+  bool RemoveCameraMotionDelegate(PlayerListener* delegate) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (delegate != nullptr && camera_motion_delegate_ != delegate) {
+      return false;
+    }
+    const bool had_delegate = camera_motion_delegate_ != nullptr;
+    camera_motion_delegate_ = nullptr;
+    if (had_delegate) {
+      callback_drained_.wait(lock, [this]() { return in_flight_callback_count_ == 0; });
+    }
+    return had_delegate;
   }
 
   void OnPlaybackStateChanged(const PlaybackSnapshot& snapshot) override {
@@ -1089,16 +1231,114 @@ class ForwardingPlayerListener : public PlayerListener {
     }
   }
 
+  void OnAudioCodecParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const CodecParametersDescriptor& codec_parameters) override {
+    auto listeners =
+        SnapshotListeners(nullptr, ListenerSnapshotKind::kAudioCodecParameters);
+    if (listeners.suppress_audio_codec_parameter_callback) {
+      return;
+    }
+    for (const CodecParametersDelegateRegistration& registration :
+         listeners.audio_codec_parameter_delegates) {
+      if (listeners.audio_codec_parameter_callback_delegate != nullptr &&
+          registration.delegate != listeners.audio_codec_parameter_callback_delegate) {
+        continue;
+      }
+      if (registration.delegate != nullptr) {
+        registration.delegate->OnAudioCodecParametersChanged(
+            snapshot, FilterCodecParametersByKeys(codec_parameters, registration.keys));
+      }
+    }
+  }
+
+  void OnVideoCodecParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const CodecParametersDescriptor& codec_parameters) override {
+    auto listeners =
+        SnapshotListeners(nullptr, ListenerSnapshotKind::kVideoCodecParameters);
+    if (listeners.suppress_video_codec_parameter_callback) {
+      return;
+    }
+    for (const CodecParametersDelegateRegistration& registration :
+         listeners.video_codec_parameter_delegates) {
+      if (listeners.video_codec_parameter_callback_delegate != nullptr &&
+          registration.delegate != listeners.video_codec_parameter_callback_delegate) {
+        continue;
+      }
+      if (registration.delegate != nullptr) {
+        registration.delegate->OnVideoCodecParametersChanged(
+            snapshot, FilterCodecParametersByKeys(codec_parameters, registration.keys));
+      }
+    }
+  }
+
+  void OnVideoFrameAboutToBeRendered(
+      const PlaybackSnapshot& snapshot,
+      const VideoFrameMetadataSnapshot& video_frame_metadata) override {
+    auto listeners = SnapshotListeners();
+    if (listeners.video_frame_metadata_delegate != nullptr) {
+      listeners.video_frame_metadata_delegate->OnVideoFrameAboutToBeRendered(
+          snapshot, video_frame_metadata);
+    }
+  }
+
+  void OnCameraMotion(
+      const PlaybackSnapshot& snapshot,
+      const CameraMotionSnapshot& camera_motion) override {
+    auto listeners = SnapshotListeners();
+    if (listeners.camera_motion_delegate != nullptr) {
+      listeners.camera_motion_delegate->OnCameraMotion(snapshot, camera_motion);
+    }
+  }
+
+  void OnCameraMotionReset(const PlaybackSnapshot& snapshot) override {
+    auto listeners = SnapshotListeners();
+    if (listeners.camera_motion_delegate != nullptr) {
+      listeners.camera_motion_delegate->OnCameraMotionReset(snapshot);
+    }
+  }
+
  private:
+  enum class ListenerSnapshotKind {
+    kNormal,
+    kAudioCodecParameters,
+    kVideoCodecParameters,
+  };
+
   struct ListenerSnapshot {
     ListenerSnapshot() = default;
     ListenerSnapshot(
         ForwardingPlayerListener* owner_in,
         PlayerListener* delegate_in,
-        std::vector<PlayerListener*> analytics_delegates_in)
+        std::vector<PlayerListener*> analytics_delegates_in,
+        std::vector<CodecParametersDelegateRegistration>
+            audio_codec_parameter_delegates_in,
+        std::vector<CodecParametersDelegateRegistration>
+            video_codec_parameter_delegates_in,
+        PlayerListener* video_frame_metadata_delegate_in,
+        PlayerListener* camera_motion_delegate_in,
+        PlayerListener* audio_codec_parameter_callback_delegate_in,
+        bool suppress_audio_codec_parameter_callback_in,
+        PlayerListener* video_codec_parameter_callback_delegate_in,
+        bool suppress_video_codec_parameter_callback_in)
         : owner(owner_in),
           delegate(delegate_in),
-          analytics_delegates(std::move(analytics_delegates_in)) {}
+          analytics_delegates(std::move(analytics_delegates_in)),
+          audio_codec_parameter_delegates(
+              std::move(audio_codec_parameter_delegates_in)),
+          video_codec_parameter_delegates(
+              std::move(video_codec_parameter_delegates_in)),
+          video_frame_metadata_delegate(video_frame_metadata_delegate_in),
+          camera_motion_delegate(camera_motion_delegate_in),
+          audio_codec_parameter_callback_delegate(
+              audio_codec_parameter_callback_delegate_in),
+          suppress_audio_codec_parameter_callback(
+              suppress_audio_codec_parameter_callback_in),
+          video_codec_parameter_callback_delegate(
+              video_codec_parameter_callback_delegate_in),
+          suppress_video_codec_parameter_callback(
+              suppress_video_codec_parameter_callback_in) {}
 
     ListenerSnapshot(const ListenerSnapshot&) = delete;
     ListenerSnapshot& operator=(const ListenerSnapshot&) = delete;
@@ -1106,9 +1346,29 @@ class ForwardingPlayerListener : public PlayerListener {
     ListenerSnapshot(ListenerSnapshot&& other) noexcept
         : owner(other.owner),
           delegate(other.delegate),
-          analytics_delegates(std::move(other.analytics_delegates)) {
+          analytics_delegates(std::move(other.analytics_delegates)),
+          audio_codec_parameter_delegates(
+              std::move(other.audio_codec_parameter_delegates)),
+          video_codec_parameter_delegates(
+              std::move(other.video_codec_parameter_delegates)),
+          video_frame_metadata_delegate(other.video_frame_metadata_delegate),
+          camera_motion_delegate(other.camera_motion_delegate),
+          audio_codec_parameter_callback_delegate(
+              other.audio_codec_parameter_callback_delegate),
+          suppress_audio_codec_parameter_callback(
+              other.suppress_audio_codec_parameter_callback),
+          video_codec_parameter_callback_delegate(
+              other.video_codec_parameter_callback_delegate),
+          suppress_video_codec_parameter_callback(
+              other.suppress_video_codec_parameter_callback) {
       other.owner = nullptr;
       other.delegate = nullptr;
+      other.video_frame_metadata_delegate = nullptr;
+      other.camera_motion_delegate = nullptr;
+      other.audio_codec_parameter_callback_delegate = nullptr;
+      other.suppress_audio_codec_parameter_callback = false;
+      other.video_codec_parameter_callback_delegate = nullptr;
+      other.suppress_video_codec_parameter_callback = false;
     }
 
     ListenerSnapshot& operator=(ListenerSnapshot&& other) noexcept {
@@ -1117,8 +1377,28 @@ class ForwardingPlayerListener : public PlayerListener {
         owner = other.owner;
         delegate = other.delegate;
         analytics_delegates = std::move(other.analytics_delegates);
+        audio_codec_parameter_delegates =
+            std::move(other.audio_codec_parameter_delegates);
+        video_codec_parameter_delegates =
+            std::move(other.video_codec_parameter_delegates);
+        video_frame_metadata_delegate = other.video_frame_metadata_delegate;
+        camera_motion_delegate = other.camera_motion_delegate;
+        audio_codec_parameter_callback_delegate =
+            other.audio_codec_parameter_callback_delegate;
+        suppress_audio_codec_parameter_callback =
+            other.suppress_audio_codec_parameter_callback;
+        video_codec_parameter_callback_delegate =
+            other.video_codec_parameter_callback_delegate;
+        suppress_video_codec_parameter_callback =
+            other.suppress_video_codec_parameter_callback;
         other.owner = nullptr;
         other.delegate = nullptr;
+        other.video_frame_metadata_delegate = nullptr;
+        other.camera_motion_delegate = nullptr;
+        other.audio_codec_parameter_callback_delegate = nullptr;
+        other.suppress_audio_codec_parameter_callback = false;
+        other.video_codec_parameter_callback_delegate = nullptr;
+        other.suppress_video_codec_parameter_callback = false;
       }
       return *this;
     }
@@ -1126,7 +1406,15 @@ class ForwardingPlayerListener : public PlayerListener {
     ~ListenerSnapshot() { Release(); }
 
     explicit operator bool() const {
-      return delegate != nullptr || !analytics_delegates.empty();
+      return delegate != nullptr || !analytics_delegates.empty() ||
+          !audio_codec_parameter_delegates.empty() ||
+          !video_codec_parameter_delegates.empty() ||
+          video_frame_metadata_delegate != nullptr ||
+          camera_motion_delegate != nullptr ||
+          audio_codec_parameter_callback_delegate != nullptr ||
+          suppress_audio_codec_parameter_callback ||
+          video_codec_parameter_callback_delegate != nullptr ||
+          suppress_video_codec_parameter_callback;
     }
 
     void Release() {
@@ -1139,22 +1427,141 @@ class ForwardingPlayerListener : public PlayerListener {
     ForwardingPlayerListener* owner = nullptr;
     PlayerListener* delegate = nullptr;
     std::vector<PlayerListener*> analytics_delegates;
+    std::vector<CodecParametersDelegateRegistration> audio_codec_parameter_delegates;
+    std::vector<CodecParametersDelegateRegistration> video_codec_parameter_delegates;
+    PlayerListener* video_frame_metadata_delegate = nullptr;
+    PlayerListener* camera_motion_delegate = nullptr;
+    PlayerListener* audio_codec_parameter_callback_delegate = nullptr;
+    bool suppress_audio_codec_parameter_callback = false;
+    PlayerListener* video_codec_parameter_callback_delegate = nullptr;
+    bool suppress_video_codec_parameter_callback = false;
   };
+
+  static std::vector<std::string> CollectCodecParameterKeysLocked(
+      const std::vector<CodecParametersDelegateRegistration>& registrations) {
+    std::vector<std::string> keys;
+    for (const CodecParametersDelegateRegistration& registration : registrations) {
+      for (const std::string& key : registration.keys) {
+        if (std::find(keys.begin(), keys.end(), key) == keys.end()) {
+          keys.push_back(key);
+        }
+      }
+    }
+    return keys;
+  }
+
+  void AddCodecParametersDelegate(
+      PlayerListener* delegate,
+      const std::vector<std::string>& keys,
+      std::vector<CodecParametersDelegateRegistration>* registrations,
+      const char* log_name) {
+    if (delegate == nullptr || registrations == nullptr) {
+      return;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = std::find_if(
+        registrations->begin(),
+        registrations->end(),
+        [delegate](const CodecParametersDelegateRegistration& registration) {
+          return registration.delegate == delegate;
+        });
+    if (it != registrations->end()) {
+      it->keys = keys;
+    } else {
+      registrations->push_back({delegate, keys});
+    }
+    internal::LogInfo(
+        std::string("ForwardingPlayerListener ") + log_name +
+        " delegatePtr=" + BuildPointerSummary(delegate) + "," + BuildStateLocked());
+  }
+
+  void RemoveCodecParametersDelegate(
+      PlayerListener* delegate,
+      std::vector<CodecParametersDelegateRegistration>* registrations,
+      const char* log_name) {
+    if (registrations == nullptr) {
+      return;
+    }
+    std::unique_lock<std::mutex> lock(mutex_);
+    bool removed = false;
+    if (delegate == nullptr) {
+      removed = !registrations->empty();
+      registrations->clear();
+    } else {
+      const size_t previous_size = registrations->size();
+      registrations->erase(
+          std::remove_if(
+              registrations->begin(),
+              registrations->end(),
+              [delegate](const CodecParametersDelegateRegistration& registration) {
+                return registration.delegate == delegate;
+              }),
+          registrations->end());
+      removed = registrations->size() != previous_size;
+    }
+    if (removed) {
+      if (registrations == &audio_codec_parameter_delegates_) {
+        next_audio_codec_parameter_callback_delegate_ = nullptr;
+        suppress_next_audio_codec_parameter_callback_ = false;
+      } else if (registrations == &video_codec_parameter_delegates_) {
+        next_video_codec_parameter_callback_delegate_ = nullptr;
+        suppress_next_video_codec_parameter_callback_ = false;
+      }
+      internal::LogInfo(
+          std::string("ForwardingPlayerListener ") + log_name +
+          " delegatePtr=" + BuildPointerSummary(delegate) + "," + BuildStateLocked());
+      callback_drained_.wait(lock, [this]() { return in_flight_callback_count_ == 0; });
+    }
+  }
 
   std::string BuildStateLocked() const {
     return "delegatePtr=" + BuildPointerSummary(delegate_) +
         ",analyticsCount=" + std::to_string(analytics_delegates_.size()) +
+        ",audioCodecParamCount=" +
+        std::to_string(audio_codec_parameter_delegates_.size()) +
+        ",videoCodecParamCount=" +
+        std::to_string(video_codec_parameter_delegates_.size()) +
+        ",videoFrameMetadataPtr=" + BuildPointerSummary(video_frame_metadata_delegate_) +
+        ",cameraMotionPtr=" + BuildPointerSummary(camera_motion_delegate_) +
         ",inFlight=" + std::to_string(in_flight_callback_count_);
   }
 
-  ListenerSnapshot SnapshotListeners(const char* callback_name = nullptr) {
+  ListenerSnapshot SnapshotListeners(
+      const char* callback_name = nullptr,
+      ListenerSnapshotKind snapshot_kind = ListenerSnapshotKind::kNormal) {
     std::lock_guard<std::mutex> lock(mutex_);
+    PlayerListener* audio_codec_parameter_callback_delegate = nullptr;
+    bool suppress_audio_codec_parameter_callback = false;
+    PlayerListener* video_codec_parameter_callback_delegate = nullptr;
+    bool suppress_video_codec_parameter_callback = false;
+    if (snapshot_kind == ListenerSnapshotKind::kAudioCodecParameters) {
+      audio_codec_parameter_callback_delegate =
+          next_audio_codec_parameter_callback_delegate_;
+      suppress_audio_codec_parameter_callback =
+          suppress_next_audio_codec_parameter_callback_;
+      next_audio_codec_parameter_callback_delegate_ = nullptr;
+      suppress_next_audio_codec_parameter_callback_ = false;
+    } else if (snapshot_kind == ListenerSnapshotKind::kVideoCodecParameters) {
+      video_codec_parameter_callback_delegate =
+          next_video_codec_parameter_callback_delegate_;
+      suppress_video_codec_parameter_callback =
+          suppress_next_video_codec_parameter_callback_;
+      next_video_codec_parameter_callback_delegate_ = nullptr;
+      suppress_next_video_codec_parameter_callback_ = false;
+    }
     if (ShouldTraceSmokeListenerCallback(callback_name)) {
       internal::LogInfo(
           std::string("ForwardingPlayerListener SnapshotListeners callback=") +
           callback_name + "," + BuildStateLocked());
     }
-    if (delegate_ == nullptr && analytics_delegates_.empty()) {
+    if (delegate_ == nullptr && analytics_delegates_.empty() &&
+        audio_codec_parameter_delegates_.empty() &&
+        video_codec_parameter_delegates_.empty() &&
+        video_frame_metadata_delegate_ == nullptr && camera_motion_delegate_ == nullptr &&
+        audio_codec_parameter_callback_delegate == nullptr &&
+        !suppress_audio_codec_parameter_callback &&
+        video_codec_parameter_callback_delegate == nullptr &&
+        !suppress_video_codec_parameter_callback) {
       return ListenerSnapshot();
     }
     ++in_flight_callback_count_;
@@ -1163,7 +1570,18 @@ class ForwardingPlayerListener : public PlayerListener {
           std::string("ForwardingPlayerListener SnapshotListeners acquired callback=") +
           callback_name + "," + BuildStateLocked());
     }
-    return ListenerSnapshot(this, delegate_, analytics_delegates_);
+    return ListenerSnapshot(
+        this,
+        delegate_,
+        analytics_delegates_,
+        audio_codec_parameter_delegates_,
+        video_codec_parameter_delegates_,
+        video_frame_metadata_delegate_,
+        camera_motion_delegate_,
+        audio_codec_parameter_callback_delegate,
+        suppress_audio_codec_parameter_callback,
+        video_codec_parameter_callback_delegate,
+        suppress_video_codec_parameter_callback);
   }
 
   template <typename Fn>
@@ -1208,6 +1626,14 @@ class ForwardingPlayerListener : public PlayerListener {
   int in_flight_callback_count_ = 0;
   PlayerListener* delegate_ = nullptr;
   std::vector<PlayerListener*> analytics_delegates_;
+  std::vector<CodecParametersDelegateRegistration> audio_codec_parameter_delegates_;
+  std::vector<CodecParametersDelegateRegistration> video_codec_parameter_delegates_;
+  PlayerListener* video_frame_metadata_delegate_ = nullptr;
+  PlayerListener* camera_motion_delegate_ = nullptr;
+  PlayerListener* next_audio_codec_parameter_callback_delegate_ = nullptr;
+  bool suppress_next_audio_codec_parameter_callback_ = false;
+  PlayerListener* next_video_codec_parameter_callback_delegate_ = nullptr;
+  bool suppress_next_video_codec_parameter_callback_ = false;
 };
 
 class ForwardingImageOutputListener : public ImageOutputListener {
@@ -1330,8 +1756,16 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
     internal::LogInfo("ExoPlayerSdkPlayerImpl::Release clear delegates");
     forwarding_listener_->SetDelegate(nullptr);
     forwarding_listener_->RemoveAnalyticsDelegate(nullptr);
+    forwarding_listener_->RemoveAudioCodecParametersDelegate(nullptr);
+    forwarding_listener_->RemoveVideoCodecParametersDelegate(nullptr);
+    forwarding_listener_->RemoveVideoFrameMetadataDelegate(nullptr);
+    forwarding_listener_->RemoveCameraMotionDelegate(nullptr);
     forwarding_image_output_listener_->SetDelegate(nullptr);
     internal::LogInfo("ExoPlayerSdkPlayerImpl::Release remove bridge listeners");
+    bridge_->ClearAudioCodecParametersChangeListener(env.env());
+    bridge_->ClearVideoCodecParametersChangeListener(env.env());
+    bridge_->ClearVideoFrameMetadataListener(env.env());
+    bridge_->ClearCameraMotionListener(env.env());
     bridge_->RemoveListener(forwarding_listener_.get());
     bridge_->RemoveImageOutputListener(forwarding_image_output_listener_.get());
     internal::LogInfo("ExoPlayerSdkPlayerImpl::Release bridge release begin");
@@ -1368,6 +1802,102 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
 
   void RemoveAnalyticsListener(PlayerListener* listener) override {
     forwarding_listener_->RemoveAnalyticsDelegate(listener);
+  }
+
+  void AddAudioCodecParametersChangeListener(
+      PlayerListener* listener,
+      const std::vector<std::string>& keys) override {
+    if (listener == nullptr) {
+      return;
+    }
+    forwarding_listener_->AddAudioCodecParametersDelegate(listener, keys);
+    forwarding_listener_->RouteNextAudioCodecParametersCallbackTo(listener);
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SetAudioCodecParametersChangeListener(
+          env, forwarding_listener_->GetAudioCodecParameterKeys());
+    });
+    forwarding_listener_->ClearNextAudioCodecParametersCallbackRouting();
+  }
+
+  void RemoveAudioCodecParametersChangeListener(PlayerListener* listener) override {
+    forwarding_listener_->RemoveAudioCodecParametersDelegate(listener);
+    if (forwarding_listener_->HasAudioCodecParametersDelegates()) {
+      forwarding_listener_->SuppressNextAudioCodecParametersCallback();
+      WithEnv([&](JNIEnv* env) {
+        bridge_->SetAudioCodecParametersChangeListener(
+            env, forwarding_listener_->GetAudioCodecParameterKeys());
+      });
+      forwarding_listener_->ClearNextAudioCodecParametersCallbackRouting();
+    } else {
+      WithEnv([&](JNIEnv* env) {
+        bridge_->ClearAudioCodecParametersChangeListener(env);
+      });
+    }
+  }
+
+  void AddVideoCodecParametersChangeListener(
+      PlayerListener* listener,
+      const std::vector<std::string>& keys) override {
+    if (listener == nullptr) {
+      return;
+    }
+    forwarding_listener_->AddVideoCodecParametersDelegate(listener, keys);
+    forwarding_listener_->RouteNextVideoCodecParametersCallbackTo(listener);
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SetVideoCodecParametersChangeListener(
+          env, forwarding_listener_->GetVideoCodecParameterKeys());
+    });
+    forwarding_listener_->ClearNextVideoCodecParametersCallbackRouting();
+  }
+
+  void RemoveVideoCodecParametersChangeListener(PlayerListener* listener) override {
+    forwarding_listener_->RemoveVideoCodecParametersDelegate(listener);
+    if (forwarding_listener_->HasVideoCodecParametersDelegates()) {
+      forwarding_listener_->SuppressNextVideoCodecParametersCallback();
+      WithEnv([&](JNIEnv* env) {
+        bridge_->SetVideoCodecParametersChangeListener(
+            env, forwarding_listener_->GetVideoCodecParameterKeys());
+      });
+      forwarding_listener_->ClearNextVideoCodecParametersCallbackRouting();
+    } else {
+      WithEnv([&](JNIEnv* env) {
+        bridge_->ClearVideoCodecParametersChangeListener(env);
+      });
+    }
+  }
+
+  void SetVideoFrameMetadataListener(PlayerListener* listener) override {
+    forwarding_listener_->SetVideoFrameMetadataDelegate(listener);
+    WithEnv([&](JNIEnv* env) {
+      if (listener != nullptr) {
+        bridge_->SetVideoFrameMetadataListener(env);
+      } else {
+        bridge_->ClearVideoFrameMetadataListener(env);
+      }
+    });
+  }
+
+  void ClearVideoFrameMetadataListener(PlayerListener* listener) override {
+    if (forwarding_listener_->RemoveVideoFrameMetadataDelegate(listener)) {
+      WithEnv([&](JNIEnv* env) { bridge_->ClearVideoFrameMetadataListener(env); });
+    }
+  }
+
+  void SetCameraMotionListener(PlayerListener* listener) override {
+    forwarding_listener_->SetCameraMotionDelegate(listener);
+    WithEnv([&](JNIEnv* env) {
+      if (listener != nullptr) {
+        bridge_->SetCameraMotionListener(env);
+      } else {
+        bridge_->ClearCameraMotionListener(env);
+      }
+    });
+  }
+
+  void ClearCameraMotionListener(PlayerListener* listener) override {
+    if (forwarding_listener_->RemoveCameraMotionDelegate(listener)) {
+      WithEnv([&](JNIEnv* env) { bridge_->ClearCameraMotionListener(env); });
+    }
   }
 
   void BindPlayerView(jobject player_view) override {
@@ -1567,6 +2097,12 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
     WithEnv([&](JNIEnv* env) { bridge_->SetWakeMode(env, wake_mode); });
   }
 
+  void SetHandleAudioBecomingNoisy(bool handle_audio_becoming_noisy) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SetHandleAudioBecomingNoisy(env, handle_audio_becoming_noisy);
+    });
+  }
+
   void SetPriority(int priority) override {
     WithEnv([&](JNIEnv* env) { bridge_->SetPriority(env, priority); });
   }
@@ -1598,6 +2134,10 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
     });
   }
 
+  void SetForegroundMode(bool foreground_mode) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetForegroundMode(env, foreground_mode); });
+  }
+
   PlayerMessageResult SendPlayerMessage(const PlayerMessageDescriptor& message) override {
     return WithEnvOrDefault<PlayerMessageResult>(
         [&](JNIEnv* env) { return bridge_->SendPlayerMessage(env, message); });
@@ -1611,6 +2151,40 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
       const AudioAttributesDescriptor& attributes,
       bool handle_audio_focus) override {
     WithEnv([&](JNIEnv* env) { bridge_->SetAudioAttributes(env, attributes, handle_audio_focus); });
+  }
+
+  void SetAudioSessionId(int audio_session_id) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetAudioSessionId(env, audio_session_id); });
+  }
+
+  void SetAuxEffectInfo(const AuxEffectInfoDescriptor& aux_effect_info) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetAuxEffectInfo(env, aux_effect_info); });
+  }
+
+  void ClearAuxEffectInfo() override {
+    WithEnv([&](JNIEnv* env) { bridge_->ClearAuxEffectInfo(env); });
+  }
+
+  void SetPreferredAudioDevice(jobject audio_device_info) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetPreferredAudioDevice(env, audio_device_info); });
+  }
+
+  void ClearPreferredAudioDevice() override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetPreferredAudioDevice(env, nullptr); });
+  }
+
+  void SetVirtualDeviceId(int virtual_device_id) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetVirtualDeviceId(env, virtual_device_id); });
+  }
+
+  void SetAudioCodecParameters(
+      const CodecParametersDescriptor& codec_parameters) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetAudioCodecParameters(env, codec_parameters); });
+  }
+
+  void SetVideoCodecParameters(
+      const CodecParametersDescriptor& codec_parameters) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetVideoCodecParameters(env, codec_parameters); });
   }
 
   void SetDeviceVolume(int volume, int flags) override {
@@ -1635,6 +2209,27 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
 
   void SetSkipSilenceEnabled(bool skip_silence_enabled) override {
     WithEnv([&](JNIEnv* env) { bridge_->SetSkipSilenceEnabled(env, skip_silence_enabled); });
+  }
+
+  void SetScrubbingModeEnabled(bool scrubbing_mode_enabled) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SetScrubbingModeEnabled(env, scrubbing_mode_enabled);
+    });
+  }
+
+  bool IsScrubbingModeEnabled() override {
+    return WithEnvOrDefault<bool>(
+        [&](JNIEnv* env) { return bridge_->IsScrubbingModeEnabled(env); });
+  }
+
+  void SetScrubbingModeParameters(
+      const ScrubbingModeParametersDescriptor& parameters) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetScrubbingModeParameters(env, parameters); });
+  }
+
+  ScrubbingModeParametersDescriptor GetScrubbingModeParameters() override {
+    return WithEnvOrDefault<ScrubbingModeParametersDescriptor>(
+        [&](JNIEnv* env) { return bridge_->GetScrubbingModeParameters(env); });
   }
 
   void SetPlayWhenReady(bool play_when_ready) override {
@@ -1665,6 +2260,47 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
     WithEnv([&](JNIEnv* env) { bridge_->SetPauseAtEndOfMediaItems(env, pause_at_end_of_media_items); });
   }
 
+  bool GetPauseAtEndOfMediaItems() override {
+    return WithEnvOrDefault<bool>(
+        [&](JNIEnv* env) { return bridge_->GetPauseAtEndOfMediaItems(env); });
+  }
+
+  void SetSeekBackIncrementMs(int64_t seek_back_increment_ms) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetSeekBackIncrementMs(env, seek_back_increment_ms); });
+  }
+
+  void SetSeekForwardIncrementMs(int64_t seek_forward_increment_ms) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SetSeekForwardIncrementMs(env, seek_forward_increment_ms);
+    });
+  }
+
+  void SetMaxSeekToPreviousPositionMs(int64_t max_seek_to_previous_position_ms) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SetMaxSeekToPreviousPositionMs(env, max_seek_to_previous_position_ms);
+    });
+  }
+
+  void SetVideoScalingMode(int video_scaling_mode) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetVideoScalingMode(env, video_scaling_mode); });
+  }
+
+  int GetVideoScalingMode() override {
+    return WithEnvOrDefault<int>(
+        [&](JNIEnv* env) { return bridge_->GetVideoScalingMode(env); });
+  }
+
+  void SetVideoChangeFrameRateStrategy(int video_change_frame_rate_strategy) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SetVideoChangeFrameRateStrategy(env, video_change_frame_rate_strategy);
+    });
+  }
+
+  int GetVideoChangeFrameRateStrategy() override {
+    return WithEnvOrDefault<int>(
+        [&](JNIEnv* env) { return bridge_->GetVideoChangeFrameRateStrategy(env); });
+  }
+
   void SetTrackSelectionParameters(
       const TrackSelectionParametersDescriptor& parameters) override {
     WithEnv([&](JNIEnv* env) { bridge_->SetTrackSelectionParameters(env, parameters); });
@@ -1673,6 +2309,15 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   TrackSelectionParametersDescriptor GetTrackSelectionParameters() override {
     return WithEnvOrDefault<TrackSelectionParametersDescriptor>(
         [&](JNIEnv* env) { return bridge_->GetTrackSelectionParameters(env); });
+  }
+
+  int GetRendererCount() override {
+    return WithEnvOrDefault<int>([&](JNIEnv* env) { return bridge_->GetRendererCount(env); });
+  }
+
+  int GetRendererType(int index) override {
+    return WithEnvOrDefault<int>(
+        [&](JNIEnv* env) { return bridge_->GetRendererType(env, index); }, -1);
   }
 
   TracksSnapshot GetTracks() override {
@@ -1850,6 +2495,20 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   ApplicationLooperDescriptor GetApplicationLooper() override {
     return WithEnvOrDefault<ApplicationLooperDescriptor>(
         [&](JNIEnv* env) { return bridge_->GetApplicationLooper(env); });
+  }
+
+  bool IsSleepingForOffload() override {
+    return WithEnvOrDefault<bool>(
+        [&](JNIEnv* env) { return bridge_->IsSleepingForOffload(env); });
+  }
+
+  bool IsTunnelingEnabled() override {
+    return WithEnvOrDefault<bool>(
+        [&](JNIEnv* env) { return bridge_->IsTunnelingEnabled(env); });
+  }
+
+  bool IsReleased() override {
+    return WithEnvOrDefault<bool>([&](JNIEnv* env) { return bridge_->IsReleased(env); });
   }
 
   int GetCurrentAdGroupIndex() override {
@@ -2255,6 +2914,38 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
     });
   }
 
+  void SimulateAudioCodecParametersChangedForTest(
+      const CodecParametersDescriptor& codec_parameters) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SimulateAudioCodecParametersChangedForTest(env, codec_parameters);
+    });
+  }
+
+  void SimulateVideoCodecParametersChangedForTest(
+      const CodecParametersDescriptor& codec_parameters) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SimulateVideoCodecParametersChangedForTest(env, codec_parameters);
+    });
+  }
+
+  void SimulateVideoFrameAboutToBeRenderedForTest(
+      const VideoFrameMetadataSnapshot& video_frame_metadata) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SimulateVideoFrameAboutToBeRenderedForTest(env, video_frame_metadata);
+    });
+  }
+
+  void SimulateCameraMotionForTest(
+      const CameraMotionSnapshot& camera_motion) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SimulateCameraMotionForTest(env, camera_motion);
+    });
+  }
+
+  void SimulateCameraMotionResetForTest() override {
+    WithEnv([&](JNIEnv* env) { bridge_->SimulateCameraMotionResetForTest(env); });
+  }
+
   void SimulateImageOutputForTest(const ImageFrameSnapshot& image_frame) override {
     WithEnv([&](JNIEnv* env) { bridge_->SimulateImageOutputForTest(env, image_frame); });
   }
@@ -2378,10 +3069,18 @@ std::unique_ptr<ExoPlayerSdkPlayer> ExoPlayerSdkPlayer::Create(
     JNIEnv* env,
     jobject context,
     const PlayerConfig& config) {
+  if (env == nullptr || context == nullptr) {
+    return nullptr;
+  }
   JavaVM* java_vm = nullptr;
-  env->GetJavaVM(&java_vm);
-  return std::make_unique<ExoPlayerSdkPlayerImpl>(
-      java_vm, ExoPlayerBridge::Create(env, context, config));
+  if (env->GetJavaVM(&java_vm) != JNI_OK || java_vm == nullptr) {
+    return nullptr;
+  }
+  std::shared_ptr<ExoPlayerBridge> bridge = ExoPlayerBridge::Create(env, context, config);
+  if (bridge == nullptr) {
+    return nullptr;
+  }
+  return std::make_unique<ExoPlayerSdkPlayerImpl>(java_vm, std::move(bridge));
 }
 
 ExoPlayerSdkPlayerBuilder& ExoPlayerSdkPlayerBuilder::SetHandleAudioFocus(

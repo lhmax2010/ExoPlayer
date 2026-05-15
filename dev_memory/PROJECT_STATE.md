@@ -2,14 +2,14 @@
 
 ## Snapshot
 
-- Workspace: `c:\Users\hao.lin\Downloads\media-release`
+- Workspace: `/home/linhao/Toolchain/development/ExoPlayer`
 - Date of this handoff memory: `2026-05-15`
 - Module focus: `libraries/exoplayer_cppbridge`
 - Goal: Java-side ExoPlayer usage replaced by a reduced but usable C++ bridge/SDK surface, with smoke coverage and validation docs.
 
 ## Current status from repo docs
 
-According to `docs/cppbridge/API_MAPPING_STATUS.md`:
+According to the legacy reduced-endpoint tracker in `docs/cppbridge/API_MAPPING_STATUS.md`:
 
 - `Done`: `99`
 - `Partial`: `0`
@@ -19,30 +19,43 @@ Important nuance:
 
 - These numbers describe the currently exposed reduced endpoint tracker.
 - They do not mean full `api.txt` parity is complete.
+- A 2026-05-15 parity expansion added more runtime setter/getter coverage after that tracker was
+  created. The new APIs are documented as a parity addendum rather than folded into the old row
+  count.
 - Remaining work lives in the "next-phase capability gaps" and "full parity" sections of the docs.
 
 ## Validation status
 
-According to `docs/cppbridge/VALIDATION_RESULTS_SUMMARY.md`:
+Latest local validation on this machine:
 
-- Build/native link: `Pending`
-- JNI/value smoke: `Pending`
-- Player/runtime smoke: `Pending`
-- Demo manual validation: `Pending`
-- Logcat review: `Pending`
-- Release recommendation: `Pending`
+- Build/native link: `Pass`
+- JNI/value smoke: `Pass`
+- Player/runtime smoke: `Pass`
+- Demo build: `Pass`
+- Demo manual validation: not manually exercised in this pass
+- Logcat review: not separately audited in this pass
+
+Commands that passed:
+
+- `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
+- `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
+- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest`
+- `./gradlew :demo-cppbridge:assembleDebug`
+- `git diff --check`
 
 Interpretation:
 
-- The codebase and docs claim very broad reduced coverage.
-- The validation summary still treats final environment validation as not yet closed.
-- Do not assume everything is runtime-verified on this machine just because mapping docs are detailed.
+- The current Android 16 emulator run verified the smoke suite end to end.
+- The current Android 16 emulator run reported `124/124` connected instrumentation tests passed.
+- Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
+  `api.txt` parity.
 
 ## Smoke footprint
 
 Current androidTest count found in the workspace:
 
-- Total `@Test` count across `CppBridgeNativeSmokeTest.java` and `CppBridgeNativePlayerInstrumentationTest.java`: `116`
+- Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
+  `CppBridgeNativePlayerInstrumentationTest.java`: `124`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -58,11 +71,45 @@ This is consistent with a large smoke-first validation strategy.
 - Preload reduced target-duration path
 - Player message reduced send/cancel/runtime smoke path
 - Opaque token baseline support for representative object identity fields
+- Runtime parity setters/getters added in this pass:
+  `SetHandleAudioBecomingNoisy`, `SetForegroundMode`, `SetPauseAtEndOfMediaItems`,
+  runtime seek increments, max-seek-to-previous-position, video scaling mode, and video
+  change-frame-rate strategy
+- Advanced audio/device/scrubbing/codec APIs added in this pass:
+  audio session ID, aux effect info, preferred audio device, virtual device ID, scrubbing mode
+  parameters, and audio/video codec parameter maps
+- Renderer/device-state getters added in this pass:
+  renderer count/type, sleeping-for-offload, tunneling enabled, and released state
+- Callback-style ExoPlayer extension APIs added in this pass:
+  `CodecParametersChangeListener`, `VideoFrameMetadataListener`, and `CameraMotionListener`
+  reduced C++ registration plus callback dispatch
+- Codec-parameter multi-listener immediate notification semantics are now covered by
+  `nativeCodecParametersMultiListenerParitySmokeTest_routesImmediateCallbacks`
+- HTTP progressive, HLS, and DASH playback through C++ `SetMediaItem` / `Prepare` / `Play` are
+  covered by `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi`
+- `CppBridgeConverters` now maps Media3 `CONTENT_TYPE_OTHER` back to C++
+  `MediaSourceType::kProgressive`, so HTTP/progressive current-item snapshots no longer collapse
+  back to `kDefault`
+- A follow-up C++ API / CppBridge coverage audit found no remaining exact public-method gaps after
+  adding direct smoke markers for raw `Surface`, playlist mutation/navigation, tracks getters,
+  device volume/mute setters, codec-parameter bridge registration/clear, builder
+  `SetMediaSourceFactoryConfig`, and SDK `ClearPriorityTaskManager`
+- The next full-parity slice started with `VideoFrameMetadataListener` payload depth:
+  `VideoFrameMetadataSnapshot` now carries representative `MediaFormat` mime, size, frame-rate,
+  rotation, and color metadata in addition to the previous presence/summary baseline
+- Review follow-up closed the video-frame metadata fallback edge case: C++ `format_bitrate` now
+  reaches Java simulation as average bitrate when average/peak are unset, and absent color/audio
+  shape fields preserve `Format.NO_VALUE` semantics.
+- The next Tracks/Format payload slice expanded `TrackInfo` with average/peak bitrate, rotation,
+  pixel width-height ratio, and color fields, covered by Java converter, JNI conversion, and native
+  current-tracks smoke tests.
 
 ## Practical conclusion
 
 For the next AI:
 
 - Treat this project as "reduced endpoint is broad and heavily smoke-documented".
-- Treat final runtime confidence as "still requires environment validation".
-- The highest-risk work is no longer basic API exposure; it is preserving behavior while expanding full parity or validating on a healthy Android build/device setup.
+- Treat the current local environment as validated for the smoke suite on Android 16.
+- The highest-risk next work moved past the first callback-style bridge slice and the
+  codec-parameter multi-listener immediate-notification edge case; remaining work is deeper
+  full-object parity and richer payload fidelity beyond the reduced callback descriptors.

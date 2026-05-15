@@ -60,61 +60,6 @@ bool ShouldTraceSmokeListenerCallback(const char* callback_name) {
   return false;
 }
 
-jobject CreateJavaCommands(JNIEnv* env, const std::vector<int>& command_codes) {
-  jintArray values = CreateJavaIntArray(env, command_codes);
-  if (values == nullptr) {
-    return nullptr;
-  }
-  jclass clazz = FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppCommands");
-  jmethodID ctor = GetMethodChecked(env, clazz, "CppCommands", "<init>", "([I)V");
-  jobject object = NewObjectChecked(env, clazz, ctor, "CppCommands", values);
-  DeleteLocalRefIfNotNull(env, values);
-  DeleteLocalRefIfNotNull(env, clazz);
-  return object;
-}
-
-jobject CreateJavaPlayerEvents(JNIEnv* env, const std::vector<int>& event_codes) {
-  jintArray values = CreateJavaIntArray(env, event_codes);
-  if (values == nullptr) {
-    return nullptr;
-  }
-  jclass clazz = FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppPlayerEvents");
-  jmethodID ctor = GetMethodChecked(env, clazz, "CppPlayerEvents", "<init>", "([I)V");
-  jobject object = NewObjectChecked(env, clazz, ctor, "CppPlayerEvents", values);
-  DeleteLocalRefIfNotNull(env, values);
-  DeleteLocalRefIfNotNull(env, clazz);
-  return object;
-}
-
-jobject CreateJavaDeviceInfo(JNIEnv* env, const DeviceInfoDescriptor& device_info) {
-  jclass clazz = FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppDeviceInfo");
-  jmethodID ctor = GetMethodChecked(
-      env,
-      clazz,
-      "CppDeviceInfo",
-      "<init>",
-      "(IIILjava/lang/String;)V");
-  jstring routing_controller_id =
-      device_info.routing_controller_id.empty()
-          ? nullptr
-          : NewStringUtfChecked(
-                env,
-                device_info.routing_controller_id,
-                "CppDeviceInfo.routingControllerId");
-  jobject object = NewObjectChecked(
-      env,
-      clazz,
-      ctor,
-      "CppDeviceInfo",
-      static_cast<jint>(device_info.playback_type),
-      static_cast<jint>(device_info.min_volume),
-      static_cast<jint>(device_info.max_volume),
-      routing_controller_id);
-  DeleteLocalRefIfNotNull(env, routing_controller_id);
-  DeleteLocalRefIfNotNull(env, clazz);
-  return object;
-}
-
 }  // namespace
 
 class JniExoPlayerBridge : public ExoPlayerBridge {
@@ -706,6 +651,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     CallBridgeVoid(env, "setWakeMode", "(I)V", static_cast<jint>(wake_mode));
   }
 
+  void SetHandleAudioBecomingNoisy(JNIEnv* env, bool handle_audio_becoming_noisy) override {
+    CallBridgeVoid(
+        env,
+        "setHandleAudioBecomingNoisy",
+        "(Z)V",
+        static_cast<jboolean>(handle_audio_becoming_noisy));
+  }
+
   void SetPriority(JNIEnv* env, int priority) override {
     CallBridgeVoid(env, "setPriority", "(I)V", static_cast<jint>(priority));
   }
@@ -732,6 +685,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         "setPreloadConfiguration",
         "(J)V",
         static_cast<jlong>(target_preload_duration_us));
+  }
+
+  void SetForegroundMode(JNIEnv* env, bool foreground_mode) override {
+    CallBridgeVoid(
+        env,
+        "setForegroundMode",
+        "(Z)V",
+        static_cast<jboolean>(foreground_mode));
   }
 
   PlayerMessageResult SendPlayerMessage(
@@ -797,6 +758,127 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         static_cast<jboolean>(handle_audio_focus));
   }
 
+  void SetAudioSessionId(JNIEnv* env, int audio_session_id) override {
+    CallBridgeVoid(env, "setAudioSessionId", "(I)V", static_cast<jint>(audio_session_id));
+  }
+
+  void SetAuxEffectInfo(
+      JNIEnv* env,
+      const AuxEffectInfoDescriptor& aux_effect_info) override {
+    CallBridgeVoid(
+        env,
+        "setAuxEffectInfoConfig",
+        "(IF)V",
+        static_cast<jint>(aux_effect_info.effect_id),
+        static_cast<jfloat>(aux_effect_info.send_level));
+  }
+
+  void ClearAuxEffectInfo(JNIEnv* env) override {
+    CallBridgeVoid(env, "clearAuxEffectInfo", "()V");
+  }
+
+  void SetPreferredAudioDevice(JNIEnv* env, jobject audio_device_info) override {
+    CallBridgeVoid(
+        env,
+        "setPreferredAudioDeviceObject",
+        "(Landroid/media/AudioDeviceInfo;)V",
+        audio_device_info);
+  }
+
+  void SetVirtualDeviceId(JNIEnv* env, int virtual_device_id) override {
+    CallBridgeVoid(
+        env,
+        "setVirtualDeviceId",
+        "(I)V",
+        static_cast<jint>(virtual_device_id));
+  }
+
+  void SetAudioCodecParameters(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) override {
+    jobjectArray java_codec_parameters =
+        CreateJavaCodecParameterArray(env, codec_parameters);
+    if (java_codec_parameters == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "setAudioCodecParametersConfig",
+        "([Landroidx/media3/exoplayer/cppbridge/CppCodecParameter;)V",
+        java_codec_parameters);
+    env->DeleteLocalRef(java_codec_parameters);
+  }
+
+  void SetVideoCodecParameters(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) override {
+    jobjectArray java_codec_parameters =
+        CreateJavaCodecParameterArray(env, codec_parameters);
+    if (java_codec_parameters == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "setVideoCodecParametersConfig",
+        "([Landroidx/media3/exoplayer/cppbridge/CppCodecParameter;)V",
+        java_codec_parameters);
+    env->DeleteLocalRef(java_codec_parameters);
+  }
+
+  void SetAudioCodecParametersChangeListener(
+      JNIEnv* env,
+      const std::vector<std::string>& keys) override {
+    jobjectArray java_keys = CreateJavaStringArray(env, keys);
+    if (java_keys == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "setAudioCodecParametersChangeListenerKeys",
+        "([Ljava/lang/String;)V",
+        java_keys);
+    env->DeleteLocalRef(java_keys);
+  }
+
+  void ClearAudioCodecParametersChangeListener(JNIEnv* env) override {
+    CallVoidNoArgs(env, "clearAudioCodecParametersChangeListener");
+  }
+
+  void SetVideoCodecParametersChangeListener(
+      JNIEnv* env,
+      const std::vector<std::string>& keys) override {
+    jobjectArray java_keys = CreateJavaStringArray(env, keys);
+    if (java_keys == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "setVideoCodecParametersChangeListenerKeys",
+        "([Ljava/lang/String;)V",
+        java_keys);
+    env->DeleteLocalRef(java_keys);
+  }
+
+  void ClearVideoCodecParametersChangeListener(JNIEnv* env) override {
+    CallVoidNoArgs(env, "clearVideoCodecParametersChangeListener");
+  }
+
+  void SetVideoFrameMetadataListener(JNIEnv* env) override {
+    CallVoidNoArgs(env, "setNativeVideoFrameMetadataListener");
+  }
+
+  void ClearVideoFrameMetadataListener(JNIEnv* env) override {
+    CallVoidNoArgs(env, "clearNativeVideoFrameMetadataListener");
+  }
+
+  void SetCameraMotionListener(JNIEnv* env) override {
+    CallVoidNoArgs(env, "setNativeCameraMotionListener");
+  }
+
+  void ClearCameraMotionListener(JNIEnv* env) override {
+    CallVoidNoArgs(env, "clearNativeCameraMotionListener");
+  }
+
   void SetDeviceVolume(JNIEnv* env, int volume, int flags) override {
     CallBridgeVoid(
         env,
@@ -842,6 +924,73 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         static_cast<jboolean>(skip_silence_enabled));
   }
 
+  void SetScrubbingModeEnabled(JNIEnv* env, bool scrubbing_mode_enabled) override {
+    CallBridgeVoid(
+        env,
+        "setScrubbingModeEnabled",
+        "(Z)V",
+        static_cast<jboolean>(scrubbing_mode_enabled));
+  }
+
+  bool IsScrubbingModeEnabled(JNIEnv* env) override {
+    return CallBooleanNoArgs(env, "isScrubbingModeEnabledValue");
+  }
+
+  void SetScrubbingModeParameters(
+      JNIEnv* env,
+      const ScrubbingModeParametersDescriptor& parameters) override {
+    jintArray disabled_track_types = CreateJavaIntArray(env, parameters.disabled_track_types);
+    if (disabled_track_types == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "setScrubbingModeParametersConfig",
+        "([IZDDZZZZZ)V",
+        disabled_track_types,
+        static_cast<jboolean>(parameters.has_fractional_seek_tolerance),
+        static_cast<jdouble>(parameters.fractional_seek_tolerance_before),
+        static_cast<jdouble>(parameters.fractional_seek_tolerance_after),
+        static_cast<jboolean>(parameters.should_increase_codec_operating_rate),
+        static_cast<jboolean>(parameters.allow_skipping_media_codec_flush),
+        static_cast<jboolean>(parameters.allow_skipping_key_frame_reset),
+        static_cast<jboolean>(parameters.should_enable_dynamic_scheduling),
+        static_cast<jboolean>(parameters.use_decode_only_flag));
+    env->DeleteLocalRef(disabled_track_types);
+  }
+
+  ScrubbingModeParametersDescriptor GetScrubbingModeParameters(JNIEnv* env) override {
+    jobjectArray values = static_cast<jobjectArray>(CallObjectNoArgs(
+        env, "getScrubbingModeParametersConfig", "()[Ljava/lang/String;"));
+    std::vector<std::string> fields = JStringArrayToVector(env, values);
+    DeleteLocalRefIfNotNull(env, values);
+    ScrubbingModeParametersDescriptor parameters;
+    if (fields.size() >= 9) {
+      auto parse_double_or_default = [](const std::string& value, double fallback) {
+        return value.empty() ? fallback : std::stod(value);
+      };
+      int disabled_track_type_count = ParseIntOrDefault(fields[0], 0);
+      parameters.has_fractional_seek_tolerance = fields[1] == "1";
+      parameters.fractional_seek_tolerance_before =
+          parse_double_or_default(fields[2], 0.0);
+      parameters.fractional_seek_tolerance_after =
+          parse_double_or_default(fields[3], 0.0);
+      parameters.should_increase_codec_operating_rate = fields[4] == "1";
+      parameters.allow_skipping_media_codec_flush = fields[5] == "1";
+      parameters.allow_skipping_key_frame_reset = fields[6] == "1";
+      parameters.should_enable_dynamic_scheduling = fields[7] == "1";
+      parameters.use_decode_only_flag = fields[8] == "1";
+      parameters.disabled_track_types.clear();
+      for (int i = 0;
+           i < disabled_track_type_count &&
+           static_cast<size_t>(9 + i) < fields.size();
+           ++i) {
+        parameters.disabled_track_types.push_back(ParseIntOrDefault(fields[9 + i], 0));
+      }
+    }
+    return parameters;
+  }
+
   void SetPlayWhenReady(JNIEnv* env, bool play_when_ready) override {
     CallBridgeVoid(
         env, "setPlayWhenReady", "(Z)V", static_cast<jboolean>(play_when_ready));
@@ -884,6 +1033,62 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         "setPauseAtEndOfMediaItems",
         "(Z)V",
         static_cast<jboolean>(pause_at_end_of_media_items));
+  }
+
+  bool GetPauseAtEndOfMediaItems(JNIEnv* env) override {
+    return CallBooleanNoArgs(env, "getPauseAtEndOfMediaItems");
+  }
+
+  void SetSeekBackIncrementMs(JNIEnv* env, int64_t seek_back_increment_ms) override {
+    CallBridgeVoid(
+        env,
+        "setSeekBackIncrementMs",
+        "(J)V",
+        static_cast<jlong>(seek_back_increment_ms));
+  }
+
+  void SetSeekForwardIncrementMs(JNIEnv* env, int64_t seek_forward_increment_ms) override {
+    CallBridgeVoid(
+        env,
+        "setSeekForwardIncrementMs",
+        "(J)V",
+        static_cast<jlong>(seek_forward_increment_ms));
+  }
+
+  void SetMaxSeekToPreviousPositionMs(
+      JNIEnv* env,
+      int64_t max_seek_to_previous_position_ms) override {
+    CallBridgeVoid(
+        env,
+        "setMaxSeekToPreviousPositionMs",
+        "(J)V",
+        static_cast<jlong>(max_seek_to_previous_position_ms));
+  }
+
+  void SetVideoScalingMode(JNIEnv* env, int video_scaling_mode) override {
+    CallBridgeVoid(
+        env,
+        "setVideoScalingMode",
+        "(I)V",
+        static_cast<jint>(video_scaling_mode));
+  }
+
+  int GetVideoScalingMode(JNIEnv* env) override {
+    return CallIntNoArgs(env, "getVideoScalingMode");
+  }
+
+  void SetVideoChangeFrameRateStrategy(
+      JNIEnv* env,
+      int video_change_frame_rate_strategy) override {
+    CallBridgeVoid(
+        env,
+        "setVideoChangeFrameRateStrategy",
+        "(I)V",
+        static_cast<jint>(video_change_frame_rate_strategy));
+  }
+
+  int GetVideoChangeFrameRateStrategy(JNIEnv* env) override {
+    return CallIntNoArgs(env, "getVideoChangeFrameRateStrategy");
   }
 
   void SetTrackSelectionParameters(
@@ -1069,6 +1274,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     MediaItemDescriptor descriptor = FromJavaMediaItem(env, media_item);
     DeleteLocalRefIfNotNull(env, media_item);
     return descriptor;
+  }
+
+  int GetRendererCount(JNIEnv* env) override {
+    return CallIntNoArgs(env, "getRendererCountValue");
+  }
+
+  int GetRendererType(JNIEnv* env, int index) override {
+    return CallBridgeInt(env, "getRendererTypeValue", "(I)I", static_cast<jint>(index));
   }
 
   TracksSnapshot GetTracksSnapshot(JNIEnv* env) override {
@@ -1265,6 +1478,18 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     ApplicationLooperDescriptor descriptor = FromJavaApplicationLooper(env, value);
     DeleteLocalRefIfNotNull(env, value);
     return descriptor;
+  }
+
+  bool IsSleepingForOffload(JNIEnv* env) override {
+    return CallBooleanNoArgs(env, "isSleepingForOffloadValue");
+  }
+
+  bool IsTunnelingEnabled(JNIEnv* env) override {
+    return CallBooleanNoArgs(env, "isTunnelingEnabledValue");
+  }
+
+  bool IsReleased(JNIEnv* env) override {
+    return CallBooleanNoArgs(env, "isReleasedValue");
   }
 
   int GetCurrentAdGroupIndex(JNIEnv* env) override {
@@ -1749,14 +1974,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
   void SimulateAnalyticsAvailableCommandsChangedForTest(
       JNIEnv* env,
       const AnalyticsAvailableCommandsChangedEvent& available_commands_changed) override {
-    jobject commands = CreateJavaCommands(env, available_commands_changed.commands);
+    jintArray commands = CreateJavaIntArray(env, available_commands_changed.commands);
     if (commands == nullptr) {
       return;
     }
     CallBridgeVoid(
         env,
         "simulateAnalyticsAvailableCommandsChangedForTest",
-        "(Landroidx/media3/exoplayer/cppbridge/CppCommands;)V",
+        "([I)V",
         commands);
     env->DeleteLocalRef(commands);
   }
@@ -1764,14 +1989,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
   void SimulateAnalyticsEventsForTest(
       JNIEnv* env,
       const AnalyticsEventsEvent& analytics_events) override {
-    jobject events = CreateJavaPlayerEvents(env, analytics_events.event_codes);
+    jintArray events = CreateJavaIntArray(env, analytics_events.event_codes);
     if (events == nullptr) {
       return;
     }
     CallBridgeVoid(
         env,
         "simulateAnalyticsEventsForTest",
-        "(Landroidx/media3/exoplayer/cppbridge/CppPlayerEvents;)V",
+        "([I)V",
         events);
     env->DeleteLocalRef(events);
   }
@@ -1990,16 +2215,25 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
   void SimulateAnalyticsDeviceInfoChangedForTest(
       JNIEnv* env,
       const DeviceInfoDescriptor& device_info) override {
-    jobject object = CreateJavaDeviceInfo(env, device_info);
-    if (object == nullptr) {
+    jstring routing_controller_id =
+        device_info.routing_controller_id.empty()
+            ? nullptr
+            : NewStringUtfChecked(
+                  env,
+                  device_info.routing_controller_id,
+                  "simulateAnalyticsDeviceInfoChangedForTest.routingControllerId");
+    if (!device_info.routing_controller_id.empty() && routing_controller_id == nullptr) {
       return;
     }
     CallBridgeVoid(
         env,
         "simulateAnalyticsDeviceInfoChangedForTest",
-        "(Landroidx/media3/exoplayer/cppbridge/CppDeviceInfo;)V",
-        object);
-    env->DeleteLocalRef(object);
+        "(IIILjava/lang/String;)V",
+        static_cast<jint>(device_info.playback_type),
+        static_cast<jint>(device_info.min_volume),
+        static_cast<jint>(device_info.max_volume),
+        routing_controller_id);
+    DeleteLocalRefIfNotNull(env, routing_controller_id);
   }
 
   void SimulateAnalyticsMediaMetadataChangedForTest(
@@ -2059,6 +2293,156 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         static_cast<jfloat>(video_input_format_changed.frame_rate));
     env->DeleteLocalRef(sample_mime_type);
     env->DeleteLocalRef(codecs);
+  }
+
+  void SimulateAudioCodecParametersChangedForTest(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) override {
+    jobjectArray java_codec_parameters =
+        CreateJavaCodecParameterArray(env, codec_parameters);
+    if (java_codec_parameters == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "simulateAudioCodecParametersChangedForTest",
+        "([Landroidx/media3/exoplayer/cppbridge/CppCodecParameter;)V",
+        java_codec_parameters);
+    env->DeleteLocalRef(java_codec_parameters);
+  }
+
+  void SimulateVideoCodecParametersChangedForTest(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) override {
+    jobjectArray java_codec_parameters =
+        CreateJavaCodecParameterArray(env, codec_parameters);
+    if (java_codec_parameters == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "simulateVideoCodecParametersChangedForTest",
+        "([Landroidx/media3/exoplayer/cppbridge/CppCodecParameter;)V",
+        java_codec_parameters);
+    env->DeleteLocalRef(java_codec_parameters);
+  }
+
+  void SimulateVideoFrameAboutToBeRenderedForTest(
+      JNIEnv* env,
+      const VideoFrameMetadataSnapshot& video_frame_metadata) override {
+    jstring format_id = NewStringUtfChecked(
+        env,
+        video_frame_metadata.format_id,
+        "simulateVideoFrameAboutToBeRenderedForTest.formatId");
+    jstring sample_mime_type = NewStringUtfChecked(
+        env,
+        video_frame_metadata.sample_mime_type,
+        "simulateVideoFrameAboutToBeRenderedForTest.sampleMimeType");
+    jstring codecs = NewStringUtfChecked(
+        env,
+        video_frame_metadata.codecs,
+        "simulateVideoFrameAboutToBeRenderedForTest.codecs");
+    jstring format_label = NewStringUtfChecked(
+        env,
+        video_frame_metadata.format_label,
+        "simulateVideoFrameAboutToBeRenderedForTest.formatLabel");
+    jstring format_language = NewStringUtfChecked(
+        env,
+        video_frame_metadata.format_language,
+        "simulateVideoFrameAboutToBeRenderedForTest.formatLanguage");
+    jstring format_container_mime_type = NewStringUtfChecked(
+        env,
+        video_frame_metadata.format_container_mime_type,
+        "simulateVideoFrameAboutToBeRenderedForTest.formatContainerMimeType");
+    jstring media_format_summary = NewStringUtfChecked(
+        env,
+        video_frame_metadata.media_format_summary,
+        "simulateVideoFrameAboutToBeRenderedForTest.mediaFormatSummary");
+    jstring media_format_mime_type = NewStringUtfChecked(
+        env,
+        video_frame_metadata.media_format_mime_type,
+        "simulateVideoFrameAboutToBeRenderedForTest.mediaFormatMimeType");
+    if (format_id == nullptr || sample_mime_type == nullptr || codecs == nullptr ||
+        format_label == nullptr || format_language == nullptr ||
+        format_container_mime_type == nullptr || media_format_summary == nullptr ||
+        media_format_mime_type == nullptr) {
+      DeleteLocalRefIfNotNull(env, format_id);
+      DeleteLocalRefIfNotNull(env, sample_mime_type);
+      DeleteLocalRefIfNotNull(env, codecs);
+      DeleteLocalRefIfNotNull(env, format_label);
+      DeleteLocalRefIfNotNull(env, format_language);
+      DeleteLocalRefIfNotNull(env, format_container_mime_type);
+      DeleteLocalRefIfNotNull(env, media_format_summary);
+      DeleteLocalRefIfNotNull(env, media_format_mime_type);
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "simulateVideoFrameAboutToBeRenderedForTest",
+        "(JJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;IIF"
+        "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIIFIIIIIIIZLjava/lang/String;"
+        "Ljava/lang/String;IIFIIII)V",
+        static_cast<jlong>(video_frame_metadata.presentation_time_us),
+        static_cast<jlong>(video_frame_metadata.release_time_ns),
+        format_id,
+        sample_mime_type,
+        codecs,
+        static_cast<jint>(video_frame_metadata.width),
+        static_cast<jint>(video_frame_metadata.height),
+        static_cast<jfloat>(video_frame_metadata.frame_rate),
+        format_label,
+        format_language,
+        format_container_mime_type,
+        static_cast<jint>(video_frame_metadata.format_bitrate),
+        static_cast<jint>(video_frame_metadata.format_average_bitrate),
+        static_cast<jint>(video_frame_metadata.format_peak_bitrate),
+        static_cast<jint>(video_frame_metadata.format_rotation_degrees),
+        static_cast<jfloat>(video_frame_metadata.format_pixel_width_height_ratio),
+        static_cast<jint>(video_frame_metadata.format_color_standard),
+        static_cast<jint>(video_frame_metadata.format_color_range),
+        static_cast<jint>(video_frame_metadata.format_color_transfer),
+        static_cast<jint>(video_frame_metadata.format_channel_count),
+        static_cast<jint>(video_frame_metadata.format_sample_rate),
+        static_cast<jint>(video_frame_metadata.format_role_flags),
+        static_cast<jint>(video_frame_metadata.format_selection_flags),
+        video_frame_metadata.media_format_present ? JNI_TRUE : JNI_FALSE,
+        media_format_summary,
+        media_format_mime_type,
+        static_cast<jint>(video_frame_metadata.media_format_width),
+        static_cast<jint>(video_frame_metadata.media_format_height),
+        static_cast<jfloat>(video_frame_metadata.media_format_frame_rate),
+        static_cast<jint>(video_frame_metadata.media_format_rotation_degrees),
+        static_cast<jint>(video_frame_metadata.media_format_color_standard),
+        static_cast<jint>(video_frame_metadata.media_format_color_range),
+        static_cast<jint>(video_frame_metadata.media_format_color_transfer));
+    env->DeleteLocalRef(format_id);
+    env->DeleteLocalRef(sample_mime_type);
+    env->DeleteLocalRef(codecs);
+    env->DeleteLocalRef(format_label);
+    env->DeleteLocalRef(format_language);
+    env->DeleteLocalRef(format_container_mime_type);
+    env->DeleteLocalRef(media_format_summary);
+    env->DeleteLocalRef(media_format_mime_type);
+  }
+
+  void SimulateCameraMotionForTest(
+      JNIEnv* env,
+      const CameraMotionSnapshot& camera_motion) override {
+    jfloatArray java_rotation = CreateJavaFloatArray(env, camera_motion.rotation);
+    if (java_rotation == nullptr) {
+      return;
+    }
+    CallBridgeVoid(
+        env,
+        "simulateCameraMotionForTest",
+        "(J[F)V",
+        static_cast<jlong>(camera_motion.time_us),
+        java_rotation);
+    env->DeleteLocalRef(java_rotation);
+  }
+
+  void SimulateCameraMotionResetForTest(JNIEnv* env) override {
+    CallVoidNoArgs(env, "simulateCameraMotionResetForTest");
   }
 
   void SimulateImageOutputForTest(
@@ -3046,6 +3430,39 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     });
   }
 
+  void OnAudioCodecParametersChanged(
+      const CodecParametersDescriptor& codec_parameters) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAudioCodecParametersChanged(GetSnapshot(env), codec_parameters);
+    });
+  }
+
+  void OnVideoCodecParametersChanged(
+      const CodecParametersDescriptor& codec_parameters) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnVideoCodecParametersChanged(GetSnapshot(env), codec_parameters);
+    });
+  }
+
+  void OnVideoFrameAboutToBeRendered(
+      const VideoFrameMetadataSnapshot& video_frame_metadata) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnVideoFrameAboutToBeRendered(GetSnapshot(env), video_frame_metadata);
+    });
+  }
+
+  void OnCameraMotion(const CameraMotionSnapshot& camera_motion) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnCameraMotion(GetSnapshot(env), camera_motion);
+    });
+  }
+
+  void OnCameraMotionReset() {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnCameraMotionReset(GetSnapshot(env));
+    });
+  }
+
   void OnImageOutputAvailable(const ImageFrameSnapshot& image_frame) {
     WithImageOutputListener(
         [&](ImageOutputListener* listener) { listener->OnImageAvailable(image_frame); });
@@ -3318,6 +3735,74 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     return method;
   }
 
+  jobjectArray CreateJavaCodecParameterArray(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) const {
+    jclass parameter_class =
+        FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppCodecParameter");
+    if (parameter_class == nullptr) {
+      return nullptr;
+    }
+    jmethodID ctor = GetMethodChecked(
+        env,
+        parameter_class,
+        "CppCodecParameter",
+        "<init>",
+        "(Ljava/lang/String;IIJFLjava/lang/String;[B)V");
+    if (ctor == nullptr) {
+      env->DeleteLocalRef(parameter_class);
+      return nullptr;
+    }
+    jobjectArray values = env->NewObjectArray(
+        static_cast<jsize>(codec_parameters.parameters.size()), parameter_class, nullptr);
+    if (ClearJniExceptionIfPresent(env, "NewObjectArray(CppCodecParameter)")) {
+      env->DeleteLocalRef(parameter_class);
+      return nullptr;
+    }
+    for (jsize i = 0; i < static_cast<jsize>(codec_parameters.parameters.size()); ++i) {
+      const CodecParameterDescriptor& parameter =
+          codec_parameters.parameters[static_cast<size_t>(i)];
+      jstring key = NewStringUtfChecked(env, parameter.key, "CppCodecParameter.key");
+      jstring string_value = parameter.value_type == CodecParameterDescriptor::ValueType::kString
+          ? NewStringUtfChecked(env, parameter.string_value, "CppCodecParameter.stringValue")
+          : nullptr;
+      jbyteArray byte_buffer_value =
+          parameter.value_type == CodecParameterDescriptor::ValueType::kByteBuffer
+              ? CreateJavaByteArray(env, parameter.byte_buffer_value)
+              : nullptr;
+      jobject value = NewObjectChecked(
+          env,
+          parameter_class,
+          ctor,
+          "CppCodecParameter",
+          key,
+          static_cast<jint>(parameter.value_type),
+          static_cast<jint>(parameter.int_value),
+          static_cast<jlong>(parameter.long_value),
+          static_cast<jfloat>(parameter.float_value),
+          string_value,
+          byte_buffer_value);
+      DeleteLocalRefIfNotNull(env, key);
+      DeleteLocalRefIfNotNull(env, string_value);
+      DeleteLocalRefIfNotNull(env, byte_buffer_value);
+      if (value == nullptr) {
+        env->DeleteLocalRef(values);
+        env->DeleteLocalRef(parameter_class);
+        return nullptr;
+      }
+      env->SetObjectArrayElement(values, i, value);
+      if (ClearJniExceptionIfPresent(env, "SetObjectArrayElement(CppCodecParameter)")) {
+        env->DeleteLocalRef(value);
+        env->DeleteLocalRef(values);
+        env->DeleteLocalRef(parameter_class);
+        return nullptr;
+      }
+      env->DeleteLocalRef(value);
+    }
+    env->DeleteLocalRef(parameter_class);
+    return values;
+  }
+
   void ReleaseOpaqueObjectTokensInternal(JNIEnv* env, const std::vector<std::string>& tokens) {
     if (env == nullptr || tokens.empty()) {
       return;
@@ -3415,6 +3900,38 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     env->DeleteLocalRef(bridge_class);
     env->DeleteLocalRef(bridge_object);
     return JNI_FALSE != result;
+  }
+
+  template <typename... Args>
+  jint CallBridgeInt(
+      JNIEnv* env,
+      const char* method_name,
+      const char* signature,
+      Args... args) {
+    if (env == nullptr) {
+      return 0;
+    }
+    jobject bridge_object = GetJavaBridgeLocalRef(env);
+    jclass bridge_class = GetBridgeClass(env, bridge_object);
+    if (bridge_class == nullptr) {
+      DeleteLocalRefIfNotNull(env, bridge_object);
+      return 0;
+    }
+    jmethodID method = GetBridgeMethod(env, bridge_class, method_name, signature);
+    if (method == nullptr) {
+      env->DeleteLocalRef(bridge_class);
+      env->DeleteLocalRef(bridge_object);
+      return 0;
+    }
+    jint result = env->CallIntMethod(bridge_object, method, args...);
+    if (ClearJniExceptionIfPresent(env, std::string("CallIntMethod(") + method_name + ")")) {
+      env->DeleteLocalRef(bridge_class);
+      env->DeleteLocalRef(bridge_object);
+      return 0;
+    }
+    env->DeleteLocalRef(bridge_class);
+    env->DeleteLocalRef(bridge_object);
+    return result;
   }
 
   void CallVoidNoArgsOnBridge(JNIEnv* env, jobject bridge_object, const char* method_name) {
@@ -4281,6 +4798,124 @@ void BridgeOnVideoInputFormatChanged(
   });
 }
 
+void BridgeOnAudioCodecParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobjectArray codec_parameters) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAudioCodecParametersChanged(
+        FromJavaCodecParameterArray(env, codec_parameters));
+  });
+}
+
+void BridgeOnVideoCodecParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobjectArray codec_parameters) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnVideoCodecParametersChanged(
+        FromJavaCodecParameterArray(env, codec_parameters));
+  });
+}
+
+void BridgeOnVideoFrameAboutToBeRendered(
+    JNIEnv* env,
+    jlong native_handle,
+    int64_t presentation_time_us,
+    int64_t release_time_ns,
+    jstring format_id,
+    jstring sample_mime_type,
+    jstring codecs,
+    int width,
+    int height,
+    float frame_rate,
+    jstring format_label,
+    jstring format_language,
+    jstring format_container_mime_type,
+    int format_bitrate,
+    int format_average_bitrate,
+    int format_peak_bitrate,
+    int format_rotation_degrees,
+    float format_pixel_width_height_ratio,
+    int format_color_standard,
+    int format_color_range,
+    int format_color_transfer,
+    int format_channel_count,
+    int format_sample_rate,
+    int format_role_flags,
+    int format_selection_flags,
+    bool media_format_present,
+    jstring media_format_summary,
+    jstring media_format_mime_type,
+    int media_format_width,
+    int media_format_height,
+    float media_format_frame_rate,
+    int media_format_rotation_degrees,
+    int media_format_color_standard,
+    int media_format_color_range,
+    int media_format_color_transfer) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    VideoFrameMetadataSnapshot video_frame_metadata;
+    video_frame_metadata.presentation_time_us = presentation_time_us;
+    video_frame_metadata.release_time_ns = release_time_ns;
+    video_frame_metadata.format_id = JStringToString(env, format_id);
+    video_frame_metadata.sample_mime_type = JStringToString(env, sample_mime_type);
+    video_frame_metadata.codecs = JStringToString(env, codecs);
+    video_frame_metadata.width = width;
+    video_frame_metadata.height = height;
+    video_frame_metadata.frame_rate = frame_rate;
+    video_frame_metadata.format_label = JStringToString(env, format_label);
+    video_frame_metadata.format_language = JStringToString(env, format_language);
+    video_frame_metadata.format_container_mime_type =
+        JStringToString(env, format_container_mime_type);
+    video_frame_metadata.format_bitrate = format_bitrate;
+    video_frame_metadata.format_average_bitrate = format_average_bitrate;
+    video_frame_metadata.format_peak_bitrate = format_peak_bitrate;
+    video_frame_metadata.format_rotation_degrees = format_rotation_degrees;
+    video_frame_metadata.format_pixel_width_height_ratio =
+        format_pixel_width_height_ratio;
+    video_frame_metadata.format_color_standard = format_color_standard;
+    video_frame_metadata.format_color_range = format_color_range;
+    video_frame_metadata.format_color_transfer = format_color_transfer;
+    video_frame_metadata.format_channel_count = format_channel_count;
+    video_frame_metadata.format_sample_rate = format_sample_rate;
+    video_frame_metadata.format_role_flags = format_role_flags;
+    video_frame_metadata.format_selection_flags = format_selection_flags;
+    video_frame_metadata.media_format_present = media_format_present;
+    video_frame_metadata.media_format_summary = JStringToString(env, media_format_summary);
+    video_frame_metadata.media_format_mime_type =
+        JStringToString(env, media_format_mime_type);
+    video_frame_metadata.media_format_width = media_format_width;
+    video_frame_metadata.media_format_height = media_format_height;
+    video_frame_metadata.media_format_frame_rate = media_format_frame_rate;
+    video_frame_metadata.media_format_rotation_degrees =
+        media_format_rotation_degrees;
+    video_frame_metadata.media_format_color_standard = media_format_color_standard;
+    video_frame_metadata.media_format_color_range = media_format_color_range;
+    video_frame_metadata.media_format_color_transfer = media_format_color_transfer;
+    bridge.OnVideoFrameAboutToBeRendered(video_frame_metadata);
+  });
+}
+
+void BridgeOnCameraMotion(
+    JNIEnv* env,
+    jlong native_handle,
+    int64_t time_us,
+    jfloatArray rotation) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    CameraMotionSnapshot camera_motion;
+    camera_motion.time_us = time_us;
+    camera_motion.rotation = JFloatArrayToVector(env, rotation);
+    bridge.OnCameraMotion(camera_motion);
+  });
+}
+
+void BridgeOnCameraMotionReset(jlong native_handle) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnCameraMotionReset();
+  });
+}
+
 void BridgeOnImageOutputAvailable(
     JNIEnv* env,
     jlong native_handle,
@@ -4351,5 +4986,3 @@ std::shared_ptr<ExoPlayerBridge> ExoPlayerBridge::Create(
 }
 
 }  // namespace androidx::media3::cppbridge
-
-

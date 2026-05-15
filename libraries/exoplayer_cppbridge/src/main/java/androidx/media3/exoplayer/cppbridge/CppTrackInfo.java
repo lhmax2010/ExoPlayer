@@ -13,9 +13,16 @@ public final class CppTrackInfo {
   @Nullable public final String containerMimeType;
   @Nullable public final String codecs;
   public final int bitrate;
+  public final int averageBitrate;
+  public final int peakBitrate;
   public final int width;
   public final int height;
   public final float frameRate;
+  public final int rotationDegrees;
+  public final float pixelWidthHeightRatio;
+  public final int colorStandard;
+  public final int colorRange;
+  public final int colorTransfer;
   public final int sampleRate;
   public final int channelCount;
   public final int accessibilityChannel;
@@ -35,9 +42,16 @@ public final class CppTrackInfo {
       @Nullable String containerMimeType,
       @Nullable String codecs,
       int bitrate,
+      int averageBitrate,
+      int peakBitrate,
       int width,
       int height,
       float frameRate,
+      int rotationDegrees,
+      float pixelWidthHeightRatio,
+      int colorStandard,
+      int colorRange,
+      int colorTransfer,
       int sampleRate,
       int channelCount,
       int accessibilityChannel,
@@ -55,9 +69,16 @@ public final class CppTrackInfo {
     this.containerMimeType = containerMimeType;
     this.codecs = codecs;
     this.bitrate = bitrate;
+    this.averageBitrate = averageBitrate;
+    this.peakBitrate = peakBitrate;
     this.width = width;
     this.height = height;
     this.frameRate = frameRate;
+    this.rotationDegrees = rotationDegrees;
+    this.pixelWidthHeightRatio = pixelWidthHeightRatio;
+    this.colorStandard = colorStandard;
+    this.colorRange = colorRange;
+    this.colorTransfer = colorTransfer;
     this.sampleRate = sampleRate;
     this.channelCount = channelCount;
     this.accessibilityChannel = accessibilityChannel;

@@ -1073,6 +1073,118 @@ Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsVid
 }
 
 JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAudioCodecParametersChanged(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jobjectArray codec_parameters) {
+  BridgeOnAudioCodecParametersChanged(env, native_handle, codec_parameters);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnVideoCodecParametersChanged(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jobjectArray codec_parameters) {
+  BridgeOnVideoCodecParametersChanged(env, native_handle, codec_parameters);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnVideoFrameAboutToBeRendered(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jlong presentation_time_us,
+    jlong release_time_ns,
+    jstring format_id,
+    jstring sample_mime_type,
+    jstring codecs,
+    jint width,
+    jint height,
+    jfloat frame_rate,
+    jstring format_label,
+    jstring format_language,
+    jstring format_container_mime_type,
+    jint format_bitrate,
+    jint format_average_bitrate,
+    jint format_peak_bitrate,
+    jint format_rotation_degrees,
+    jfloat format_pixel_width_height_ratio,
+    jint format_color_standard,
+    jint format_color_range,
+    jint format_color_transfer,
+    jint format_channel_count,
+    jint format_sample_rate,
+    jint format_role_flags,
+    jint format_selection_flags,
+    jboolean media_format_present,
+    jstring media_format_summary,
+    jstring media_format_mime_type,
+    jint media_format_width,
+    jint media_format_height,
+    jfloat media_format_frame_rate,
+    jint media_format_rotation_degrees,
+    jint media_format_color_standard,
+    jint media_format_color_range,
+    jint media_format_color_transfer) {
+  BridgeOnVideoFrameAboutToBeRendered(
+      env,
+      native_handle,
+      presentation_time_us,
+      release_time_ns,
+      format_id,
+      sample_mime_type,
+      codecs,
+      width,
+      height,
+      frame_rate,
+      format_label,
+      format_language,
+      format_container_mime_type,
+      format_bitrate,
+      format_average_bitrate,
+      format_peak_bitrate,
+      format_rotation_degrees,
+      format_pixel_width_height_ratio,
+      format_color_standard,
+      format_color_range,
+      format_color_transfer,
+      format_channel_count,
+      format_sample_rate,
+      format_role_flags,
+      format_selection_flags,
+      media_format_present == JNI_TRUE,
+      media_format_summary,
+      media_format_mime_type,
+      media_format_width,
+      media_format_height,
+      media_format_frame_rate,
+      media_format_rotation_degrees,
+      media_format_color_standard,
+      media_format_color_range,
+      media_format_color_transfer);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnCameraMotion(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jlong time_us,
+    jfloatArray rotation) {
+  BridgeOnCameraMotion(env, native_handle, time_us, rotation);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnCameraMotionReset(
+    JNIEnv*,
+    jclass,
+    jlong native_handle) {
+  BridgeOnCameraMotionReset(native_handle);
+}
+
+JNIEXPORT void JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnImageOutputAvailable(
     JNIEnv* env,
     jclass,
@@ -1118,6 +1230,9 @@ Java_androidx_media3_demo_cppbridge_MainActivity_nativeCreatePlayer(
     jobject player_view) {
   PlayerConfig config;
   std::unique_ptr<ExoPlayerSdkPlayer> bridge = ExoPlayerSdkPlayer::Create(env, context, config);
+  if (bridge == nullptr) {
+    return 0;
+  }
   bridge->SetListener(&GetDemoLoggingPlayerListener());
   bridge->BindPlayerView(player_view);
   ExoPlayerSdkPlayer* released_bridge = bridge.release();

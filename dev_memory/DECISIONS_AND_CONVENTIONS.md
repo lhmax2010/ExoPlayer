@@ -81,3 +81,29 @@ The current workspace expects maintainers to use:
 - file map / knowledge graph for onboarding
 
 The next AI should lean on those instead of rebuilding a mental index from scratch.
+
+## 8. Scalar parity before callback parity
+
+The 2026-05-15 addendum closed a batch of scalar setter/getter parity APIs first:
+
+- runtime controls
+- advanced audio/device controls
+- scrubbing mode parameters
+- codec parameter setters
+- renderer/offload/tunneling/released getters
+
+The next slice closed the first callback-style API surface:
+
+- `CodecParametersChangeListener`
+- `VideoFrameMetadataListener`
+- `CameraMotionListener`
+
+The follow-up codec-parameter listener slice closed the multi-listener immediate-notification edge:
+Java's immediate callback on `add*CodecParametersChangeListener` is routed only to the newly added
+C++ listener, and internal re-registration after removing a listener suppresses the synthetic
+immediate callback for remaining C++ listeners.
+
+For future callback work, keep the same rule: do not add a public C++ method without also designing
+listener ownership, release behavior, native callback forwarding, and a targeted instrumentation
+smoke. For Java APIs with immediate listener notification semantics, explicitly test multi-listener
+behavior if the C++ surface allows more than one delegate.

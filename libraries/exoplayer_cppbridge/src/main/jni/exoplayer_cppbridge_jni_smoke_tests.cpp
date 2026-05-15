@@ -116,6 +116,9 @@ class CapturingPlayerListener : public PlayerListener {
     first_track_supported_within_capabilities =
         !tracks.groups.empty() && !tracks.groups[0].tracks.empty() &&
         tracks.groups[0].tracks[0].supported_within_capabilities;
+    first_track_label_token_present =
+        !tracks.groups.empty() && !tracks.groups[0].tracks.empty() &&
+        !tracks.groups[0].tracks[0].label_token.empty();
     second_track_group_id = tracks.groups.size() > 1 ? tracks.groups[1].id : "";
     second_track_group_token_present =
         tracks.groups.size() > 1 && !tracks.groups[1].group_token.empty();
@@ -212,6 +215,7 @@ class CapturingPlayerListener : public PlayerListener {
   std::string first_track_group_id;
   bool first_track_group_token_present = false;
   int first_track_count = 0;
+  bool first_track_label_token_present = false;
   bool first_track_selected = false;
   bool first_track_supported = false;
   bool first_track_supported_within_capabilities = false;
@@ -297,7 +301,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       "CppTrackInfo",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-      "Ljava/lang/String;IIIFIIIIIIZZZ)V");
+      "Ljava/lang/String;IIIIIFIFIIIIIIIIIZZZ)V");
   jmethodID track_group_ctor = GetMethodChecked(
       env,
       track_group_class,
@@ -372,9 +376,16 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       nullptr,
       nullptr,
       static_cast<jint>(2500000),
+      static_cast<jint>(2000000),
+      static_cast<jint>(2500000),
       static_cast<jint>(1920),
       static_cast<jint>(1080),
       static_cast<jfloat>(30.0f),
+      static_cast<jint>(90),
+      static_cast<jfloat>(1.25f),
+      static_cast<jint>(1),
+      static_cast<jint>(2),
+      static_cast<jint>(3),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
@@ -397,9 +408,16 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       nullptr,
       nullptr,
       static_cast<jint>(1200000),
+      static_cast<jint>(1000000),
+      static_cast<jint>(1200000),
       static_cast<jint>(1280),
       static_cast<jint>(720),
       static_cast<jfloat>(30.0f),
+      static_cast<jint>(0),
+      static_cast<jfloat>(1.0f),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
@@ -422,9 +440,16 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       nullptr,
       nullptr,
       static_cast<jint>(192000),
+      static_cast<jint>(160000),
+      static_cast<jint>(192000),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jfloat>(0.0f),
+      static_cast<jint>(0),
+      static_cast<jfloat>(1.0f),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(48000),
       static_cast<jint>(2),
       static_cast<jint>(0),
@@ -710,9 +735,17 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       summary += ",track0ContainerMimeType=" + track0.container_mime_type;
       summary += ",track0Codecs=" + track0.codecs;
       summary += ",track0Bitrate=" + std::to_string(track0.bitrate);
+      summary += ",track0AverageBitrate=" + std::to_string(track0.average_bitrate);
+      summary += ",track0PeakBitrate=" + std::to_string(track0.peak_bitrate);
       summary += ",track0Width=" + std::to_string(track0.width);
       summary += ",track0Height=" + std::to_string(track0.height);
       summary += ",track0FrameRate=" + std::to_string(track0.frame_rate);
+      summary += ",track0RotationDegrees=" + std::to_string(track0.rotation_degrees);
+      summary += ",track0PixelRatio=" +
+          std::to_string(track0.pixel_width_height_ratio);
+      summary += ",track0Color=" + std::to_string(track0.color_standard) + ":" +
+          std::to_string(track0.color_range) + ":" +
+          std::to_string(track0.color_transfer);
       summary += ",track0AccessibilityChannel=" + std::to_string(track0.accessibility_channel);
       summary += ",track0RoleFlags=" + std::to_string(track0.role_flags);
       summary += ",track0SelectionFlags=" + std::to_string(track0.selection_flags);
@@ -748,6 +781,9 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
           std::to_string(track0.label_token.empty() ? 0 : 1);
       summary += ",group1Track0Language=" + track0.language;
       summary += ",group1Track0MimeType=" + track0.mime_type;
+      summary += ",group1Track0AverageBitrate=" +
+          std::to_string(track0.average_bitrate);
+      summary += ",group1Track0PeakBitrate=" + std::to_string(track0.peak_bitrate);
       summary += ",group1Track0ChannelCount=" + std::to_string(track0.channel_count);
       summary += ",group1Track0SampleRate=" + std::to_string(track0.sample_rate);
       summary += ",group1Track0RoleFlags=" + std::to_string(track0.role_flags);
@@ -1191,6 +1227,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeLi
   summary += ",secondTrackLabel=" + listener.second_track_label;
   summary += ",secondTrackLabelTokenPresent=" +
       std::to_string(listener.second_track_label_token_present ? 1 : 0);
+  summary += ",firstTrackLabelTokenPresent=" +
+      std::to_string(listener.first_track_label_token_present ? 1 : 0);
   summary += ",firstTrackSelected=" + std::to_string(listener.first_track_selected ? 1 : 0);
   summary += ",firstTrackSupported=" + std::to_string(listener.first_track_supported ? 1 : 0);
   summary += ",firstTrackSupportedWithinCapabilities=" +
@@ -1480,8 +1518,10 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBu
     jclass,
     jobject context) {
   ExoPlayerSdkPlayerBuilder builder;
-  builder.SetMediaSourceFactoryToken("test-injected-media-source-factory")
-      .SetUserAgent("Builder Injected Factory UA");
+  PlayerConfig::MediaSourceFactoryConfig media_source_factory_config;
+  media_source_factory_config.factory_token = "test-injected-media-source-factory";
+  media_source_factory_config.user_agent = "Builder Injected Factory UA";
+  builder.SetMediaSourceFactoryConfig(media_source_factory_config);
 
   const PlayerConfig& config = builder.GetConfig();
   std::unique_ptr<ExoPlayerSdkPlayer> player = builder.Build(env, context);
@@ -1693,6 +1733,17 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativePr
   bridge->SetPriorityTaskManager(env, nullptr);
   std::vector<std::string> cleared = BridgeGetPriorityTaskManagerStateForTest(env, bridge);
   bridge->Release(env);
+  PlayerConfig player_config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, player_config);
+  bool sdk_clear_priority_task_manager_safe = false;
+  if (player != nullptr) {
+    player->SetPriorityTaskManager(priority_task_manager.get());
+    player->SetPriorityTaskManagerEnabled(true);
+    player->ClearPriorityTaskManager();
+    player->Release();
+    sdk_clear_priority_task_manager_safe = true;
+  }
   priority_task_manager->Remove(77);
   bool proceed_after_remove = priority_task_manager->ProceedNonBlocking(77);
   priority_task_manager->Release();
@@ -1716,6 +1767,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativePr
   summary += ",clearedPriority=";
   summary += cleared.size() > 3 ? cleared[3] : "";
   summary += ",proceedAfterRemove=" + std::to_string(proceed_after_remove ? 1 : 0);
+  summary += ",sdkClearPriorityTaskManagerSafe=" +
+      std::to_string(sdk_clear_priority_task_manager_safe ? 1 : 0);
   return NewStringUtfChecked(env, summary, "nativePriorityTaskManagerWrapperSmokeTest");
 }
 

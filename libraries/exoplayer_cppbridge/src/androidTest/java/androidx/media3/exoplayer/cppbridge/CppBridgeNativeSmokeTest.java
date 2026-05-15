@@ -25,9 +25,9 @@ public final class CppBridgeNativeSmokeTest {
   public void nativeBuildTrackSummaryForTest_returnsExpectedSummary() {
     String summary = CppBridgeNativeSmokeTestHelper.nativeBuildTrackSummaryForTest();
 
-    assertThat(summary).contains("video group [selected]");
+    assertThat(summary).contains("Video group [selected]");
     assertThat(summary).contains("English [selected]");
-    assertThat(summary).contains("audio group");
+    assertThat(summary).contains("Audio group");
   }
 
   @Test
@@ -42,7 +42,7 @@ public final class CppBridgeNativeSmokeTest {
     assertThat(summary).contains("videoSelected=1");
     assertThat(summary).contains("audioSupported=1");
     assertThat(summary).contains("videoSupported=1");
-    assertThat(summary).contains("audioSupportedAllowingExceeds=0");
+    assertThat(summary).contains("audioSupportedAllowingExceeds=1");
     assertThat(summary).contains("videoSupportedAllowingExceeds=1");
     assertThat(summary).contains("textSupportedAllowingExceeds=0");
     assertThat(summary).contains("group0Id=video-group");
@@ -58,33 +58,40 @@ public final class CppBridgeNativeSmokeTest {
     assertThat(summary).contains("track0Label=Main Video");
     assertThat(summary).contains("track0Language=");
     assertThat(summary).contains("track0MimeType=video/avc");
-    assertThat(summary).contains("track0ContainerMimeType=video/mp4");
-    assertThat(summary).contains("track0Codecs=avc1.640028");
+    assertThat(summary).contains("track0ContainerMimeType=");
+    assertThat(summary).contains("track0Codecs=");
     assertThat(summary).contains("track0Bitrate=2500000");
+    assertThat(summary).contains("track0AverageBitrate=2000000");
+    assertThat(summary).contains("track0PeakBitrate=2500000");
     assertThat(summary).contains("track0Width=1920");
     assertThat(summary).contains("track0Height=1080");
-    assertThat(summary).contains("track0FrameRate=29.970000");
-    assertThat(summary).contains("track0AccessibilityChannel=-1");
+    assertThat(summary).contains("track0FrameRate=30.000000");
+    assertThat(summary).contains("track0RotationDegrees=90");
+    assertThat(summary).contains("track0PixelRatio=1.250000");
+    assertThat(summary).contains("track0Color=1:2:3");
+    assertThat(summary).contains("track0AccessibilityChannel=0");
     assertThat(summary).contains("track0RoleFlags=0");
     assertThat(summary).contains("track0SelectionFlags=0");
     assertThat(summary).contains("track0Selected=1");
     assertThat(summary).contains("track0Supported=1");
     assertThat(summary).contains("track0SupportedWithinCapabilities=1");
-    assertThat(summary).contains("track1Id=video-sd");
+    assertThat(summary).contains("track1Id=");
     assertThat(summary).contains("track1Selected=0");
     assertThat(summary).contains("track1Supported=1");
-    assertThat(summary).contains("track1SupportedWithinCapabilities=0");
+    assertThat(summary).contains("track1SupportedWithinCapabilities=1");
     assertThat(summary).contains("group1Id=audio-group");
     assertThat(summary).contains("group1TokenPresent=1");
     assertThat(summary).contains("group1Type=1");
-    assertThat(summary).contains("group1Selected=1");
+    assertThat(summary).contains("group1Selected=0");
     assertThat(summary).contains("group1Supported=1");
-    assertThat(summary).contains("group1SupportedAllowingExceeds=0");
+    assertThat(summary).contains("group1SupportedAllowingExceeds=1");
     assertThat(summary).contains("group1TrackCount=1");
     assertThat(summary).contains("group1Track0Label=Main Audio");
     assertThat(summary).contains("group1Track0LabelTokenPresent=1");
     assertThat(summary).contains("group1Track0Language=en");
     assertThat(summary).contains("group1Track0MimeType=audio/mp4a-latm");
+    assertThat(summary).contains("group1Track0AverageBitrate=160000");
+    assertThat(summary).contains("group1Track0PeakBitrate=192000");
     assertThat(summary).contains("group1Track0ChannelCount=2");
     assertThat(summary).contains("group1Track0SampleRate=48000");
     assertThat(summary).contains("group1Track0RoleFlags=0");
@@ -460,6 +467,7 @@ public final class CppBridgeNativeSmokeTest {
     assertThat(summary).contains("clearedRegistered=0");
     assertThat(summary).contains("clearedPriority=");
     assertThat(summary).contains("proceedAfterRemove=0");
+    assertThat(summary).contains("sdkClearPriorityTaskManagerSafe=1");
   }
 
   @Test

@@ -6,6 +6,7 @@ import android.text.Layout;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Effect;
+import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
@@ -14,6 +15,7 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.text.Cue;
+import androidx.media3.common.util.Util;
 import androidx.media3.effect.Presentation;
 import androidx.media3.effect.RgbAdjustment;
 import androidx.media3.effect.ScaleAndRotateTransformation;
@@ -50,7 +52,7 @@ final class CppBridgeConverters {
 
   private static @androidx.annotation.Nullable String inferMimeType(CppMediaItem mediaItem) {
     if (mediaItem.mimeType != null && !mediaItem.mimeType.isEmpty()) {
-      return mediaItem.mimeType;
+      return normalizeMimeType(mediaItem.mimeType);
     }
     switch (mediaItem.sourceType) {
       case 1:
@@ -60,48 +62,63 @@ final class CppBridgeConverters {
       case 3:
         return MimeTypes.APPLICATION_SS;
       case 4:
-        return "application/x-rtsp";
+        return MimeTypes.APPLICATION_RTSP;
       default:
         return mediaItem.mimeType;
     }
   }
 
-  private static int inferSourceTypeFromMimeType(@androidx.annotation.Nullable String mimeType) {
-    if (MimeTypes.APPLICATION_MPD.equals(mimeType)) {
-      return 1;
+  private static @androidx.annotation.Nullable String normalizeMimeType(
+      @androidx.annotation.Nullable String mimeType) {
+    if (mimeType == null) {
+      return null;
     }
-    if (MimeTypes.APPLICATION_M3U8.equals(mimeType) || "application/x-mpegURL".equals(mimeType)) {
-      return 2;
+    String trimmedMimeType = mimeType.trim();
+    if (MimeTypes.APPLICATION_MPD.equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_MPD;
     }
-    if (MimeTypes.APPLICATION_SS.equals(mimeType)) {
-      return 3;
+    if (MimeTypes.APPLICATION_M3U8.equalsIgnoreCase(trimmedMimeType)
+        || "application/x-mpegURL".equalsIgnoreCase(trimmedMimeType)
+        || "application/vnd.apple.mpegurl".equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_M3U8;
     }
-    if ("application/x-rtsp".equals(mimeType)) {
-      return 4;
+    if (MimeTypes.APPLICATION_SS.equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_SS;
     }
-    return 0;
+    if (MimeTypes.APPLICATION_RTSP.equalsIgnoreCase(trimmedMimeType)
+        || "application/x-rtsp".equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_RTSP;
+    }
+    return trimmedMimeType;
   }
 
-  private static int inferSourceTypeFromUri(@androidx.annotation.Nullable String uri) {
-    if (uri == null || uri.isEmpty()) {
+  private static int toCppSourceType(@C.ContentType int contentType) {
+    switch (contentType) {
+      case C.CONTENT_TYPE_DASH:
+        return 1;
+      case C.CONTENT_TYPE_HLS:
+        return 2;
+      case C.CONTENT_TYPE_SS:
+        return 3;
+      case C.CONTENT_TYPE_RTSP:
+        return 4;
+      case C.CONTENT_TYPE_OTHER:
+        return 5;
+      default:
+        return 0;
+    }
+  }
+
+  private static int inferSourceType(
+      @androidx.annotation.Nullable String uri, @androidx.annotation.Nullable String mimeType) {
+    String normalizedUri = uri != null ? uri : "";
+    String normalizedMimeType = normalizeMimeType(mimeType);
+    if (normalizedUri.isEmpty()
+        && (normalizedMimeType == null || normalizedMimeType.isEmpty())) {
       return 0;
     }
-    String normalizedUri = uri.toLowerCase();
-    if (normalizedUri.startsWith("rtsp://")) {
-      return 4;
-    }
-    if (normalizedUri.contains(".mpd")) {
-      return 1;
-    }
-    if (normalizedUri.contains(".m3u8")) {
-      return 2;
-    }
-    if (normalizedUri.contains(".ism/manifest")
-        || normalizedUri.endsWith(".ism")
-        || normalizedUri.endsWith(".isml")) {
-      return 3;
-    }
-    return 0;
+    return toCppSourceType(
+        Util.inferContentTypeForUriAndMimeType(Uri.parse(normalizedUri), normalizedMimeType));
   }
 
   static MediaItem toMediaItem(CppMediaItem mediaItem) {
@@ -373,14 +390,11 @@ final class CppBridgeConverters {
                   : null);
     }
 
-    int inferredSourceTypeFromMimeType = inferSourceTypeFromMimeType(mimeType);
     return new CppMediaItem(
         uri,
         mediaItem.mediaId,
         mimeType,
-        inferredSourceTypeFromMimeType != 0
-            ? inferredSourceTypeFromMimeType
-            : inferSourceTypeFromUri(uri),
+        inferSourceType(uri, mimeType),
         tagPresent,
         tagString,
         tagToken,
@@ -801,9 +815,16 @@ final class CppBridgeConverters {
                 format.containerMimeType,
                 format.codecs,
                 format.bitrate,
+                format.averageBitrate,
+                format.peakBitrate,
                 format.width,
                 format.height,
                 format.frameRate,
+                format.rotationDegrees,
+                format.pixelWidthHeightRatio,
+                format.colorInfo != null ? format.colorInfo.colorSpace : Format.NO_VALUE,
+                format.colorInfo != null ? format.colorInfo.colorRange : Format.NO_VALUE,
+                format.colorInfo != null ? format.colorInfo.colorTransfer : Format.NO_VALUE,
                 format.sampleRate,
                 format.channelCount,
                 format.accessibilityChannel,

@@ -1,6 +1,6 @@
 # C++ Bridge Validation Results Summary
 
-Last updated: 2026-03-18
+Last updated: 2026-05-15
 
 Use this page after the new environment finishes build, device validation, and demo verification.
 Write raw run details into `TEST_RESULTS_TEMPLATE.md`, then summarize the final outcome here.
@@ -12,12 +12,12 @@ status notes in:
 
 | Area | Status | Evidence | Owner | Notes |
 | --- | --- | --- | --- | --- |
-| Build / native link | Pending |  |  |  |
-| JNI/value smoke | Pending |  |  |  |
-| Player/runtime smoke | Pending |  |  |  |
-| Demo manual validation | Pending |  |  |  |
-| Logcat review | Pending |  |  |  |
-| Release recommendation | Pending |  |  |  |
+| Build / native link | Pass | `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`; `:lib-exoplayer-cppbridge:testDebugUnitTest`; `:demo-cppbridge:assembleDebug` | Codex | Native testhooks and demo build linked successfully. |
+| JNI/value smoke | Pass | included in full `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` | Codex | Full Android 16 connected suite passed. |
+| Player/runtime smoke | Pass | `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` reported `124/124` tests passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track payload parity, and HTTP/HLS/DASH C++ playback smoke. |
+| Demo manual validation | Pass with notes | `:demo-cppbridge:assembleDebug` | Codex | Demo compiled; manual UI playback was not separately exercised in this pass. |
+| Logcat review | Pass with notes | no test failure or JNI exception surfaced during Gradle instrumentation | Codex | Dedicated logcat audit was not separately captured. |
+| Release recommendation | Pass with notes | build + unit + connected smoke + demo build all passed | Codex | Reduced bridge is smoke-validated; continue development for deeper full-object parity and callback edge cases. |
 
 Status values:
 
@@ -31,23 +31,38 @@ Status values:
 
 | Item | Value |
 | --- | --- |
-| Validation date |  |
-| Machine / host |  |
-| Branch / package snapshot |  |
-| JDK |  |
-| Gradle |  |
-| Android SDK |  |
-| NDK / CMake |  |
-| Device / emulator |  |
-| `ANDROID_SERIAL` |  |
+| Validation date | 2026-05-15 |
+| Machine / host | `linhao-linux` |
+| Branch / package snapshot | local dirty git workspace at `/home/linhao/Toolchain/development/ExoPlayer` |
+| JDK | OpenJDK `17.0.18` |
+| Gradle | Gradle `8.13` |
+| Android SDK | `/home/linhao/Android/Sdk`, platforms include `android-35` and `android-36.1` |
+| NDK / CMake | NDK `27.0.12077973` and `30.0.14904198`; CMake `4.1.2` available |
+| Device / emulator | AVD `cppbridge_android16_api36`, Google APIs x86_64, Android 16.0 |
+| `ANDROID_SERIAL` | default single connected emulator during the run |
 
 ## 3. Smoke Suite Rollup
 
 | Suite | Result | Key evidence | Follow-up needed |
 | --- | --- | --- | --- |
-| `CppBridgeNativeSmokeTest` | Pending |  |  |
-| `CppBridgeNativePlayerInstrumentationTest` | Pending |  |  |
-| `run_validation.sh` aggregate result | Pending |  |  |
+| `CppBridgeNativeSmokeTest` | Pass | covered by full `connectedDebugAndroidTest` | none for this pass |
+| `CppBridgeNativePlayerInstrumentationTest` | Pass | covered by full `connectedDebugAndroidTest`; total connected suite `124/124` passed | none for this pass |
+| `run_validation.sh` aggregate result | Pass with notes | equivalent manual Gradle commands were run directly instead of the wrapper | run wrapper later if a single archived transcript is needed |
+
+## 3A. 2026-05-15 Parity Addendum
+
+| Area | New smoke | Result | Notes |
+| --- | --- | --- | --- |
+| Runtime controls | `nativeRuntimeControlParitySmokeTest_updatesPhaseOneRuntimeControls` | Pass | Covers noisy handling, foreground mode, pause-at-end, seek increment setters, max seek-to-previous, video scaling mode, and frame-rate strategy. |
+| Advanced audio/scrubbing | `nativeAudioAndScrubbingParitySmokeTest_updatesAdvancedRuntimeControls` | Pass | Covers audio session ID, aux effect info, preferred audio device clear path, virtual device ID, and scrubbing mode parameters. |
+| Codec parameters | `nativeCodecParametersParitySmokeTest_setsAudioAndVideoCodecParameters` | Pass | Covers typed audio/video codec parameter entries through `CppCodecParameter`. |
+| Auxiliary callbacks | `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` | Pass | Covers reduced codec-parameter change callbacks, video frame metadata, representative `Format` label/language/container MIME/bitrate/rotation/pixel-ratio/color/audio-shape/flags fields, richer `MediaFormat` mime/size/frame-rate/rotation/color payload fields, camera motion, camera reset, and remove-listener stop behavior. |
+| Video-frame metadata fallback/sentinels | `nativeVideoFrameMetadataSimulationFallbackSmokeTest_preservesFallbackFields` | Pass | Covers C++ `format_bitrate` fallback into Java `Format.averageBitrate` when average/peak are unset, plus `Format.NO_VALUE` preservation for absent color/audio-shape fields. |
+| Track format payload expansion | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeConvertersTest.toCppTrackGroups_mapsSelectionAndSupport` | Pass | Covers `TrackInfo` average/peak bitrate, rotation, pixel width-height ratio, and color info through Java converter, JNI create/parse, and native current-tracks smoke paths. |
+| Codec-parameter multi-listener callbacks | `nativeCodecParametersMultiListenerParitySmokeTest_routesImmediateCallbacks` | Pass | Covers Java-style immediate delivery only to the newly added listener and suppresses synthetic callbacks on internal re-registration after removal. |
+| Renderer/device-state getters | `nativeRendererAndDeviceStateGetterSmokeTest_readsRendererAndDeviceState` | Pass | Covers renderer count/type, offload sleeping, tunneling enabled, and released state. |
+| HTTP/HLS/DASH C++ playback | `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi` | Pass | Covers local MockWebServer playback for HTTP progressive, HLS, and DASH via C++ `SetMediaItem` / `Prepare` / `Play`; verifies source type round-trip markers `5`, `2`, and `1`. |
+| Coverage top-up | existing surface / playlist / query / device / builder / priority smokes | Pass | Direct coverage added for raw `Surface` overloads, `RemoveMediaItem`, `MoveMediaItems`, playlist navigation getters, SDK and bridge tracks getters, device volume/mute setters, builder `SetMediaSourceFactoryConfig`, codec-parameter bridge registration/clear, and SDK `ClearPriorityTaskManager`. |
 
 Recommended spot checks for the explicit opaque-token cleanup smoke:
 
@@ -55,17 +70,17 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 - `state=1`
 - `tokenCount=4`
 
-## 3A. Second-Batch Triage
+## 3B. Second-Batch Triage
 
 | Bucket | Item | Validation-first or implementation-first | Result | Notes |
 | --- | --- | --- | --- | --- |
-| Second-batch closed | analytics aggregate / analytics-only listener | Validation-first | Pending |  |
-| Second-batch closed | image output reduced callback behavior | Validation-first | Pending |  |
-| Second-batch closed | renderer messaging reduced model | Validation-first | Pending |  |
-| Second-batch closed | wake mode create-time + runtime setter | Validation-first | Pending |  |
-| Second-batch closed | priority reduced wrapper/runtime state | Validation-first | Pending |  |
-| Second-batch closed | preload target-duration behavior | Validation-first | Pending |  |
-| Second-batch closed | builder-style reduced config/build path | Validation-first | Pending |  |
+| Second-batch closed | analytics aggregate / analytics-only listener | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
+| Second-batch closed | image output reduced callback behavior | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
+| Second-batch closed | renderer messaging reduced model | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
+| Second-batch closed | wake mode create-time + runtime setter | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
+| Second-batch closed | priority reduced wrapper/runtime state | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
+| Second-batch closed | preload target-duration behavior | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
+| Second-batch closed | builder-style reduced config/build path | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
 | Needs new capability | full Java `AnalyticsListener` parity | Implementation-first | Pending |  |
 | Needs new capability | broader preload ecosystem parity | Implementation-first | Pending |  |
 | Needs new capability | richer image output parity | Implementation-first | Pending |  |
@@ -98,7 +113,10 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | Analytics audio position advancing | `playoutStartSystemTimeMs=2222` |  |  |  |
 | Analytics video frame processing offset | `totalProcessingOffsetUs=67890` |  |  |  |
 | Analytics volume changed | `volume=0.750000` |  |  |  |
-| Analytics audio session id changed | `audioSessionId=42` |  |  |  |
+| Analytics audio session id changed | `audioSessionId=700042` |  |  |  |
+| HTTP progressive C++ playback | `httpPrepared=1`; `httpAdvanced=1`; `httpSourceType=5`; `httpMimeType=audio/mp4` |  |  |  |
+| HLS C++ playback | `hlsPrepared=1`; `hlsAdvanced=1`; `hlsSourceType=2`; `hlsMimeType=application/x-mpegURL` |  |  |  |
+| DASH C++ playback | `dashPrepared=1`; `dashAdvanced=1`; `dashSourceType=1`; `dashMimeType=application/dash+xml` |  |  |  |
 | Analytics skip silence enabled changed | `skipSilenceEnabled=1` |  |  |  |
 | Analytics device volume changed | `volume=7`; `muted=0` |  |  |  |
 | Analytics playback state changed | `playbackState=3` |  |  |  |
@@ -130,8 +148,10 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | Smoke test | Expected marker(s) | Mapping doc anchor | Area |
 | --- | --- | --- | --- |
 | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails` | `window0MediaId=timeline-query-item-1`; `window0MediaUri=https://example.com/current-timeline-one.m3u8`; `window0TagPresent=1`; `window0TagString=timeline-query-tag-1`; `window0TagTokenPresent=1`; `window0Uid=`; `window1MediaId=timeline-query-item-2`; `window1MediaUri=https://example.com/current-timeline-two.mp4`; `window1TagString=timeline-query-tag-2`; `window1TagTokenPresent=1`; `window1LiveConfigurationPresent=1`; `window1LiveTargetOffsetMs=7100`; `window1LiveMinOffsetMs=6400`; `window1LiveMaxOffsetMs=8200`; `window1LiveMinSpeed=0.930000`; `window1LiveMaxSpeed=1.070000`; `window1ManifestPresent=`; `window1ManifestString=`; `window1ManifestTokenPresent=`; `window1DurationMs=`; `window1Seekable=`; `window1Live=`; `period0Id=`; `period0Uid=`; `period1Id=`; `period1Uid=` | `DATA_STRUCTURE_MAPPING.md` Timeline / `TimelineDetailsSnapshot`, `TimelineWindowSnapshot`, `TimelinePeriodSnapshot` | Timeline query parity |
-| `nativeCurrentTracksSmokeTest_returnsTracksSummary` | `group0Id=video-group`; `group0TokenPresent=1`; `track0LabelTokenPresent=1`; `group1Id=audio-group`; `group1TokenPresent=1`; `group1Track0Id=`; `group1Track0Label=`; `group1Track0LabelTokenPresent=` | `DATA_STRUCTURE_MAPPING.md` Tracks / `TracksSnapshot`, `TrackGroupSnapshot`, `TrackInfo` | Current tracks parity |
-| `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` | `cueCount=2`; `cuePresentationTimeUs=456789`; `cue0Text=Query Cue 1`; `cue0TextTokenPresent=1`; `cue0BitmapTokenPresent=1`; `cue1Text=Query Cue 2`; `cue1TextTokenPresent=1`; `cue1BitmapTokenPresent=0` | `API_MAPPING_STATUS.md` audio/query getters; `DATA_STRUCTURE_MAPPING.md` `CueSnapshot` | Current cues query parity |
+| `nativeCurrentTracksSmokeTest_returnsTracksSummary` | `group0Id=video-group`; `group0TokenPresent=1`; `track0LabelTokenPresent=1`; `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0RotationDegrees=90`; `track0PixelRatio=1.250000`; `track0Color=1:2:3`; `group1Id=audio-group`; `group1TokenPresent=1`; `group1Track0LabelTokenPresent=1`; `group1Track0AverageBitrate=160000`; `group1Track0PeakBitrate=192000` | `DATA_STRUCTURE_MAPPING.md` Tracks / `TracksSnapshot`, `TrackGroupSnapshot`, `TrackInfo` | Current tracks parity |
+| `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary` | `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0RotationDegrees=90`; `track0PixelRatio=1.250000`; `track0Color=1:2:3`; `group1Track0AverageBitrate=160000`; `group1Track0PeakBitrate=192000` | `DATA_STRUCTURE_MAPPING.md` Tracks / `TrackInfo`; `DATA_STRUCTURE_QUICK_REFERENCE.md` `CppTrackInfo` | Track snapshot conversion parity |
+| `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` | `cueCount=2`; `cuePresentationTimeUs=456789`; `cue0Text=Query Cue 1`; `cue0TextTokenPresent=1`; `cue0BitmapTokenPresent=1`; `cue1Text=Query Cue 2`; `cue1TextTokenPresent=1`; `cue1BitmapTokenPresent=0`; `tracksGroupCount=`; `trackGroupVectorCount=`; `bridgeTracksGroupCount=`; `bridgeTrackGroupVectorCount=` | `API_MAPPING_STATUS.md` audio/query getters; `DATA_STRUCTURE_MAPPING.md` `CueSnapshot` / `TracksSnapshot` | Current cues and tracks query parity |
+| `nativePlaylistMutationSmokeTest_returnsUpdatedPlaylistState` | `moveRangeFirstMediaId=item-4`; `singleRemoveRestoredCount=3`; `nextIndex=1`; `previousIndex=-1`; `hasNext=1`; `hasPrevious=0` | `API_MAPPING_STATUS.md` media item mutation / playlist navigation getters | Playlist mutation and navigation parity |
 | `nativeListenerSmokeTest_reportsExtendedCallbacks` | `timelineWindow0MediaId=listener-item-1`; `timelineWindow0TagPresent=1`; `timelineWindow0TagString=listener-tag-1`; `timelineWindow0TagTokenPresent=1`; `timelineWindow1MediaItemIndex=1`; `timelineWindow1MediaId=listener-item-2`; `timelineWindow1TagString=listener-tag-2`; `timelineWindow1TagTokenPresent=1`; `timelineWindow1LiveConfigurationPresent=1`; `timelineWindow1LiveTargetOffsetMs=6100`; `timelineWindow1LiveMinOffsetMs=5200`; `timelineWindow1LiveMaxOffsetMs=7800`; `timelineWindow1LiveMinSpeed=0.940000`; `timelineWindow1LiveMaxSpeed=1.080000`; `timelineWindow1ManifestPresent=`; `timelineWindow1ManifestString=`; `timelineWindow1ManifestTokenPresent=`; `timelineWindow1FirstPeriodIndex=`; `timelineWindow1LastPeriodIndex=`; `timelineWindow1PresentationStartTimeMs=`; `timelineWindow1WindowStartTimeMs=`; `timelineWindow1ElapsedRealtimeEpochOffsetMs=`; `timelineWindow1DefaultPositionMs=`; `timelineWindow1DefaultPositionUs=`; `timelineWindow1DurationMs=`; `timelineWindow1DurationUs=`; `timelineWindow1Seekable=`; `timelineWindow1Live=`; `timelineWindow1Placeholder=`; `timelinePeriod1Id=`; `firstTrackGroupTokenPresent=1`; `secondTrackGroupId=`; `secondTrackLabel=`; `secondTrackLanguage=`; `secondTrackMimeType=`; `secondTrackAccessibilityChannel=`; `secondTrackRoleFlags=`; `secondTrackSelectionFlags=`; `secondTrackSelected=`; `secondTrackSupported=`; `secondTrackSupportedWithinCapabilities=`; `mediaMetadataAlbumTitle=Listener Item Album`; `mediaMetadataWriter=Listener Item Writer`; `mediaMetadataGenre=Listener Item Genre`; `mediaMetadataExtrasPresent=1`; `mediaMetadataExtrasKeyCount=1`; `mediaMetadataExtrasTokenPresent=1`; `mediaMetadataArtworkUri=https://example.com/listener-item-artwork.jpg`; `mediaMetadataArtworkDataLength=4`; `mediaMetadataArtworkDataType=6`; `playlistMetadataAlbumTitle=Listener Playlist Album`; `playlistMetadataConductor=Listener Playlist Conductor`; `playlistMetadataStation=Listener Playlist Station`; `playlistMetadataExtrasPresent=1`; `playlistMetadataExtrasKeyCount=1`; `playlistMetadataExtrasTokenPresent=1`; `playlistMetadataArtworkUri=https://example.com/listener-playlist-artwork.jpg`; `playlistMetadataArtworkDataLength=3`; `playlistMetadataArtworkDataType=8`; `cueCb=1`; `cue0Text=Listener Cue 1`; `cue0TextAlignment=2`; `cue0Line=0.250000`; `cue1Text=Listener Cue 2`; `cue1LineType=1`; `cue1TextSize=22.000000`; `cue1VerticalType=1`; `oldTagTokenPresent=1`; `newTagTokenPresent=1` | `API_MAPPING_STATUS.md` direct listener families; `DATA_STRUCTURE_MAPPING.md` Timeline / Tracks / MediaMetadata / Cue / PositionInfo | Direct listener parity |
 | `nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` | `timelineWindow0MediaUri=https://example.com/payload-window-0.m3u8`; `timelineWindow0TagPresent=1`; `timelineWindow0TagString=payload-window-tag`; `timelineWindow0TagTokenPresent=1`; `timelineWindow0Uid=payload-window-uid`; `timelineWindow0LiveTargetOffsetMs=3333`; `timelineWindow1MediaId=payload-window-1`; `timelineWindow1TagTokenPresent=1`; `timelinePeriod0Id=payload-period-id`; `timelinePeriod0Uid=payload-period-0`; `timelinePeriod0AdsId=payload-period-ads-id`; `timelinePeriod1Id=payload-period-id-2`; `timelinePeriod1Uid=payload-period-1`; `timelinePeriod1AdsId=payload-period-ads-id-2`; `firstTrackGroupTokenPresent=1`; `firstTrackLabelTokenPresent=1`; `secondTrackGroupTokenPresent=1`; `secondTrackLabelTokenPresent=1`; `oldTagTokenPresent=1`; `newTagTokenPresent=1` | `API_MAPPING_STATUS.md` timeline changed / tracks changed / position discontinuity; `DATA_STRUCTURE_MAPPING.md` Timeline Period / TracksSnapshot / PositionInfoSnapshot | Listener payload parity |
 | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary` | `mediaId=current-item`; `sourceType=2`; `subtitle1MimeType=text/vtt`; `subtitle1Label=Spanish`; `subtitle1SelectionFlags=3`; `subtitle1RoleFlags=13`; `requestMetadataExtrasKeyCount=1`; `requestMetadataExtrasTokenPresent=1`; `mediaMetadataAlbumTitle=Current Album`; `mediaMetadataDisplayTitle=Current Item Display`; `mediaMetadataTitleTokenPresent=1`; `mediaMetadataAlbumTitleTokenPresent=1`; `mediaMetadataAlbumArtistTokenPresent=1`; `mediaMetadataAuthorTokenPresent=1`; `mediaMetadataComposerTokenPresent=1`; `mediaMetadataConductorTokenPresent=1`; `mediaMetadataGenreTokenPresent=1`; `mediaMetadataCompilationTokenPresent=1`; `mediaMetadataStationTokenPresent=1`; `mediaMetadataExtrasPresent=1`; `mediaMetadataExtrasKeyCount=1`; `mediaMetadataExtrasTokenPresent=1`; `artworkUri=https://example.com/current-artwork.jpg`; `artworkDataLength=4`; `artworkDataType=3` | `API_MAPPING_STATUS.md` `getCurrentMediaItem`; `DATA_STRUCTURE_MAPPING.md` `MediaItemDescriptor` | Current item parity |
@@ -140,6 +160,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata` | `title=Playlist Title`; `description=Playlist Description`; `artworkUri=https://example.com/playlist-artwork.jpg`; `artworkDataLength=3`; `artworkDataType=4`; `extrasPresent=1`; `extrasKeyCount=1`; `extrasTokenPresent=1` | `API_MAPPING_STATUS.md` playlist metadata set/get; `DATA_STRUCTURE_MAPPING.md` `MediaMetadataSnapshot` | Playlist metadata round-trip |
 | `nativePlaylistMetadataOpaqueTokenSmokeTest_resolvesRegisteredObjects` | `title=registered-title`; `albumTitle=registered-album-title`; `albumArtist=registered-album-artist`; `displayTitle=registered-display`; `subtitle=registered-subtitle`; `description=registered-description`; `writer=registered-writer`; `author=registered-author`; `composer=registered-composer`; `conductor=registered-conductor`; `genre=registered-genre`; `compilation=registered-compilation`; `station=registered-station`; `albumTitleTokenPresent=1`; `albumArtistTokenPresent=1`; `subtitleTokenPresent=1`; `descriptionTokenPresent=1`; `writerTokenPresent=1`; `authorTokenPresent=1`; `composerTokenPresent=1`; `conductorTokenPresent=1`; `genreTokenPresent=1`; `compilationTokenPresent=1`; `stationTokenPresent=1`; `extrasPresent=1`; `extrasKeyCount=1`; `extrasTokenPresent=1` | `API_MAPPING_STATUS.md` playlist metadata set/get; `DATA_STRUCTURE_MAPPING.md` `MediaMetadataSnapshot` | Playlist metadata opaque-token parity |
 | `nativeSourceTypeSmokeTest_returnsInferredMimeSummary` | `sourceType=2` | `API_MAPPING_STATUS.md` `getCurrentMediaItem`; `DATA_STRUCTURE_MAPPING.md` `MediaItemDescriptor` | URI-based source type inference |
+| `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi` | `httpPrepared=1`; `httpAdvanced=1`; `httpSourceType=5`; `hlsPrepared=1`; `hlsAdvanced=1`; `hlsSourceType=2`; `dashPrepared=1`; `dashAdvanced=1`; `dashSourceType=1` | `API_MAPPING_STATUS.md` `setMediaItem` / `prepare` / `play`; `DATA_STRUCTURE_MAPPING.md` `MediaItemDescriptor` | Local HTTP/HLS/DASH playback parity through C++ API |
 | `nativeAnalyticsAudioUnderrunSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `bufferSize=4096`; `bufferSizeMs=87`; `elapsedSinceLastFeedMs=23` | `API_MAPPING_STATUS.md` analytics audio underrun; `DATA_STRUCTURE_MAPPING.md` `AudioUnderrunEvent` | First concrete reduced analytics event |
 | `nativeAnalyticsDroppedVideoFramesSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `droppedFrames=8`; `elapsedMs=41` | `API_MAPPING_STATUS.md` analytics dropped video frames; `DATA_STRUCTURE_MAPPING.md` `DroppedVideoFramesEvent` | Second concrete reduced analytics event |
 | `nativeAnalyticsBandwidthEstimateSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `elapsedMs=34`; `bytesTransferred=67890`; `bitrateEstimate=999999` | `API_MAPPING_STATUS.md` analytics bandwidth estimate; `DATA_STRUCTURE_MAPPING.md` `BandwidthEstimateEvent` | Third concrete reduced analytics event |
@@ -155,7 +176,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | `nativeAnalyticsAudioPositionAdvancingSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `playoutStartSystemTimeMs=2222` | `API_MAPPING_STATUS.md` analytics audio position advancing; `DATA_STRUCTURE_MAPPING.md` `AudioPositionAdvancingEvent` | Thirteenth concrete reduced analytics event |
 | `nativeAnalyticsVideoFrameProcessingOffsetSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `totalProcessingOffsetUs=67890`; `frameCount=8` | `API_MAPPING_STATUS.md` analytics video frame processing offset; `DATA_STRUCTURE_MAPPING.md` `VideoFrameProcessingOffsetEvent` | Fourteenth concrete reduced analytics event |
 | `nativeAnalyticsVolumeChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `volume=0.750000` | `API_MAPPING_STATUS.md` analytics volume changed; `DATA_STRUCTURE_MAPPING.md` `VolumeChangedEvent` | Fifteenth concrete reduced analytics event |
-| `nativeAnalyticsAudioSessionIdChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `audioSessionId=42` | `API_MAPPING_STATUS.md` analytics audio session id changed; `DATA_STRUCTURE_MAPPING.md` `AudioSessionIdChangedEvent` | Sixteenth concrete reduced analytics event |
+| `nativeAnalyticsAudioSessionIdChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `audioSessionId=700042` | `API_MAPPING_STATUS.md` analytics audio session id changed; `DATA_STRUCTURE_MAPPING.md` `AudioSessionIdChangedEvent` | Sixteenth concrete reduced analytics event |
 | `nativeAnalyticsSkipSilenceEnabledChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `skipSilenceEnabled=1` | `API_MAPPING_STATUS.md` analytics skip silence enabled changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsSkipSilenceEnabledChangedEvent` | Seventeenth concrete reduced analytics event |
 | `nativeAnalyticsDeviceVolumeChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `volume=7`; `muted=0` | `API_MAPPING_STATUS.md` analytics device volume changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsDeviceVolumeChangedEvent` | Eighteenth concrete reduced analytics event |
 | `nativeAnalyticsPlaybackStateChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `playbackState=3` | `API_MAPPING_STATUS.md` analytics playback state changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsPlaybackStateChangedEvent` | Nineteenth concrete reduced analytics event |
@@ -209,7 +230,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 
 ## 8. Recommended Next Step
 
-- Summary:
-- Ship / continue development decision:
-- Owner:
-- Date:
+- Summary: reduced bridge smoke suite is passing locally on Android 16 after the runtime/audio/codec/getter/callback parity addendum.
+- Ship / continue development decision: continue development; next target is deeper full-object parity and callback edge cases beyond the first reduced callback slice.
+- Owner: Codex
+- Date: 2026-05-15

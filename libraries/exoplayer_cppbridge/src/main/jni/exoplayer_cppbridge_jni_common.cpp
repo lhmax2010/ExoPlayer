@@ -4,11 +4,13 @@
 
 #include <algorithm>
 #include <cstring>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace androidx::media3::cppbridge::internal {
@@ -418,6 +420,24 @@ std::vector<uint8_t> JByteArrayToVector(JNIEnv* env, jbyteArray values) {
   return result;
 }
 
+std::vector<float> JFloatArrayToVector(JNIEnv* env, jfloatArray values) {
+  std::vector<float> result;
+  if (values == nullptr) {
+    return result;
+  }
+  jsize length = env->GetArrayLength(values);
+  jfloat* raw = env->GetFloatArrayElements(values, nullptr);
+  if (ClearJniExceptionIfPresent(env, "GetFloatArrayElements(float[])") || raw == nullptr) {
+    return result;
+  }
+  result.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    result.push_back(static_cast<float>(raw[i]));
+  }
+  env->ReleaseFloatArrayElements(values, raw, JNI_ABORT);
+  return result;
+}
+
 jintArray CreateJavaIntArray(JNIEnv* env, const std::vector<int>& values) {
   jintArray array = env->NewIntArray(static_cast<jsize>(values.size()));
   if (ClearJniExceptionIfPresent(env, "NewIntArray(int[])") || array == nullptr) {
@@ -427,6 +447,25 @@ jintArray CreateJavaIntArray(JNIEnv* env, const std::vector<int>& values) {
     env->SetIntArrayRegion(
         array, 0, static_cast<jsize>(values.size()), reinterpret_cast<const jint*>(values.data()));
     if (ClearJniExceptionIfPresent(env, "SetIntArrayRegion(int[])")) {
+      env->DeleteLocalRef(array);
+      return nullptr;
+    }
+  }
+  return array;
+}
+
+jfloatArray CreateJavaFloatArray(JNIEnv* env, const std::vector<float>& values) {
+  jfloatArray array = env->NewFloatArray(static_cast<jsize>(values.size()));
+  if (ClearJniExceptionIfPresent(env, "NewFloatArray(float[])") || array == nullptr) {
+    return nullptr;
+  }
+  if (!values.empty()) {
+    env->SetFloatArrayRegion(
+        array,
+        0,
+        static_cast<jsize>(values.size()),
+        reinterpret_cast<const jfloat*>(values.data()));
+    if (ClearJniExceptionIfPresent(env, "SetFloatArrayRegion(float[])")) {
       env->DeleteLocalRef(array);
       return nullptr;
     }
@@ -567,34 +606,137 @@ jbyteArray CreateJavaByteArray(JNIEnv* env, const std::vector<uint8_t>& values) 
   return array;
 }
 
+CodecParametersDescriptor FromJavaCodecParameterArray(JNIEnv* env, jobjectArray values) {
+  CodecParametersDescriptor descriptor;
+  if (values == nullptr) {
+    return descriptor;
+  }
+  jsize length = env->GetArrayLength(values);
+  if (ClearJniExceptionIfPresent(env, "GetArrayLength(CppCodecParameter[])")) {
+    return descriptor;
+  }
+  descriptor.parameters.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    jobject object = env->GetObjectArrayElement(values, i);
+    if (ClearJniExceptionIfPresent(env, "GetObjectArrayElement(CppCodecParameter)") ||
+        object == nullptr) {
+      DeleteLocalRefIfNotNull(env, object);
+      continue;
+    }
+    jclass clazz = GetObjectClassChecked(env, object, "CppCodecParameter");
+    if (clazz == nullptr) {
+      env->DeleteLocalRef(object);
+      continue;
+    }
+    CodecParameterDescriptor parameter;
+    parameter.key =
+        GetStringFieldValue(env, object, clazz, "CppCodecParameter", "key");
+    int type = GetIntFieldValue(env, object, clazz, "CppCodecParameter", "type");
+    switch (type) {
+      case 0:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kInteger;
+        break;
+      case 1:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kLong;
+        break;
+      case 2:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kFloat;
+        break;
+      case 3:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kString;
+        break;
+      case 4:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kByteBuffer;
+        break;
+      case 5:
+      default:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kNull;
+        break;
+    }
+    parameter.int_value =
+        GetIntFieldValue(env, object, clazz, "CppCodecParameter", "intValue");
+    parameter.long_value =
+        GetLongFieldValue(env, object, clazz, "CppCodecParameter", "longValue");
+    parameter.float_value =
+        GetFloatFieldValue(env, object, clazz, "CppCodecParameter", "floatValue");
+    parameter.string_value =
+        GetStringFieldValue(env, object, clazz, "CppCodecParameter", "stringValue");
+    jbyteArray byte_buffer_value = static_cast<jbyteArray>(GetObjectFieldValue(
+        env,
+        object,
+        clazz,
+        "CppCodecParameter",
+        "byteBufferValue",
+        "[B"));
+    parameter.byte_buffer_value = JByteArrayToVector(env, byte_buffer_value);
+    DeleteLocalRefIfNotNull(env, byte_buffer_value);
+    env->DeleteLocalRef(clazz);
+    env->DeleteLocalRef(object);
+    descriptor.parameters.push_back(std::move(parameter));
+  }
+  return descriptor;
+}
+
 int ParseIntOrDefault(const std::string& value, int fallback) {
   if (value.empty()) {
     return fallback;
   }
-  return std::stoi(value);
+  try {
+    size_t parsed_length = 0;
+    int parsed_value = std::stoi(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
 }
 
 int64_t ParseLongOrDefault(const std::string& value, int64_t fallback) {
   if (value.empty()) {
     return fallback;
   }
-  return std::stoll(value);
+  try {
+    size_t parsed_length = 0;
+    int64_t parsed_value = std::stoll(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
 }
 
 float ParseFloatOrDefault(const std::string& value, float fallback) {
   if (value.empty()) {
     return fallback;
   }
-  return std::stof(value);
+  try {
+    size_t parsed_length = 0;
+    float parsed_value = std::stof(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
 }
 
 std::vector<std::string> SplitString(const std::string& value, char delimiter) {
   std::vector<std::string> parts;
-  std::stringstream stream(value);
   std::string part;
-  while (std::getline(stream, part, delimiter)) {
-    parts.push_back(part);
+  bool escaping = false;
+  for (char c : value) {
+    if (escaping) {
+      part.push_back(c);
+      escaping = false;
+    } else if (c == '\\') {
+      escaping = true;
+    } else if (c == delimiter) {
+      parts.push_back(part);
+      part.clear();
+    } else {
+      part.push_back(c);
+    }
   }
+  if (escaping) {
+    part.push_back('\\');
+  }
+  parts.push_back(part);
   return parts;
 }
 
@@ -1646,7 +1788,7 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
       "CppTrackInfo",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-      "Ljava/lang/String;IIIFIIIIIIZZZ)V");
+      "Ljava/lang/String;IIIIIFIFIIIIIIIIIZZZ)V");
   jmethodID track_group_ctor = GetMethodChecked(
       env,
       track_group_class,
@@ -1720,9 +1862,16 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           container_mime_type,
           codecs,
           static_cast<jint>(track.bitrate),
+          static_cast<jint>(track.average_bitrate),
+          static_cast<jint>(track.peak_bitrate),
           static_cast<jint>(track.width),
           static_cast<jint>(track.height),
           static_cast<jfloat>(track.frame_rate),
+          static_cast<jint>(track.rotation_degrees),
+          static_cast<jfloat>(track.pixel_width_height_ratio),
+          static_cast<jint>(track.color_standard),
+          static_cast<jint>(track.color_range),
+          static_cast<jint>(track.color_transfer),
           static_cast<jint>(track.sample_rate),
           static_cast<jint>(track.channel_count),
           static_cast<jint>(track.accessibility_channel),
@@ -1914,11 +2063,25 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               GetStringFieldValue(env, track, track_class, "CppTrackInfo", "codecs");
           track_info.bitrate =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "bitrate");
+          track_info.average_bitrate =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "averageBitrate");
+          track_info.peak_bitrate =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "peakBitrate");
           track_info.width = GetIntFieldValue(env, track, track_class, "CppTrackInfo", "width");
           track_info.height =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "height");
           track_info.frame_rate =
               GetFloatFieldValue(env, track, track_class, "CppTrackInfo", "frameRate");
+          track_info.rotation_degrees =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "rotationDegrees");
+          track_info.pixel_width_height_ratio = GetFloatFieldValue(
+              env, track, track_class, "CppTrackInfo", "pixelWidthHeightRatio");
+          track_info.color_standard =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorStandard");
+          track_info.color_range =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorRange");
+          track_info.color_transfer =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorTransfer");
           track_info.sample_rate =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "sampleRate");
           track_info.channel_count =
@@ -2338,26 +2501,48 @@ jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues) {
     return nullptr;
   }
 
+  size_t cue_count = cues.cues.size();
+  if (cue_count == 0) {
+    cue_count = static_cast<size_t>(std::max(cues.cue_count, 0));
+    cue_count = std::max(cue_count, cues.texts.size());
+    cue_count = std::max(cue_count, cues.text_tokens.size());
+    cue_count = std::max(cue_count, cues.bitmap_tokens.size());
+  }
   jobjectArray result =
-      env->NewObjectArray(static_cast<jsize>(cues.cues.size()), cue_class, nullptr);
+      env->NewObjectArray(static_cast<jsize>(cue_count), cue_class, nullptr);
   if (ClearJniExceptionIfPresent(env, "NewObjectArray(CppCue)") || result == nullptr) {
     DeleteLocalRefIfNotNull(env, cue_class);
     DeleteLocalRefIfNotNull(env, result);
     return nullptr;
   }
 
-  for (jsize i = 0; i < static_cast<jsize>(cues.cues.size()); ++i) {
-    const CueSnapshot::CueInfo& cue = cues.cues[static_cast<size_t>(i)];
+  for (jsize i = 0; i < static_cast<jsize>(cue_count); ++i) {
+    const size_t cue_index = static_cast<size_t>(i);
+    CueSnapshot::CueInfo empty_cue;
+    const CueSnapshot::CueInfo& cue =
+        cue_index < cues.cues.size() ? cues.cues[cue_index] : empty_cue;
+    std::string cue_text =
+        !cue.text.empty()
+            ? cue.text
+            : cue_index < cues.texts.size() ? cues.texts[cue_index] : "";
+    std::string cue_text_token =
+        !cue.text_token.empty()
+            ? cue.text_token
+            : cue_index < cues.text_tokens.size() ? cues.text_tokens[cue_index] : "";
+    std::string cue_bitmap_token =
+        !cue.bitmap_token.empty()
+            ? cue.bitmap_token
+            : cue_index < cues.bitmap_tokens.size() ? cues.bitmap_tokens[cue_index] : "";
     jstring text =
-        cue.text.empty() ? nullptr : NewStringUtfChecked(env, cue.text, "CppCue.text");
+        cue_text.empty() ? nullptr : NewStringUtfChecked(env, cue_text, "CppCue.text");
     jstring text_token =
-        cue.text_token.empty()
+        cue_text_token.empty()
             ? nullptr
-            : NewStringUtfChecked(env, cue.text_token, "CppCue.textToken");
+            : NewStringUtfChecked(env, cue_text_token, "CppCue.textToken");
     jstring bitmap_token =
-        cue.bitmap_token.empty()
+        cue_bitmap_token.empty()
             ? nullptr
-            : NewStringUtfChecked(env, cue.bitmap_token, "CppCue.bitmapToken");
+            : NewStringUtfChecked(env, cue_bitmap_token, "CppCue.bitmapToken");
     jobject cue_object = NewObjectChecked(
         env,
         cue_class,
@@ -2382,7 +2567,7 @@ jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues) {
         static_cast<jint>(cue.z_index),
         static_cast<jboolean>(cue.window_color_set),
         static_cast<jint>(cue.window_color),
-        static_cast<jboolean>(cue.has_bitmap));
+        static_cast<jboolean>(cue.has_bitmap || !cue_bitmap_token.empty()));
     DeleteLocalRefIfNotNull(env, text);
     DeleteLocalRefIfNotNull(env, text_token);
     DeleteLocalRefIfNotNull(env, bitmap_token);
@@ -2676,4 +2861,3 @@ PositionInfoSnapshot FromJavaPositionInfo(JNIEnv* env, jobject object) {
 }
 
 }  // namespace androidx::media3::cppbridge::internal
-

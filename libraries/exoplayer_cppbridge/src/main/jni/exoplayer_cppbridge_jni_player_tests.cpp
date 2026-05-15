@@ -5,6 +5,7 @@
 #include <mutex>
 #include <string_view>
 #include <thread>
+#include <utility>
 
 #include "exoplayer_cppbridge_jni_internal.h"
 
@@ -32,6 +33,66 @@ void LogListenerSmokeBuildMarker(const char* test_label) {
 std::string BuildPointerSummary(const void* value) {
   return std::to_string(
       static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(value)));
+}
+
+void AppendLittleEndian16(std::string* output, uint16_t value) {
+  output->push_back(static_cast<char>(value & 0xFF));
+  output->push_back(static_cast<char>((value >> 8) & 0xFF));
+}
+
+void AppendLittleEndian32(std::string* output, uint32_t value) {
+  output->push_back(static_cast<char>(value & 0xFF));
+  output->push_back(static_cast<char>((value >> 8) & 0xFF));
+  output->push_back(static_cast<char>((value >> 16) & 0xFF));
+  output->push_back(static_cast<char>((value >> 24) & 0xFF));
+}
+
+std::string Base64Encode(const std::string& input) {
+  static constexpr char kAlphabet[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  std::string output;
+  output.reserve(((input.size() + 2) / 3) * 4);
+  for (size_t i = 0; i < input.size(); i += 3) {
+    uint32_t chunk = static_cast<unsigned char>(input[i]) << 16;
+    if (i + 1 < input.size()) {
+      chunk |= static_cast<unsigned char>(input[i + 1]) << 8;
+    }
+    if (i + 2 < input.size()) {
+      chunk |= static_cast<unsigned char>(input[i + 2]);
+    }
+    output.push_back(kAlphabet[(chunk >> 18) & 0x3F]);
+    output.push_back(kAlphabet[(chunk >> 12) & 0x3F]);
+    output.push_back(i + 1 < input.size() ? kAlphabet[(chunk >> 6) & 0x3F] : '=');
+    output.push_back(i + 2 < input.size() ? kAlphabet[chunk & 0x3F] : '=');
+  }
+  return output;
+}
+
+std::string BuildSilentWavDataUri() {
+  constexpr uint16_t kChannels = 1;
+  constexpr uint16_t kBitsPerSample = 16;
+  constexpr uint32_t kSampleRate = 8000;
+  constexpr uint32_t kDurationMs = 2000;
+  constexpr uint16_t kBlockAlign = kChannels * kBitsPerSample / 8;
+  constexpr uint32_t kByteRate = kSampleRate * kBlockAlign;
+  const uint32_t sample_count = kSampleRate * kDurationMs / 1000;
+  const uint32_t data_size = sample_count * kBlockAlign;
+  std::string wav;
+  wav.reserve(44 + data_size);
+  wav.append("RIFF", 4);
+  AppendLittleEndian32(&wav, 36 + data_size);
+  wav.append("WAVEfmt ", 8);
+  AppendLittleEndian32(&wav, 16);
+  AppendLittleEndian16(&wav, 1);
+  AppendLittleEndian16(&wav, kChannels);
+  AppendLittleEndian32(&wav, kSampleRate);
+  AppendLittleEndian32(&wav, kByteRate);
+  AppendLittleEndian16(&wav, kBlockAlign);
+  AppendLittleEndian16(&wav, kBitsPerSample);
+  wav.append("data", 4);
+  AppendLittleEndian32(&wav, data_size);
+  wav.append(data_size, '\0');
+  return "data:audio/wav;base64," + Base64Encode(wav);
 }
 
 bool WaitForPlaybackState(
@@ -66,6 +127,99 @@ bool WaitForCurrentPositionAtLeast(
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
   }
   return player->GetCurrentPosition() >= minimum_position_ms;
+}
+
+bool WaitForPlaybackReadyOrEnded(ExoPlayerSdkPlayer* player, int timeout_ms) {
+  if (player == nullptr) {
+    return false;
+  }
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+  while (std::chrono::steady_clock::now() < deadline) {
+    PlaybackState state = player->GetPlaybackState();
+    if (state == PlaybackState::kReady || state == PlaybackState::kEnded) {
+      return true;
+    }
+    if (player->GetPlayerError().error_code != 0) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+  PlaybackState state = player->GetPlaybackState();
+  return state == PlaybackState::kReady || state == PlaybackState::kEnded;
+}
+
+bool WaitForPlaybackAdvancedOrEnded(
+    ExoPlayerSdkPlayer* player,
+    int64_t minimum_position_ms,
+    int timeout_ms) {
+  if (player == nullptr) {
+    return false;
+  }
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (player->GetCurrentPosition() >= minimum_position_ms ||
+        player->GetPlaybackState() == PlaybackState::kEnded) {
+      return true;
+    }
+    if (player->GetPlayerError().error_code != 0) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+  return player->GetCurrentPosition() >= minimum_position_ms ||
+      player->GetPlaybackState() == PlaybackState::kEnded;
+}
+
+struct StreamPlaybackScenario {
+  std::string label;
+  std::string uri;
+  std::string media_id;
+  std::string mime_type;
+  MediaSourceType source_type = MediaSourceType::kDefault;
+};
+
+void AppendStreamPlaybackScenarioSummary(
+    ExoPlayerSdkPlayer* player,
+    const StreamPlaybackScenario& scenario,
+    std::string* summary) {
+  if (player == nullptr || summary == nullptr) {
+    return;
+  }
+  MediaItemDescriptor media_item;
+  media_item.uri = scenario.uri;
+  media_item.media_id = scenario.media_id;
+  media_item.mime_type = scenario.mime_type;
+  media_item.source_type = scenario.source_type;
+
+  player->SetMediaItem(media_item);
+  player->SetVolume(0.0f);
+  player->Prepare();
+  bool prepared = WaitForPlaybackReadyOrEnded(player, 7000);
+  if (prepared) {
+    player->Play();
+  }
+  bool advanced = prepared && WaitForPlaybackAdvancedOrEnded(player, 100, 7000);
+  MediaItemDescriptor current_item = player->GetCurrentMediaItem();
+  PlayerError error = player->GetPlayerError();
+
+  *summary += scenario.label + "Prepared=" + std::to_string(prepared ? 1 : 0);
+  *summary += "," + scenario.label + "Advanced=" + std::to_string(advanced ? 1 : 0);
+  *summary += "," + scenario.label + "State=" +
+      std::to_string(static_cast<int>(player->GetPlaybackState()));
+  *summary += "," + scenario.label + "PositionMs=" +
+      std::to_string(player->GetCurrentPosition());
+  *summary += "," + scenario.label + "DurationMs=" +
+      std::to_string(player->GetDuration());
+  *summary += "," + scenario.label + "SourceType=" +
+      std::to_string(static_cast<int>(current_item.source_type));
+  *summary += "," + scenario.label + "MimeType=" + current_item.mime_type;
+  *summary += "," + scenario.label + "ErrorCode=" + std::to_string(error.error_code);
+  if (!error.message.empty()) {
+    *summary += "," + scenario.label + "ErrorMessage=" + error.message;
+  }
+
+  player->Stop();
+  player->ClearMediaItems();
 }
 
 std::string BuildRuntimeDrivenPlayerSummary(
@@ -2445,15 +2599,30 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
   player->AddMediaItems(2, {second_item});
   player->ReplaceMediaItems(3, 5, {first_item});
   player->RemoveMediaItems(3, 5);
+  player->AddMediaItems({fourth_item, first_item});
+  player->MoveMediaItems(3, 5, 0);
+  MediaItemDescriptor move_range_first_media_item = player->GetMediaItemAt(0);
+  player->RemoveMediaItem(0);
+  player->RemoveMediaItem(0);
   player->SeekToMediaItem(0, 0);
 
   int media_item_count = player->GetMediaItemCount();
   int current_media_item_index = player->GetCurrentMediaItemIndex();
+  int next_media_item_index = player->GetNextMediaItemIndex();
+  int previous_media_item_index = player->GetPreviousMediaItemIndex();
+  bool has_next_media_item = player->HasNextMediaItem();
+  bool has_previous_media_item = player->HasPreviousMediaItem();
   MediaItemDescriptor first_media_item = player->GetMediaItemAt(0);
   std::string summary = "playlistMutationV2=1";
   summary += ",count=" + std::to_string(media_item_count);
   summary += ",currentIndex=" + std::to_string(current_media_item_index);
   summary += ",firstMediaId=" + first_media_item.media_id;
+  summary += ",moveRangeFirstMediaId=" + move_range_first_media_item.media_id;
+  summary += ",singleRemoveRestoredCount=" + std::to_string(media_item_count);
+  summary += ",nextIndex=" + std::to_string(next_media_item_index);
+  summary += ",previousIndex=" + std::to_string(previous_media_item_index);
+  summary += ",hasNext=" + std::to_string(has_next_media_item ? 1 : 0);
+  summary += ",hasPrevious=" + std::to_string(has_previous_media_item ? 1 : 0);
   if (media_item_count > 0) {
     summary += ",item0=" + player->GetMediaItemAt(0).media_id;
   }
@@ -2618,6 +2787,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
   TimelineSnapshot timeline = player->GetTimelineSnapshot();
   std::vector<TimelineWindowSnapshot> timeline_windows = player->GetTimelineWindows();
   std::vector<TimelinePeriodSnapshot> timeline_periods = player->GetTimelinePeriods();
+  TracksSnapshot tracks = player->GetTracks();
+  std::vector<TrackGroupSnapshot> track_groups = player->GetTrackGroups();
   CueSnapshot cues = player->GetCurrentCues();
   int available_command_count = player->GetAvailableCommandCount();
   AvailableCommandsSnapshot commands = player->GetAvailableCommands();
@@ -2643,6 +2814,22 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
   bool is_current_media_item_live = player->IsCurrentMediaItemLive();
   bool is_current_media_item_seekable = player->IsCurrentMediaItemSeekable();
   bool is_playing_ad = player->IsPlayingAd();
+  int bridge_tracks_group_count = -1;
+  int bridge_track_group_vector_count = -1;
+  {
+    std::shared_ptr<ExoPlayerBridge> bridge =
+        ExoPlayerBridge::Create(env, context, config);
+    if (bridge != nullptr) {
+      TracksSnapshot bridge_tracks = bridge->GetTracksSnapshot(env);
+      std::vector<TrackGroupSnapshot> bridge_track_groups =
+          bridge->GetTrackGroups(env);
+      bridge_tracks_group_count =
+          static_cast<int>(bridge_tracks.groups.size());
+      bridge_track_group_vector_count =
+          static_cast<int>(bridge_track_groups.size());
+      bridge->Release(env);
+    }
+  }
 
   std::string summary = "usage=" + std::to_string(actual_attributes.usage);
   summary += ",contentType=" + std::to_string(actual_attributes.content_type);
@@ -2667,6 +2854,12 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
   summary += ",timelineSeekable=" + std::to_string(timeline.current_media_item_seekable ? 1 : 0);
   summary += ",timelineWindowSnapshots=" + std::to_string(timeline_windows.size());
   summary += ",timelinePeriodSnapshots=" + std::to_string(timeline_periods.size());
+  summary += ",tracksGroupCount=" + std::to_string(tracks.groups.size());
+  summary += ",trackGroupVectorCount=" + std::to_string(track_groups.size());
+  summary += ",bridgeTracksGroupCount=" +
+      std::to_string(bridge_tracks_group_count);
+  summary += ",bridgeTrackGroupVectorCount=" +
+      std::to_string(bridge_track_group_vector_count);
   if (!timeline_windows.empty()) {
     summary += ",timelineWindow0Dynamic=" +
         std::to_string(timeline_windows[0].is_dynamic ? 1 : 0);
@@ -2808,6 +3001,16 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   video_hd.container_mime_type = "video/mp4";
   video_hd.codecs = "avc1.640028";
   video_hd.bitrate = 2500000;
+  video_hd.average_bitrate = 2000000;
+  video_hd.peak_bitrate = 2500000;
+  video_hd.width = 1920;
+  video_hd.height = 1080;
+  video_hd.frame_rate = 30.0f;
+  video_hd.rotation_degrees = 90;
+  video_hd.pixel_width_height_ratio = 1.25f;
+  video_hd.color_standard = 1;
+  video_hd.color_range = 2;
+  video_hd.color_transfer = 3;
   video_hd.accessibility_channel = -1;
   video_hd.role_flags = 0;
   video_hd.selection_flags = 0;
@@ -2821,6 +3024,11 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   video_sd.container_mime_type = "video/mp4";
   video_sd.codecs = "avc1.4d401f";
   video_sd.bitrate = 1200000;
+  video_sd.average_bitrate = 1000000;
+  video_sd.peak_bitrate = 1200000;
+  video_sd.width = 1280;
+  video_sd.height = 720;
+  video_sd.frame_rate = 30.0f;
   video_sd.accessibility_channel = -1;
   video_sd.role_flags = 0;
   video_sd.selection_flags = 0;
@@ -2844,6 +3052,9 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   audio_main.label = "Main Audio";
   audio_main.label_token = "generated-opaque-object-token-audio-track-label";
   audio_main.mime_type = "audio/mp4a-latm";
+  audio_main.bitrate = 192000;
+  audio_main.average_bitrate = 160000;
+  audio_main.peak_bitrate = 192000;
   audio_main.channel_count = 2;
   audio_main.sample_rate = 48000;
   audio_main.role_flags = 0;
@@ -2889,6 +3100,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       summary += ",track0ContainerMimeType=" + track.container_mime_type;
       summary += ",track0Codecs=" + track.codecs;
       summary += ",track0Bitrate=" + std::to_string(track.bitrate);
+      summary += ",track0AverageBitrate=" + std::to_string(track.average_bitrate);
+      summary += ",track0PeakBitrate=" + std::to_string(track.peak_bitrate);
+      summary += ",track0Width=" + std::to_string(track.width);
+      summary += ",track0Height=" + std::to_string(track.height);
+      summary += ",track0FrameRate=" + std::to_string(track.frame_rate);
+      summary += ",track0RotationDegrees=" + std::to_string(track.rotation_degrees);
+      summary += ",track0PixelRatio=" + std::to_string(track.pixel_width_height_ratio);
+      summary += ",track0Color=" + std::to_string(track.color_standard) + ":" +
+          std::to_string(track.color_range) + ":" + std::to_string(track.color_transfer);
       summary += ",track0AccessibilityChannel=" + std::to_string(track.accessibility_channel);
       summary += ",track0RoleFlags=" + std::to_string(track.role_flags);
       summary += ",track0SelectionFlags=" + std::to_string(track.selection_flags);
@@ -2914,6 +3134,9 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       summary += ",group1Track0LabelTokenPresent=" +
           std::to_string(track.label_token.empty() ? 0 : 1);
       summary += ",group1Track0MimeType=" + track.mime_type;
+      summary += ",group1Track0Bitrate=" + std::to_string(track.bitrate);
+      summary += ",group1Track0AverageBitrate=" + std::to_string(track.average_bitrate);
+      summary += ",group1Track0PeakBitrate=" + std::to_string(track.peak_bitrate);
       summary += ",group1Track0ChannelCount=" + std::to_string(track.channel_count);
       summary += ",group1Track0SampleRate=" + std::to_string(track.sample_rate);
       summary += ",group1Track0RoleFlags=" + std::to_string(track.role_flags);
@@ -3915,10 +4138,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeS
     JNIEnv* env,
     jclass,
     jobject context,
+    jobject surface,
     jobject surface_view,
     jobject texture_view) {
   PlayerConfig config;
   std::unique_ptr<ExoPlayerSdkPlayer> player = ExoPlayerSdkPlayer::Create(env, context, config);
+  player->SetVideoSurface(surface);
+  player->ClearVideoSurface(surface);
+  player->SetVideoSurface(surface);
+  player->ClearVideoSurface();
   player->SetVideoSurfaceView(surface_view);
   player->ClearVideoSurfaceView(surface_view);
   if (texture_view != nullptr) {
@@ -4661,6 +4889,12 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeD
   std::unique_ptr<ExoPlayerSdkPlayer> player = ExoPlayerSdkPlayer::Create(env, context, config);
   player->SetWakeMode(0);
   player->SetSkipSilenceEnabled(true);
+  const int initial_device_volume = player->GetDeviceVolume();
+  const bool initial_device_muted = player->IsDeviceMuted();
+  player->SetDeviceVolume(initial_device_volume, 0);
+  player->IncreaseDeviceVolume(0);
+  player->DecreaseDeviceVolume(0);
+  player->SetDeviceMuted(initial_device_muted, 0);
   DeviceInfoDescriptor device_info = player->GetDeviceInfo();
   std::string summary = "deviceType=" + std::to_string(device_info.playback_type);
   summary += ",minVol=" + std::to_string(device_info.min_volume);
@@ -4669,6 +4903,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeD
   summary += ",deviceVol=" + std::to_string(player->GetDeviceVolume());
   summary += ",muted=" + std::to_string(player->IsDeviceMuted() ? 1 : 0);
   summary += ",skipSilence=" + std::to_string(player->GetSkipSilenceEnabled() ? 1 : 0);
+  summary += ",deviceControlCalls=1";
   return NewStringUtfChecked(env, summary, "nativeDeviceAndSkipSilenceSmokeTest");
 }
 
@@ -5546,32 +5781,53 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
     JNIEnv* env,
     jclass,
     jobject context) {
+  class AudioSessionIdCapturingListener : public PlayerListener {
+   public:
+    void OnPlaybackStateChanged(const PlaybackSnapshot&) override {}
+    void OnPlayWhenReadyChanged(const PlaybackSnapshot&, int) override {}
+    void OnIsPlayingChanged(const PlaybackSnapshot&) override {}
+    void OnMediaItemTransition(const PlaybackSnapshot&, int) override {}
+    void OnPlayerError(const PlaybackSnapshot&) override {}
+
+    void OnAudioSessionIdChanged(
+        const PlaybackSnapshot&,
+        const AudioSessionIdChangedEvent& audio_session_id_changed) override {
+      int audio_session_id = audio_session_id_changed.audio_session_id;
+      if (audio_session_id != 700001 &&
+          audio_session_id != 700042 &&
+          audio_session_id != 700009) {
+        return;
+      }
+      ++callback_count;
+      last_audio_session_id = audio_session_id;
+    }
+
+    int callback_count = 0;
+    int last_audio_session_id = 0;
+  };
+
   PlayerConfig config;
   std::unique_ptr<ExoPlayerSdkPlayer> player = ExoPlayerSdkPlayer::Create(env, context, config);
-  CapturingPlayerListener analytics_listener;
+  AudioSessionIdCapturingListener analytics_listener;
   player->AddAnalyticsListener(&analytics_listener);
   AudioSessionIdChangedEvent first_audio_session_id_changed;
-  first_audio_session_id_changed.audio_session_id = 7;
+  first_audio_session_id_changed.audio_session_id = 700001;
   player->SimulateAudioSessionIdChangedForTest(first_audio_session_id_changed);
   AudioSessionIdChangedEvent second_audio_session_id_changed;
-  second_audio_session_id_changed.audio_session_id = 42;
+  second_audio_session_id_changed.audio_session_id = 700042;
   player->SimulateAudioSessionIdChangedForTest(second_audio_session_id_changed);
-  int callback_count_before_remove =
-      analytics_listener.analytics_audio_session_id_changed_callback_count;
+  int callback_count_before_remove = analytics_listener.callback_count;
   player->RemoveAnalyticsListener(&analytics_listener);
   AudioSessionIdChangedEvent ignored_audio_session_id_changed;
-  ignored_audio_session_id_changed.audio_session_id = 1;
+  ignored_audio_session_id_changed.audio_session_id = 700009;
   player->SimulateAudioSessionIdChangedForTest(ignored_audio_session_id_changed);
   std::string summary = "beforeRemoveCb=" + std::to_string(callback_count_before_remove);
-  summary += ",afterRemoveCb=" +
-      std::to_string(analytics_listener.analytics_audio_session_id_changed_callback_count);
-  summary += ",callbackStopped=" + std::to_string(
-      analytics_listener.analytics_audio_session_id_changed_callback_count ==
-              callback_count_before_remove
-          ? 1
-          : 0);
+  summary += ",afterRemoveCb=" + std::to_string(analytics_listener.callback_count);
+  summary += ",callbackStopped=" +
+      std::to_string(
+          analytics_listener.callback_count == callback_count_before_remove ? 1 : 0);
   summary += ",audioSessionId=" +
-      std::to_string(analytics_listener.analytics_audio_session_id_changed_audio_session_id);
+      std::to_string(analytics_listener.last_audio_session_id);
   return NewStringUtfChecked(
       env,
       summary,
@@ -6471,20 +6727,27 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
   first_cues.presentation_time_us = 123456;
   first_cues.cue_count = 1;
   first_cues.texts = {"Analytics Cue First"};
+  first_cues.text_tokens = {"generated-opaque-object-token-analytics-cue-first-text"};
   first_cues.bitmap_tokens = {"generated-opaque-object-token-analytics-cue-first-bitmap"};
   first_cues.cues.resize(1);
   first_cues.cues[0].text = "Analytics Cue First";
+  first_cues.cues[0].text_token = "generated-opaque-object-token-analytics-cue-first-text";
   first_cues.cues[0].bitmap_token = "generated-opaque-object-token-analytics-cue-first-bitmap";
   player->SimulateAnalyticsCuesForTest(first_cues);
   CueSnapshot second_cues;
   second_cues.presentation_time_us = 654321;
   second_cues.cue_count = 2;
   second_cues.texts = {"Analytics Cue Final", "Analytics Cue Final 2"};
+  second_cues.text_tokens = {
+      "generated-opaque-object-token-analytics-cue-final-text",
+      "generated-opaque-object-token-analytics-cue-final-text-2"};
   second_cues.bitmap_tokens = {"generated-opaque-object-token-analytics-cue-final-bitmap", ""};
   second_cues.cues.resize(2);
   second_cues.cues[0].text = "Analytics Cue Final";
+  second_cues.cues[0].text_token = "generated-opaque-object-token-analytics-cue-final-text";
   second_cues.cues[0].bitmap_token = "generated-opaque-object-token-analytics-cue-final-bitmap";
   second_cues.cues[1].text = "Analytics Cue Final 2";
+  second_cues.cues[1].text_token = "generated-opaque-object-token-analytics-cue-final-text-2";
   player->SimulateAnalyticsCuesForTest(second_cues);
   int callback_count_before_remove = analytics_listener.analytics_cues_callback_count;
   player->RemoveAnalyticsListener(&analytics_listener);
@@ -6955,6 +7218,61 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeS
 }
 
 JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeHttpHlsDashPlaybackSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context,
+    jstring http_url,
+    jstring hls_url,
+    jstring dash_url) {
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "stream-playback-error:createPlayer",
+        "nativeHttpHlsDashPlaybackSmokeTest.error");
+  }
+
+  std::string summary;
+  AppendStreamPlaybackScenarioSummary(
+      player.get(),
+      {
+          "http",
+          JStringToString(env, http_url),
+          "http-progressive-item",
+          "audio/mp4",
+          MediaSourceType::kProgressive,
+      },
+      &summary);
+  summary += ";";
+  AppendStreamPlaybackScenarioSummary(
+      player.get(),
+      {
+          "hls",
+          JStringToString(env, hls_url),
+          "hls-item",
+          "application/x-mpegURL",
+          MediaSourceType::kHls,
+      },
+      &summary);
+  summary += ";";
+  AppendStreamPlaybackScenarioSummary(
+      player.get(),
+      {
+          "dash",
+          JStringToString(env, dash_url),
+          "dash-item",
+          "application/dash+xml",
+          MediaSourceType::kDash,
+      },
+      &summary);
+  player->Release();
+  return NewStringUtfChecked(env, summary, "nativeHttpHlsDashPlaybackSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeMediaSourceFactoryConfigSmokeTest(
     JNIEnv* env,
     jclass,
@@ -7184,13 +7502,1117 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeW
   bridge->SetWakeMode(env, 0);
   std::vector<std::string> after = BridgeGetPlayerConfigFlagsForTest(env, bridge);
   std::string summary = "beforeWakeMode=";
-  summary += before.size() > 2 ? before[2] : "";
+  summary += before.size() > 5 ? before[5] : "";
   summary += ",afterWakeMode=";
-  summary += after.size() > 2 ? after[2] : "";
+  summary += after.size() > 5 ? after[5] : "";
   summary += ",runtimeApplied=";
-  summary += after.size() > 2 && after[2] == "0" ? "1" : "0";
+  summary += after.size() > 5 && after[5] == "0" ? "1" : "0";
   bridge->Release(env);
   return NewStringUtfChecked(env, summary, "nativeWakeModeRuntimeSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeRuntimeControlParitySmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  constexpr int kVideoScalingModeScaleToFitWithCropping = 2;
+  constexpr int kVideoChangeFrameRateStrategyOff = -2147483647 - 1;
+
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env, "runtime-control-error:createPlayer", "nativeRuntimeControlParitySmokeTest.error");
+  }
+
+  player->SetHandleAudioBecomingNoisy(false);
+  player->SetHandleAudioBecomingNoisy(true);
+  player->SetSeekBackIncrementMs(4321);
+  player->SetSeekForwardIncrementMs(8765);
+  player->SetMaxSeekToPreviousPositionMs(9999);
+  const int64_t seek_back_increment_ms = player->GetSeekBackIncrement();
+  const int64_t seek_forward_increment_ms = player->GetSeekForwardIncrement();
+  const int64_t max_seek_to_previous_position_ms =
+      player->GetMaxSeekToPreviousPosition();
+  const bool initial_pause_at_end = player->GetPauseAtEndOfMediaItems();
+  player->SetPauseAtEndOfMediaItems(true);
+  const bool after_enable_pause_at_end = player->GetPauseAtEndOfMediaItems();
+  player->SetPauseAtEndOfMediaItems(false);
+  const bool after_disable_pause_at_end = player->GetPauseAtEndOfMediaItems();
+  player->SetForegroundMode(true);
+  player->SetForegroundMode(false);
+  player->SetVideoScalingMode(kVideoScalingModeScaleToFitWithCropping);
+  const int video_scaling_mode = player->GetVideoScalingMode();
+  player->SetVideoChangeFrameRateStrategy(kVideoChangeFrameRateStrategyOff);
+  const int video_change_frame_rate_strategy =
+      player->GetVideoChangeFrameRateStrategy();
+  player->Release();
+
+  std::shared_ptr<ExoPlayerBridge> bridge = ExoPlayerBridge::Create(env, context, config);
+  if (bridge == nullptr) {
+    return NewStringUtfChecked(
+        env, "runtime-control-error:createBridge", "nativeRuntimeControlParitySmokeTest.error");
+  }
+  std::vector<std::string> initial_flags = BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->SetHandleAudioBecomingNoisy(env, false);
+  std::vector<std::string> noisy_disabled_flags =
+      BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->SetHandleAudioBecomingNoisy(env, true);
+  std::vector<std::string> noisy_enabled_flags =
+      BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->SetForegroundMode(env, true);
+  std::vector<std::string> foreground_enabled_flags =
+      BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->SetForegroundMode(env, false);
+  std::vector<std::string> foreground_disabled_flags =
+      BridgeGetPlayerConfigFlagsForTest(env, bridge);
+
+  std::string summary = "seekBackIncrementMs=" + std::to_string(seek_back_increment_ms);
+  summary += ",seekForwardIncrementMs=" + std::to_string(seek_forward_increment_ms);
+  summary += ",maxSeekToPreviousPositionMs=" +
+      std::to_string(max_seek_to_previous_position_ms);
+  summary += ",initialPauseAtEnd=" + std::to_string(initial_pause_at_end ? 1 : 0);
+  summary += ",afterEnablePauseAtEnd=" +
+      std::to_string(after_enable_pause_at_end ? 1 : 0);
+  summary += ",afterDisablePauseAtEnd=" +
+      std::to_string(after_disable_pause_at_end ? 1 : 0);
+  summary += ",videoScalingMode=" + std::to_string(video_scaling_mode);
+  summary += ",videoChangeFrameRateStrategy=" +
+      std::to_string(video_change_frame_rate_strategy);
+  summary += ",initialNoisyFlag=";
+  summary += initial_flags.size() > 1 ? initial_flags[1] : "";
+  summary += ",afterDisableNoisyFlag=";
+  summary += noisy_disabled_flags.size() > 1 ? noisy_disabled_flags[1] : "";
+  summary += ",afterEnableNoisyFlag=";
+  summary += noisy_enabled_flags.size() > 1 ? noisy_enabled_flags[1] : "";
+  summary += ",afterEnableForegroundFlag=";
+  summary += foreground_enabled_flags.size() > 13 ? foreground_enabled_flags[13] : "";
+  summary += ",afterDisableForegroundFlag=";
+  summary += foreground_disabled_flags.size() > 13 ? foreground_disabled_flags[13] : "";
+  summary += ",runtimeApplied=" +
+      std::to_string(
+          seek_back_increment_ms == 4321 &&
+                  seek_forward_increment_ms == 8765 &&
+                  max_seek_to_previous_position_ms == 9999 &&
+                  !initial_pause_at_end &&
+                  after_enable_pause_at_end &&
+                  !after_disable_pause_at_end &&
+                  video_scaling_mode == kVideoScalingModeScaleToFitWithCropping &&
+                  video_change_frame_rate_strategy == kVideoChangeFrameRateStrategyOff &&
+                  noisy_disabled_flags.size() > 1 && noisy_disabled_flags[1] == "0" &&
+                  noisy_enabled_flags.size() > 1 && noisy_enabled_flags[1] == "1" &&
+                  foreground_enabled_flags.size() > 13 &&
+                  foreground_enabled_flags[13] == "1" &&
+                  foreground_disabled_flags.size() > 13 &&
+                  foreground_disabled_flags[13] == "0"
+              ? 1
+              : 0);
+  bridge->Release(env);
+  return NewStringUtfChecked(env, summary, "nativeRuntimeControlParitySmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeAudioAndScrubbingParitySmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "audio-scrubbing-error:createPlayer",
+        "nativeAudioAndScrubbingParitySmokeTest.error");
+  }
+
+  const bool scrubbing_initially = player->IsScrubbingModeEnabled();
+  player->SetAudioSessionId(1234);
+  player->SetAuxEffectInfo(AuxEffectInfoDescriptor{/*effect_id=*/0, /*send_level=*/0.37f});
+  player->ClearAuxEffectInfo();
+  player->ClearPreferredAudioDevice();
+  player->SetVirtualDeviceId(42);
+  player->SetScrubbingModeEnabled(true);
+  const bool scrubbing_after_enable = player->IsScrubbingModeEnabled();
+  ScrubbingModeParametersDescriptor requested_scrubbing_parameters;
+  requested_scrubbing_parameters.disabled_track_types = {2, 3};
+  requested_scrubbing_parameters.has_fractional_seek_tolerance = true;
+  requested_scrubbing_parameters.fractional_seek_tolerance_before = 0.125;
+  requested_scrubbing_parameters.fractional_seek_tolerance_after = 0.5;
+  requested_scrubbing_parameters.should_increase_codec_operating_rate = false;
+  requested_scrubbing_parameters.allow_skipping_media_codec_flush = true;
+  requested_scrubbing_parameters.allow_skipping_key_frame_reset = false;
+  requested_scrubbing_parameters.should_enable_dynamic_scheduling = true;
+  requested_scrubbing_parameters.use_decode_only_flag = false;
+  player->SetScrubbingModeParameters(requested_scrubbing_parameters);
+  ScrubbingModeParametersDescriptor actual_scrubbing_parameters =
+      player->GetScrubbingModeParameters();
+  player->SetScrubbingModeEnabled(false);
+  const bool scrubbing_after_disable = player->IsScrubbingModeEnabled();
+  player->Release();
+
+  std::shared_ptr<ExoPlayerBridge> bridge = ExoPlayerBridge::Create(env, context, config);
+  if (bridge == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "audio-scrubbing-error:createBridge",
+        "nativeAudioAndScrubbingParitySmokeTest.error");
+  }
+  bridge->SetAudioSessionId(env, 1234);
+  bridge->SetAuxEffectInfo(env, AuxEffectInfoDescriptor{/*effect_id=*/0, /*send_level=*/0.37f});
+  std::vector<std::string> aux_set_flags = BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->ClearAuxEffectInfo(env);
+  std::vector<std::string> aux_clear_flags = BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->SetPreferredAudioDevice(env, nullptr);
+  std::vector<std::string> preferred_audio_clear_flags =
+      BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->SetVirtualDeviceId(env, 42);
+  std::vector<std::string> virtual_device_flags =
+      BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->Release(env);
+
+  const bool has_track_type_2 =
+      std::find(
+          actual_scrubbing_parameters.disabled_track_types.begin(),
+          actual_scrubbing_parameters.disabled_track_types.end(),
+          2) != actual_scrubbing_parameters.disabled_track_types.end();
+  const bool has_track_type_3 =
+      std::find(
+          actual_scrubbing_parameters.disabled_track_types.begin(),
+          actual_scrubbing_parameters.disabled_track_types.end(),
+          3) != actual_scrubbing_parameters.disabled_track_types.end();
+  const bool scrubbing_parameters_match =
+      actual_scrubbing_parameters.disabled_track_types.size() == 2 &&
+      has_track_type_2 &&
+      has_track_type_3 &&
+      actual_scrubbing_parameters.has_fractional_seek_tolerance &&
+      actual_scrubbing_parameters.fractional_seek_tolerance_before == 0.125 &&
+      actual_scrubbing_parameters.fractional_seek_tolerance_after == 0.5 &&
+      !actual_scrubbing_parameters.should_increase_codec_operating_rate &&
+      actual_scrubbing_parameters.allow_skipping_media_codec_flush &&
+      !actual_scrubbing_parameters.allow_skipping_key_frame_reset &&
+      actual_scrubbing_parameters.should_enable_dynamic_scheduling &&
+      !actual_scrubbing_parameters.use_decode_only_flag;
+
+  std::string summary = "audioSessionId=";
+  summary += aux_set_flags.size() > 14 ? aux_set_flags[14] : "";
+  summary += ",auxEffectAfterSet=";
+  summary += aux_set_flags.size() > 15 ? aux_set_flags[15] : "";
+  summary += ":";
+  summary += aux_set_flags.size() > 16 ? aux_set_flags[16] : "";
+  summary += ",auxEffectAfterClear=";
+  summary += aux_clear_flags.size() > 15 ? aux_clear_flags[15] : "";
+  summary += ":";
+  summary += aux_clear_flags.size() > 16 ? aux_clear_flags[16] : "";
+  summary += ",preferredAudioDeviceAfterClear=";
+  summary += preferred_audio_clear_flags.size() > 17 ? preferred_audio_clear_flags[17] : "";
+  summary += ",virtualDeviceId=";
+  summary += virtual_device_flags.size() > 18 ? virtual_device_flags[18] : "";
+  summary += ",scrubbingInitially=" + std::to_string(scrubbing_initially ? 1 : 0);
+  summary += ",scrubbingAfterEnable=" + std::to_string(scrubbing_after_enable ? 1 : 0);
+  summary += ",scrubbingAfterDisable=" + std::to_string(scrubbing_after_disable ? 1 : 0);
+  summary += ",scrubTracks=";
+  summary += has_track_type_2 ? "2" : "";
+  summary += ",";
+  summary += has_track_type_3 ? "3" : "";
+  summary += ",scrubTolerance=" +
+      std::to_string(actual_scrubbing_parameters.fractional_seek_tolerance_before);
+  summary += ":" +
+      std::to_string(actual_scrubbing_parameters.fractional_seek_tolerance_after);
+  summary += ",scrubFlags=";
+  summary += actual_scrubbing_parameters.should_increase_codec_operating_rate ? "1" : "0";
+  summary += actual_scrubbing_parameters.allow_skipping_media_codec_flush ? "1" : "0";
+  summary += actual_scrubbing_parameters.allow_skipping_key_frame_reset ? "1" : "0";
+  summary += actual_scrubbing_parameters.should_enable_dynamic_scheduling ? "1" : "0";
+  summary += actual_scrubbing_parameters.use_decode_only_flag ? "1" : "0";
+  summary += ",runtimeApplied=" +
+      std::to_string(
+          !scrubbing_initially &&
+                  scrubbing_after_enable &&
+                  !scrubbing_after_disable &&
+                  aux_set_flags.size() > 16 &&
+                  aux_set_flags[14] == "1234" &&
+                  aux_set_flags[15] == "0" &&
+                  aux_set_flags[16] == "0.37" &&
+                  aux_clear_flags.size() > 16 &&
+                  aux_clear_flags[15] == "0" &&
+                  aux_clear_flags[16] == "0.0" &&
+                  preferred_audio_clear_flags.size() > 17 &&
+                  preferred_audio_clear_flags[17] == "0" &&
+                  virtual_device_flags.size() > 18 &&
+                  virtual_device_flags[18] == "42" &&
+                  scrubbing_parameters_match
+              ? 1
+              : 0);
+  return NewStringUtfChecked(env, summary, "nativeAudioAndScrubbingParitySmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeCodecParametersParitySmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  auto integer_parameter = [](const std::string& key, int value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kInteger;
+    parameter.int_value = value;
+    return parameter;
+  };
+  auto long_parameter = [](const std::string& key, int64_t value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kLong;
+    parameter.long_value = value;
+    return parameter;
+  };
+  auto float_parameter = [](const std::string& key, float value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kFloat;
+    parameter.float_value = value;
+    return parameter;
+  };
+  auto string_parameter = [](const std::string& key, const std::string& value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kString;
+    parameter.string_value = value;
+    return parameter;
+  };
+  auto byte_buffer_parameter = [](const std::string& key, std::vector<uint8_t> value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kByteBuffer;
+    parameter.byte_buffer_value = std::move(value);
+    return parameter;
+  };
+  auto null_parameter = [](const std::string& key) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kNull;
+    return parameter;
+  };
+
+  CodecParametersDescriptor audio_parameters;
+  audio_parameters.parameters = {
+      integer_parameter("audio-int", 7),
+      long_parameter("audio-long", 9876543210LL),
+      float_parameter("audio-float", 1.25f),
+      string_parameter("audio-string", "music"),
+      byte_buffer_parameter("audio-bytes", {0x01, 0x2A, 0xFF}),
+      null_parameter("audio-null"),
+  };
+  CodecParametersDescriptor video_parameters;
+  video_parameters.parameters = {
+      string_parameter("video-string", "video"),
+      byte_buffer_parameter("video-bytes", {0x10, 0x20}),
+  };
+
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "codec-parameters-error:createPlayer",
+        "nativeCodecParametersParitySmokeTest.error");
+  }
+  player->SetAudioCodecParameters(audio_parameters);
+  player->SetVideoCodecParameters(video_parameters);
+  player->Release();
+
+  std::shared_ptr<ExoPlayerBridge> bridge = ExoPlayerBridge::Create(env, context, config);
+  if (bridge == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "codec-parameters-error:createBridge",
+        "nativeCodecParametersParitySmokeTest.error");
+  }
+  bridge->SetAudioCodecParameters(env, audio_parameters);
+  bridge->SetVideoCodecParameters(env, video_parameters);
+  std::vector<std::string> flags = BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  bridge->Release(env);
+
+  const std::string audio_summary = flags.size() > 20 ? flags[20] : "";
+  const std::string video_summary = flags.size() > 21 ? flags[21] : "";
+  const std::string expected_audio_summary =
+      "audio-int=int:7;audio-long=long:9876543210;audio-float=float:1.25;"
+      "audio-string=string:music;audio-bytes=bytes:3:012aff;audio-null=null";
+  const std::string expected_video_summary =
+      "video-string=string:video;video-bytes=bytes:2:1020";
+  std::string summary = "audioCodec=" + audio_summary;
+  summary += ",videoCodec=" + video_summary;
+  summary += ",runtimeApplied=" +
+      std::to_string(
+          audio_summary == expected_audio_summary &&
+                  video_summary == expected_video_summary
+              ? 1
+              : 0);
+  return NewStringUtfChecked(env, summary, "nativeCodecParametersParitySmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeAuxiliaryCallbackParitySmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  auto integer_parameter = [](const std::string& key, int value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kInteger;
+    parameter.int_value = value;
+    return parameter;
+  };
+  auto string_parameter = [](const std::string& key, const std::string& value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kString;
+    parameter.string_value = value;
+    return parameter;
+  };
+  auto summarize_codec_parameters = [](const CodecParametersDescriptor& parameters) {
+    std::string summary;
+    static constexpr char kHex[] = "0123456789abcdef";
+    for (size_t i = 0; i < parameters.parameters.size(); ++i) {
+      const CodecParameterDescriptor& parameter = parameters.parameters[i];
+      if (i > 0) {
+        summary += ";";
+      }
+      summary += parameter.key + "=";
+      switch (parameter.value_type) {
+        case CodecParameterDescriptor::ValueType::kInteger:
+          summary += "int:" + std::to_string(parameter.int_value);
+          break;
+        case CodecParameterDescriptor::ValueType::kLong:
+          summary += "long:" + std::to_string(parameter.long_value);
+          break;
+        case CodecParameterDescriptor::ValueType::kFloat:
+          summary += "float:" + std::to_string(parameter.float_value);
+          break;
+        case CodecParameterDescriptor::ValueType::kString:
+          summary += "string:" + parameter.string_value;
+          break;
+        case CodecParameterDescriptor::ValueType::kByteBuffer:
+          summary += "bytes:" +
+              std::to_string(parameter.byte_buffer_value.size()) + ":";
+          for (uint8_t value : parameter.byte_buffer_value) {
+            summary.push_back(kHex[(value >> 4) & 0x0F]);
+            summary.push_back(kHex[value & 0x0F]);
+          }
+          break;
+        case CodecParameterDescriptor::ValueType::kNull:
+          summary += "null";
+          break;
+      }
+    }
+    return summary;
+  };
+  class AuxiliaryCallbackCapturingListener : public PlayerListener {
+   public:
+    explicit AuxiliaryCallbackCapturingListener(
+        std::string (*summarize)(const CodecParametersDescriptor&))
+        : summarize_(summarize) {}
+
+    void OnPlaybackStateChanged(const PlaybackSnapshot&) override {}
+    void OnPlayWhenReadyChanged(const PlaybackSnapshot&, int) override {}
+    void OnIsPlayingChanged(const PlaybackSnapshot&) override {}
+    void OnMediaItemTransition(const PlaybackSnapshot&, int) override {}
+    void OnPlayerError(const PlaybackSnapshot&) override {}
+
+    void Reset() {
+      audio_codec_callback_count = 0;
+      video_codec_callback_count = 0;
+      video_frame_callback_count = 0;
+      camera_motion_callback_count = 0;
+      camera_reset_callback_count = 0;
+      audio_codec_summary.clear();
+      video_codec_summary.clear();
+      frame_mime.clear();
+      frame_format_id.clear();
+      frame_label.clear();
+      frame_language.clear();
+      frame_container_mime.clear();
+      frame_bitrate = 0;
+      frame_average_bitrate = 0;
+      frame_peak_bitrate = 0;
+      frame_rotation_degrees = 0;
+      frame_pixel_width_height_ratio = 0.0f;
+      frame_color_standard = 0;
+      frame_color_range = 0;
+      frame_color_transfer = 0;
+      frame_channel_count = 0;
+      frame_sample_rate = 0;
+      frame_role_flags = 0;
+      frame_selection_flags = 0;
+      frame_media_format_present = false;
+      frame_media_format_summary.clear();
+      frame_media_format_mime.clear();
+      frame_media_format_width = 0;
+      frame_media_format_height = 0;
+      frame_media_format_frame_rate = 0.0f;
+      frame_media_format_rotation_degrees = 0;
+      frame_media_format_color_standard = 0;
+      frame_media_format_color_range = 0;
+      frame_media_format_color_transfer = 0;
+      camera_rotation_summary.clear();
+    }
+
+    void OnAudioCodecParametersChanged(
+        const PlaybackSnapshot&,
+        const CodecParametersDescriptor& codec_parameters) override {
+      ++audio_codec_callback_count;
+      audio_codec_summary = summarize_(codec_parameters);
+    }
+
+    void OnVideoCodecParametersChanged(
+        const PlaybackSnapshot&,
+        const CodecParametersDescriptor& codec_parameters) override {
+      ++video_codec_callback_count;
+      video_codec_summary = summarize_(codec_parameters);
+    }
+
+    void OnVideoFrameAboutToBeRendered(
+        const PlaybackSnapshot&,
+        const VideoFrameMetadataSnapshot& video_frame_metadata) override {
+      ++video_frame_callback_count;
+      frame_presentation_time_us = video_frame_metadata.presentation_time_us;
+      frame_release_time_ns = video_frame_metadata.release_time_ns;
+      frame_format_id = video_frame_metadata.format_id;
+      frame_mime = video_frame_metadata.sample_mime_type;
+      frame_width = video_frame_metadata.width;
+      frame_height = video_frame_metadata.height;
+      frame_rate = video_frame_metadata.frame_rate;
+      frame_label = video_frame_metadata.format_label;
+      frame_language = video_frame_metadata.format_language;
+      frame_container_mime = video_frame_metadata.format_container_mime_type;
+      frame_bitrate = video_frame_metadata.format_bitrate;
+      frame_average_bitrate = video_frame_metadata.format_average_bitrate;
+      frame_peak_bitrate = video_frame_metadata.format_peak_bitrate;
+      frame_rotation_degrees = video_frame_metadata.format_rotation_degrees;
+      frame_pixel_width_height_ratio =
+          video_frame_metadata.format_pixel_width_height_ratio;
+      frame_color_standard = video_frame_metadata.format_color_standard;
+      frame_color_range = video_frame_metadata.format_color_range;
+      frame_color_transfer = video_frame_metadata.format_color_transfer;
+      frame_channel_count = video_frame_metadata.format_channel_count;
+      frame_sample_rate = video_frame_metadata.format_sample_rate;
+      frame_role_flags = video_frame_metadata.format_role_flags;
+      frame_selection_flags = video_frame_metadata.format_selection_flags;
+      frame_media_format_present = video_frame_metadata.media_format_present;
+      frame_media_format_summary = video_frame_metadata.media_format_summary;
+      frame_media_format_mime = video_frame_metadata.media_format_mime_type;
+      frame_media_format_width = video_frame_metadata.media_format_width;
+      frame_media_format_height = video_frame_metadata.media_format_height;
+      frame_media_format_frame_rate =
+          video_frame_metadata.media_format_frame_rate;
+      frame_media_format_rotation_degrees =
+          video_frame_metadata.media_format_rotation_degrees;
+      frame_media_format_color_standard =
+          video_frame_metadata.media_format_color_standard;
+      frame_media_format_color_range =
+          video_frame_metadata.media_format_color_range;
+      frame_media_format_color_transfer =
+          video_frame_metadata.media_format_color_transfer;
+    }
+
+    void OnCameraMotion(
+        const PlaybackSnapshot&,
+        const CameraMotionSnapshot& camera_motion) override {
+      ++camera_motion_callback_count;
+      camera_time_us = camera_motion.time_us;
+      camera_rotation_summary.clear();
+      for (size_t i = 0; i < camera_motion.rotation.size(); ++i) {
+        if (i > 0) {
+          camera_rotation_summary += ":";
+        }
+        camera_rotation_summary += std::to_string(camera_motion.rotation[i]);
+      }
+    }
+
+    void OnCameraMotionReset(const PlaybackSnapshot&) override {
+      ++camera_reset_callback_count;
+    }
+
+    std::string (*summarize_)(const CodecParametersDescriptor&);
+    int audio_codec_callback_count = 0;
+    int video_codec_callback_count = 0;
+    int video_frame_callback_count = 0;
+    int camera_motion_callback_count = 0;
+    int camera_reset_callback_count = 0;
+    std::string audio_codec_summary;
+    std::string video_codec_summary;
+    int64_t frame_presentation_time_us = 0;
+    int64_t frame_release_time_ns = 0;
+    std::string frame_format_id;
+    std::string frame_mime;
+    int frame_width = 0;
+    int frame_height = 0;
+    float frame_rate = 0.0f;
+    std::string frame_label;
+    std::string frame_language;
+    std::string frame_container_mime;
+    int frame_bitrate = 0;
+    int frame_average_bitrate = 0;
+    int frame_peak_bitrate = 0;
+    int frame_rotation_degrees = 0;
+    float frame_pixel_width_height_ratio = 0.0f;
+    int frame_color_standard = 0;
+    int frame_color_range = 0;
+    int frame_color_transfer = 0;
+    int frame_channel_count = 0;
+    int frame_sample_rate = 0;
+    int frame_role_flags = 0;
+    int frame_selection_flags = 0;
+    bool frame_media_format_present = false;
+    std::string frame_media_format_summary;
+    std::string frame_media_format_mime;
+    int frame_media_format_width = 0;
+    int frame_media_format_height = 0;
+    float frame_media_format_frame_rate = 0.0f;
+    int frame_media_format_rotation_degrees = 0;
+    int frame_media_format_color_standard = 0;
+    int frame_media_format_color_range = 0;
+    int frame_media_format_color_transfer = 0;
+    int64_t camera_time_us = 0;
+    std::string camera_rotation_summary;
+  };
+
+  PlayerConfig config;
+  bool bridge_codec_listener_registration_safe = false;
+  {
+    std::shared_ptr<ExoPlayerBridge> bridge =
+        ExoPlayerBridge::Create(env, context, config);
+    if (bridge != nullptr) {
+      bridge->SetAudioCodecParametersChangeListener(
+          env, {"codec-rate", "codec-mode"});
+      bridge->ClearAudioCodecParametersChangeListener(env);
+      bridge->SetVideoCodecParametersChangeListener(env, {"video-profile"});
+      bridge->ClearVideoCodecParametersChangeListener(env);
+      bridge->Release(env);
+      bridge_codec_listener_registration_safe = true;
+    }
+  }
+
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "aux-callback-error:createPlayer",
+        "nativeAuxiliaryCallbackParitySmokeTest.error");
+  }
+  AuxiliaryCallbackCapturingListener listener(+summarize_codec_parameters);
+  player->AddAudioCodecParametersChangeListener(
+      &listener, {"codec-rate", "codec-mode"});
+  player->AddVideoCodecParametersChangeListener(&listener, {"video-profile"});
+  player->SetVideoFrameMetadataListener(&listener);
+  player->SetCameraMotionListener(&listener);
+  listener.Reset();
+
+  CodecParametersDescriptor audio_parameters;
+  audio_parameters.parameters = {
+      integer_parameter("codec-rate", 60),
+      string_parameter("codec-mode", "low-latency"),
+      integer_parameter("ignored-audio", 99),
+  };
+  CodecParametersDescriptor video_parameters;
+  video_parameters.parameters = {
+      string_parameter("video-profile", "main"),
+      integer_parameter("ignored-video", 7),
+  };
+  VideoFrameMetadataSnapshot frame;
+  frame.presentation_time_us = 123456;
+  frame.release_time_ns = 987654321;
+  frame.format_id = "frame-format";
+  frame.sample_mime_type = "video/avc";
+  frame.codecs = "avc1.64001f";
+  frame.width = 1920;
+  frame.height = 1080;
+  frame.frame_rate = 23.976f;
+  frame.format_label = "Main Camera";
+  frame.format_language = "en";
+  frame.format_container_mime_type = "video/mp4";
+  frame.format_average_bitrate = 222000;
+  frame.format_peak_bitrate = 333000;
+  frame.format_rotation_degrees = 180;
+  frame.format_pixel_width_height_ratio = 1.5f;
+  frame.format_color_standard = 1;
+  frame.format_color_range = 2;
+  frame.format_color_transfer = 3;
+  frame.format_channel_count = 2;
+  frame.format_sample_rate = 48000;
+  frame.format_role_flags = 5;
+  frame.format_selection_flags = 7;
+  frame.media_format_present = true;
+  frame.media_format_summary = "media-format-ok";
+  frame.media_format_mime_type = "video/avc";
+  frame.media_format_width = 1920;
+  frame.media_format_height = 1080;
+  frame.media_format_frame_rate = 23.976f;
+  frame.media_format_rotation_degrees = 90;
+  frame.media_format_color_standard = 1;
+  frame.media_format_color_range = 2;
+  frame.media_format_color_transfer = 3;
+  CameraMotionSnapshot camera_motion;
+  camera_motion.time_us = 654321;
+  camera_motion.rotation = {1.0f, 2.0f, 3.0f};
+
+  player->SimulateAudioCodecParametersChangedForTest(audio_parameters);
+  player->SimulateVideoCodecParametersChangedForTest(video_parameters);
+  player->SimulateVideoFrameAboutToBeRenderedForTest(frame);
+  player->SimulateCameraMotionForTest(camera_motion);
+  player->SimulateCameraMotionResetForTest();
+
+  const int callbacks_before_remove =
+      listener.audio_codec_callback_count +
+      listener.video_codec_callback_count +
+      listener.video_frame_callback_count +
+      listener.camera_motion_callback_count +
+      listener.camera_reset_callback_count;
+  player->RemoveAudioCodecParametersChangeListener(&listener);
+  player->RemoveVideoCodecParametersChangeListener(&listener);
+  player->ClearVideoFrameMetadataListener(&listener);
+  player->ClearCameraMotionListener(&listener);
+  player->SimulateAudioCodecParametersChangedForTest(audio_parameters);
+  player->SimulateVideoCodecParametersChangedForTest(video_parameters);
+  player->SimulateVideoFrameAboutToBeRenderedForTest(frame);
+  player->SimulateCameraMotionForTest(camera_motion);
+  player->SimulateCameraMotionResetForTest();
+  const int callbacks_after_remove =
+      listener.audio_codec_callback_count +
+      listener.video_codec_callback_count +
+      listener.video_frame_callback_count +
+      listener.camera_motion_callback_count +
+      listener.camera_reset_callback_count;
+  player->Release();
+
+  std::string summary =
+      "audioCodecCb=" + std::to_string(listener.audio_codec_callback_count);
+  summary += ",audioCodec=" + listener.audio_codec_summary;
+  summary += ",videoCodecCb=" + std::to_string(listener.video_codec_callback_count);
+  summary += ",videoCodec=" + listener.video_codec_summary;
+  summary += ",videoFrameCb=" + std::to_string(listener.video_frame_callback_count);
+  summary += ",framePresentationUs=" +
+      std::to_string(listener.frame_presentation_time_us);
+  summary += ",frameReleaseNs=" + std::to_string(listener.frame_release_time_ns);
+  summary += ",frameFormatId=" + listener.frame_format_id;
+  summary += ",frameMime=" + listener.frame_mime;
+  summary += ",frameSize=" + std::to_string(listener.frame_width) + "x" +
+      std::to_string(listener.frame_height);
+  summary += ",frameRate=" + std::to_string(listener.frame_rate);
+  summary += ",frameLabel=" + listener.frame_label;
+  summary += ",frameLanguage=" + listener.frame_language;
+  summary += ",frameContainerMime=" + listener.frame_container_mime;
+  summary += ",frameBitrates=" + std::to_string(listener.frame_bitrate) + ":" +
+      std::to_string(listener.frame_average_bitrate) + ":" +
+      std::to_string(listener.frame_peak_bitrate);
+  summary += ",frameRotation=" +
+      std::to_string(listener.frame_rotation_degrees);
+  summary += ",framePixelRatio=" +
+      std::to_string(listener.frame_pixel_width_height_ratio);
+  summary += ",frameColor=" +
+      std::to_string(listener.frame_color_standard) + ":" +
+      std::to_string(listener.frame_color_range) + ":" +
+      std::to_string(listener.frame_color_transfer);
+  summary += ",frameAudioShape=" +
+      std::to_string(listener.frame_channel_count) + ":" +
+      std::to_string(listener.frame_sample_rate);
+  summary += ",frameFlags=" + std::to_string(listener.frame_role_flags) + ":" +
+      std::to_string(listener.frame_selection_flags);
+  summary += ",frameMediaFormatPresent=" +
+      std::to_string(listener.frame_media_format_present ? 1 : 0);
+  summary += ",frameMediaFormatSummary=" + listener.frame_media_format_summary;
+  summary += ",frameMediaFormatMime=" + listener.frame_media_format_mime;
+  summary += ",frameMediaFormatSize=" +
+      std::to_string(listener.frame_media_format_width) + "x" +
+      std::to_string(listener.frame_media_format_height);
+  summary += ",frameMediaFormatFrameRate=" +
+      std::to_string(listener.frame_media_format_frame_rate);
+  summary += ",frameMediaFormatRotation=" +
+      std::to_string(listener.frame_media_format_rotation_degrees);
+  summary += ",frameMediaFormatColor=" +
+      std::to_string(listener.frame_media_format_color_standard) + ":" +
+      std::to_string(listener.frame_media_format_color_range) + ":" +
+      std::to_string(listener.frame_media_format_color_transfer);
+  summary += ",cameraMotionCb=" +
+      std::to_string(listener.camera_motion_callback_count);
+  summary += ",cameraTimeUs=" + std::to_string(listener.camera_time_us);
+  summary += ",cameraRotation=" + listener.camera_rotation_summary;
+  summary += ",cameraResetCb=" +
+      std::to_string(listener.camera_reset_callback_count);
+  summary += ",afterRemoveStopped=" +
+      std::to_string(callbacks_before_remove == callbacks_after_remove ? 1 : 0);
+  summary += ",bridgeCodecRegistrationSafe=" +
+      std::to_string(bridge_codec_listener_registration_safe ? 1 : 0);
+  summary += ",callbackApplied=" +
+      std::to_string(
+          listener.audio_codec_callback_count == 1 &&
+                  listener.audio_codec_summary ==
+                      "codec-mode=string:low-latency;codec-rate=int:60" &&
+                  listener.video_codec_callback_count == 1 &&
+                  listener.video_codec_summary == "video-profile=string:main" &&
+                  listener.video_frame_callback_count == 1 &&
+                  listener.frame_presentation_time_us == 123456 &&
+                  listener.frame_release_time_ns == 987654321 &&
+                  listener.frame_format_id == "frame-format" &&
+                  listener.frame_mime == "video/avc" &&
+                  listener.frame_width == 1920 &&
+                  listener.frame_height == 1080 &&
+                  listener.frame_label == "Main Camera" &&
+                  listener.frame_language == "en" &&
+                  listener.frame_container_mime == "video/mp4" &&
+                  listener.frame_bitrate == 333000 &&
+                  listener.frame_average_bitrate == 222000 &&
+                  listener.frame_peak_bitrate == 333000 &&
+                  listener.frame_rotation_degrees == 180 &&
+                  listener.frame_pixel_width_height_ratio == 1.5f &&
+                  listener.frame_color_standard == 1 &&
+                  listener.frame_color_range == 2 &&
+                  listener.frame_color_transfer == 3 &&
+                  listener.frame_channel_count == 2 &&
+                  listener.frame_sample_rate == 48000 &&
+                  listener.frame_role_flags == 5 &&
+                  listener.frame_selection_flags == 7 &&
+                  listener.frame_media_format_present &&
+                  listener.frame_media_format_mime == "video/avc" &&
+                  listener.frame_media_format_width == 1920 &&
+                  listener.frame_media_format_height == 1080 &&
+                  listener.frame_media_format_rotation_degrees == 90 &&
+                  listener.frame_media_format_color_standard == 1 &&
+                  listener.frame_media_format_color_range == 2 &&
+                  listener.frame_media_format_color_transfer == 3 &&
+                  listener.camera_motion_callback_count == 1 &&
+                  listener.camera_time_us == 654321 &&
+                  listener.camera_rotation_summary ==
+                      "1.000000:2.000000:3.000000" &&
+                  listener.camera_reset_callback_count == 1 &&
+                  callbacks_before_remove == callbacks_after_remove &&
+                  bridge_codec_listener_registration_safe
+              ? 1
+              : 0);
+  return NewStringUtfChecked(env, summary, "nativeAuxiliaryCallbackParitySmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeVideoFrameMetadataSimulationFallbackSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  class VideoFrameFallbackCapturingListener : public PlayerListener {
+   public:
+    void OnPlaybackStateChanged(const PlaybackSnapshot&) override {}
+    void OnPlayWhenReadyChanged(const PlaybackSnapshot&, int) override {}
+    void OnIsPlayingChanged(const PlaybackSnapshot&) override {}
+    void OnMediaItemTransition(const PlaybackSnapshot&, int) override {}
+    void OnPlayerError(const PlaybackSnapshot&) override {}
+
+    void OnVideoFrameAboutToBeRendered(
+        const PlaybackSnapshot&,
+        const VideoFrameMetadataSnapshot& video_frame_metadata) override {
+      ++frame_callback_count;
+      frame_bitrate = video_frame_metadata.format_bitrate;
+      frame_average_bitrate = video_frame_metadata.format_average_bitrate;
+      frame_peak_bitrate = video_frame_metadata.format_peak_bitrate;
+      frame_color_standard = video_frame_metadata.format_color_standard;
+      frame_color_range = video_frame_metadata.format_color_range;
+      frame_color_transfer = video_frame_metadata.format_color_transfer;
+      frame_channel_count = video_frame_metadata.format_channel_count;
+      frame_sample_rate = video_frame_metadata.format_sample_rate;
+    }
+
+    int frame_callback_count = 0;
+    int frame_bitrate = 0;
+    int frame_average_bitrate = 0;
+    int frame_peak_bitrate = 0;
+    int frame_color_standard = 0;
+    int frame_color_range = 0;
+    int frame_color_transfer = 0;
+    int frame_channel_count = 0;
+    int frame_sample_rate = 0;
+  };
+
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "video-frame-fallback-error:createPlayer",
+        "nativeVideoFrameMetadataSimulationFallbackSmokeTest.error");
+  }
+
+  VideoFrameFallbackCapturingListener listener;
+  player->SetVideoFrameMetadataListener(&listener);
+
+  VideoFrameMetadataSnapshot frame;
+  frame.presentation_time_us = 222333;
+  frame.release_time_ns = 444555;
+  frame.format_id = "fallback-format";
+  frame.sample_mime_type = "video/avc";
+  frame.codecs = "avc1.fallback";
+  frame.width = 640;
+  frame.height = 360;
+  frame.frame_rate = 30.0f;
+  frame.format_bitrate = 123000;
+  frame.format_color_standard = 1;
+
+  player->SimulateVideoFrameAboutToBeRenderedForTest(frame);
+  player->ClearVideoFrameMetadataListener(&listener);
+  player->Release();
+
+  std::string summary =
+      "frameCb=" + std::to_string(listener.frame_callback_count);
+  summary += ",fallbackBitrates=" + std::to_string(listener.frame_bitrate) + ":" +
+      std::to_string(listener.frame_average_bitrate) + ":" +
+      std::to_string(listener.frame_peak_bitrate);
+  summary += ",fallbackColor=" +
+      std::to_string(listener.frame_color_standard) + ":" +
+      std::to_string(listener.frame_color_range) + ":" +
+      std::to_string(listener.frame_color_transfer);
+  summary += ",fallbackAudioShape=" +
+      std::to_string(listener.frame_channel_count) + ":" +
+      std::to_string(listener.frame_sample_rate);
+  summary += ",fallbackApplied=" +
+      std::to_string(
+          listener.frame_callback_count == 1 &&
+                  listener.frame_bitrate == 123000 &&
+                  listener.frame_average_bitrate == 123000 &&
+                  listener.frame_peak_bitrate == -1 &&
+                  listener.frame_color_standard == 1 &&
+                  listener.frame_color_range == -1 &&
+                  listener.frame_color_transfer == -1 &&
+                  listener.frame_channel_count == -1 &&
+                  listener.frame_sample_rate == -1
+              ? 1
+              : 0);
+  return NewStringUtfChecked(
+      env, summary, "nativeVideoFrameMetadataSimulationFallbackSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeCodecParametersMultiListenerParitySmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  auto integer_parameter = [](const std::string& key, int value) {
+    CodecParameterDescriptor parameter;
+    parameter.key = key;
+    parameter.value_type = CodecParameterDescriptor::ValueType::kInteger;
+    parameter.int_value = value;
+    return parameter;
+  };
+  auto summarize_codec_parameters = [](const CodecParametersDescriptor& parameters) {
+    std::string summary;
+    for (size_t i = 0; i < parameters.parameters.size(); ++i) {
+      const CodecParameterDescriptor& parameter = parameters.parameters[i];
+      if (i > 0) {
+        summary += ";";
+      }
+      summary += parameter.key + "=";
+      if (parameter.value_type == CodecParameterDescriptor::ValueType::kInteger) {
+        summary += "int:" + std::to_string(parameter.int_value);
+      } else {
+        summary += "other";
+      }
+    }
+    return summary;
+  };
+  class CodecParameterCapturingListener : public PlayerListener {
+   public:
+    explicit CodecParameterCapturingListener(
+        std::string (*summarize)(const CodecParametersDescriptor&))
+        : summarize_(summarize) {}
+
+    void OnPlaybackStateChanged(const PlaybackSnapshot&) override {}
+    void OnPlayWhenReadyChanged(const PlaybackSnapshot&, int) override {}
+    void OnIsPlayingChanged(const PlaybackSnapshot&) override {}
+    void OnMediaItemTransition(const PlaybackSnapshot&, int) override {}
+    void OnPlayerError(const PlaybackSnapshot&) override {}
+
+    void Reset() {
+      audio_count = 0;
+      video_count = 0;
+      audio_summary.clear();
+      video_summary.clear();
+    }
+
+    void OnAudioCodecParametersChanged(
+        const PlaybackSnapshot&,
+        const CodecParametersDescriptor& codec_parameters) override {
+      ++audio_count;
+      audio_summary = summarize_(codec_parameters);
+    }
+
+    void OnVideoCodecParametersChanged(
+        const PlaybackSnapshot&,
+        const CodecParametersDescriptor& codec_parameters) override {
+      ++video_count;
+      video_summary = summarize_(codec_parameters);
+    }
+
+    std::string (*summarize_)(const CodecParametersDescriptor&);
+    int audio_count = 0;
+    int video_count = 0;
+    std::string audio_summary;
+    std::string video_summary;
+  };
+
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "codec-multi-listener-error:createPlayer",
+        "nativeCodecParametersMultiListenerParitySmokeTest.error");
+  }
+
+  CodecParameterCapturingListener audio_first(+summarize_codec_parameters);
+  CodecParameterCapturingListener audio_second(+summarize_codec_parameters);
+  CodecParameterCapturingListener video_first(+summarize_codec_parameters);
+  CodecParameterCapturingListener video_second(+summarize_codec_parameters);
+  player->AddAudioCodecParametersChangeListener(&audio_first, {"keyA", "keyB"});
+  player->AddVideoCodecParametersChangeListener(&video_first, {"vKeyA", "vKeyB"});
+  audio_first.Reset();
+  video_first.Reset();
+
+  player->AddAudioCodecParametersChangeListener(&audio_second, {"keyB", "keyC"});
+  player->AddVideoCodecParametersChangeListener(&video_second, {"vKeyB", "vKeyC"});
+  const int audio_first_after_second_add = audio_first.audio_count;
+  const int audio_second_initial = audio_second.audio_count;
+  const int video_first_after_second_add = video_first.video_count;
+  const int video_second_initial = video_second.video_count;
+
+  CodecParametersDescriptor audio_parameters;
+  audio_parameters.parameters = {
+      integer_parameter("keyA", 10),
+      integer_parameter("keyB", 20),
+      integer_parameter("keyC", 30),
+  };
+  CodecParametersDescriptor video_parameters;
+  video_parameters.parameters = {
+      integer_parameter("vKeyA", 100),
+      integer_parameter("vKeyB", 200),
+      integer_parameter("vKeyC", 300),
+  };
+  player->SimulateAudioCodecParametersChangedForTest(audio_parameters);
+  player->SimulateVideoCodecParametersChangedForTest(video_parameters);
+  const std::string audio_first_summary = audio_first.audio_summary;
+  const std::string audio_second_summary = audio_second.audio_summary;
+  const std::string video_first_summary = video_first.video_summary;
+  const std::string video_second_summary = video_second.video_summary;
+  const int audio_first_before_remove = audio_first.audio_count;
+  const int audio_second_before_remove = audio_second.audio_count;
+  const int video_first_before_remove = video_first.video_count;
+  const int video_second_before_remove = video_second.video_count;
+
+  player->RemoveAudioCodecParametersChangeListener(&audio_second);
+  player->RemoveVideoCodecParametersChangeListener(&video_second);
+  const int audio_first_after_remove_delta =
+      audio_first.audio_count - audio_first_before_remove;
+  const int video_first_after_remove_delta =
+      video_first.video_count - video_first_before_remove;
+
+  CodecParametersDescriptor next_audio_parameters;
+  next_audio_parameters.parameters = {
+      integer_parameter("keyA", 11),
+      integer_parameter("keyB", 22),
+      integer_parameter("keyC", 33),
+  };
+  CodecParametersDescriptor next_video_parameters;
+  next_video_parameters.parameters = {
+      integer_parameter("vKeyA", 101),
+      integer_parameter("vKeyB", 202),
+      integer_parameter("vKeyC", 303),
+  };
+  player->SimulateAudioCodecParametersChangedForTest(next_audio_parameters);
+  player->SimulateVideoCodecParametersChangedForTest(next_video_parameters);
+  const bool audio_second_after_remove_stopped =
+      audio_second.audio_count == audio_second_before_remove;
+  const bool video_second_after_remove_stopped =
+      video_second.video_count == video_second_before_remove;
+  player->Release();
+
+  const bool applied =
+      audio_first_after_second_add == 0 &&
+      audio_second_initial == 1 &&
+      audio_first_summary == "keyA=int:10;keyB=int:20" &&
+      audio_second_summary == "keyB=int:20;keyC=int:30" &&
+      audio_first_after_remove_delta == 0 &&
+      audio_second_after_remove_stopped &&
+      video_first_after_second_add == 0 &&
+      video_second_initial == 1 &&
+      video_first_summary == "vKeyA=int:100;vKeyB=int:200" &&
+      video_second_summary == "vKeyB=int:200;vKeyC=int:300" &&
+      video_first_after_remove_delta == 0 &&
+      video_second_after_remove_stopped;
+
+  std::string summary = "audioFirstAfterSecondAdd=" +
+      std::to_string(audio_first_after_second_add);
+  summary += ",audioSecondInitial=" + std::to_string(audio_second_initial);
+  summary += ",audioFirst=" + audio_first_summary;
+  summary += ",audioSecond=" + audio_second_summary;
+  summary += ",audioFirstAfterRemoveDelta=" +
+      std::to_string(audio_first_after_remove_delta);
+  summary += ",audioSecondAfterRemoveStopped=" +
+      std::to_string(audio_second_after_remove_stopped ? 1 : 0);
+  summary += ",videoFirstAfterSecondAdd=" +
+      std::to_string(video_first_after_second_add);
+  summary += ",videoSecondInitial=" + std::to_string(video_second_initial);
+  summary += ",videoFirst=" + video_first_summary;
+  summary += ",videoSecond=" + video_second_summary;
+  summary += ",videoFirstAfterRemoveDelta=" +
+      std::to_string(video_first_after_remove_delta);
+  summary += ",videoSecondAfterRemoveStopped=" +
+      std::to_string(video_second_after_remove_stopped ? 1 : 0);
+  summary += ",multiListenerApplied=" + std::to_string(applied ? 1 : 0);
+  return NewStringUtfChecked(
+      env, summary, "nativeCodecParametersMultiListenerParitySmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeRendererAndDeviceStateGetterSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "renderer-state-error:createPlayer",
+        "nativeRendererAndDeviceStateGetterSmokeTest.error");
+  }
+  const int renderer_count = player->GetRendererCount();
+  const int first_renderer_type =
+      renderer_count > 0 ? player->GetRendererType(0) : -1;
+  const int invalid_renderer_type = player->GetRendererType(renderer_count + 1);
+  const bool sleeping_for_offload = player->IsSleepingForOffload();
+  const bool tunneling_enabled = player->IsTunnelingEnabled();
+  const bool released_before = player->IsReleased();
+  player->Release();
+
+  std::string summary = "rendererCount=" + std::to_string(renderer_count);
+  summary += ",firstRendererType=" + std::to_string(first_renderer_type);
+  summary += ",invalidRendererType=" + std::to_string(invalid_renderer_type);
+  summary += ",sleepingForOffload=" + std::to_string(sleeping_for_offload ? 1 : 0);
+  summary += ",tunnelingEnabled=" + std::to_string(tunneling_enabled ? 1 : 0);
+  summary += ",releasedBefore=" + std::to_string(released_before ? 1 : 0);
+  summary += ",getterApplied=" +
+      std::to_string(
+          renderer_count >= 0 &&
+                  (renderer_count == 0 || first_renderer_type >= 0) &&
+                  invalid_renderer_type == -1 &&
+                  !sleeping_for_offload &&
+                  !tunneling_enabled &&
+                  !released_before
+              ? 1
+              : 0);
+  return NewStringUtfChecked(env, summary, "nativeRendererAndDeviceStateGetterSmokeTest");
 }
 
 JNIEXPORT jstring JNICALL
@@ -7379,19 +8801,21 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeT
   PlayerConfig config;
   std::unique_ptr<ExoPlayerSdkPlayer> player = ExoPlayerSdkPlayer::Create(env, context, config);
   MediaItemDescriptor media_item;
-  media_item.uri =
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+  media_item.uri = BuildSilentWavDataUri();
   media_item.media_id = "player-message-timed-item";
+  media_item.mime_type = "audio/wav";
+  media_item.source_type = MediaSourceType::kProgressive;
   std::string runtime_summary =
-      BuildRuntimeDrivenPlayerSummary(player.get(), media_item, true, 2000);
-  bool playback_advanced = WaitForCurrentPositionAtLeast(player.get(), 1500, 5000);
+      BuildRuntimeDrivenPlayerSummary(player.get(), media_item, true, 5000);
+  bool playback_advanced = WaitForCurrentPositionAtLeast(player.get(), 100, 5000);
+  int64_t scheduled_position_ms = std::max<int64_t>(player->GetCurrentPosition() + 100, 100);
   PlayerMessageDescriptor message;
   message.target_type = PlayerMessageDescriptor::TargetType::kInternal;
   message.type = 42;
   message.payload = "payload-test";
   message.media_item_index = 0;
-  message.position_ms = 1234;
-  message.block_timeout_ms = 2000;
+  message.position_ms = scheduled_position_ms;
+  message.block_timeout_ms = 5000;
   PlayerMessageResult result = player->SendPlayerMessage(message);
   std::string summary = "delivered=" + std::to_string(result.delivered ? 1 : 0);
   summary += ",timedOut=" + std::to_string(result.timed_out ? 1 : 0);
@@ -7405,6 +8829,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeT
       std::to_string(result.delete_after_delivery ? 1 : 0);
   summary += ",thread=" + result.thread_name;
   summary += ",playbackAdvanced=" + std::to_string(playback_advanced ? 1 : 0);
+  summary += ",scheduledPositionMs=" + std::to_string(scheduled_position_ms);
   summary += "," + runtime_summary;
   return NewStringUtfChecked(env, summary, "nativeTimedPlayerMessageSmokeTest");
 }
@@ -7477,8 +8902,3 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
   return NewStringUtfChecked(env, summary, "nativePlayerMessageCancelSmokeTest");
 }
 }  // extern "C"
-
-
-
-
-

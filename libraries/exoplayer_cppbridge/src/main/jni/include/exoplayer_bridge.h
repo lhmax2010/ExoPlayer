@@ -72,6 +72,87 @@ struct PlayerConfig {
   int64_t target_preload_duration_us = -9223372036854775807LL;
 };
 
+struct AuxEffectInfoDescriptor {
+  int effect_id = 0;
+  float send_level = 0.0f;
+};
+
+struct ScrubbingModeParametersDescriptor {
+  std::vector<int> disabled_track_types = {1, 5};
+  bool has_fractional_seek_tolerance = false;
+  double fractional_seek_tolerance_before = 0.0;
+  double fractional_seek_tolerance_after = 0.0;
+  bool should_increase_codec_operating_rate = true;
+  bool allow_skipping_media_codec_flush = true;
+  bool allow_skipping_key_frame_reset = true;
+  bool should_enable_dynamic_scheduling = true;
+  bool use_decode_only_flag = true;
+};
+
+struct CodecParameterDescriptor {
+  enum class ValueType {
+    kInteger = 0,
+    kLong = 1,
+    kFloat = 2,
+    kString = 3,
+    kByteBuffer = 4,
+    kNull = 5,
+  };
+
+  std::string key;
+  ValueType value_type = ValueType::kInteger;
+  int int_value = 0;
+  int64_t long_value = 0;
+  float float_value = 0.0f;
+  std::string string_value;
+  std::vector<uint8_t> byte_buffer_value;
+};
+
+struct CodecParametersDescriptor {
+  std::vector<CodecParameterDescriptor> parameters;
+};
+
+struct VideoFrameMetadataSnapshot {
+  int64_t presentation_time_us = 0;
+  int64_t release_time_ns = 0;
+  std::string format_id;
+  std::string sample_mime_type;
+  std::string codecs;
+  int width = 0;
+  int height = 0;
+  float frame_rate = 0.0f;
+  std::string format_label;
+  std::string format_language;
+  std::string format_container_mime_type;
+  int format_bitrate = -1;
+  int format_average_bitrate = -1;
+  int format_peak_bitrate = -1;
+  int format_rotation_degrees = 0;
+  float format_pixel_width_height_ratio = 1.0f;
+  int format_color_standard = -1;
+  int format_color_range = -1;
+  int format_color_transfer = -1;
+  int format_channel_count = -1;
+  int format_sample_rate = -1;
+  int format_role_flags = 0;
+  int format_selection_flags = 0;
+  bool media_format_present = false;
+  std::string media_format_summary;
+  std::string media_format_mime_type;
+  int media_format_width = 0;
+  int media_format_height = 0;
+  float media_format_frame_rate = 0.0f;
+  int media_format_rotation_degrees = 0;
+  int media_format_color_standard = 0;
+  int media_format_color_range = 0;
+  int media_format_color_transfer = 0;
+};
+
+struct CameraMotionSnapshot {
+  int64_t time_us = 0;
+  std::vector<float> rotation;
+};
+
 struct PlayerMessageDescriptor {
   enum class TargetType {
     kInternal = 0,
@@ -268,12 +349,19 @@ struct TrackInfo {
   std::string mime_type;
   std::string container_mime_type;
   std::string codecs;
-  int bitrate = 0;
-  int width = 0;
-  int height = 0;
-  float frame_rate = 0.0f;
-  int sample_rate = 0;
-  int channel_count = 0;
+  int bitrate = -1;
+  int average_bitrate = -1;
+  int peak_bitrate = -1;
+  int width = -1;
+  int height = -1;
+  float frame_rate = -1.0f;
+  int rotation_degrees = 0;
+  float pixel_width_height_ratio = 1.0f;
+  int color_standard = -1;
+  int color_range = -1;
+  int color_transfer = -1;
+  int sample_rate = -1;
+  int channel_count = -1;
   int accessibility_channel = 0;
   int role_flags = 0;
   int selection_flags = 0;
@@ -1058,6 +1146,19 @@ class PlayerListener {
   virtual void OnVideoInputFormatChanged(
       const PlaybackSnapshot& snapshot,
       const VideoInputFormatChangedEvent& video_input_format_changed) {}
+  virtual void OnAudioCodecParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const CodecParametersDescriptor& codec_parameters) {}
+  virtual void OnVideoCodecParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const CodecParametersDescriptor& codec_parameters) {}
+  virtual void OnVideoFrameAboutToBeRendered(
+      const PlaybackSnapshot& snapshot,
+      const VideoFrameMetadataSnapshot& video_frame_metadata) {}
+  virtual void OnCameraMotion(
+      const PlaybackSnapshot& snapshot,
+      const CameraMotionSnapshot& camera_motion) {}
+  virtual void OnCameraMotionReset(const PlaybackSnapshot& snapshot) {}
 };
 
 class ExoPlayerBridge {
@@ -1151,10 +1252,12 @@ class ExoPlayerBridge {
   virtual void SeekToNextMediaItem(JNIEnv* env) = 0;
   virtual void SeekToPreviousMediaItem(JNIEnv* env) = 0;
   virtual void SetWakeMode(JNIEnv* env, int wake_mode) = 0;
+  virtual void SetHandleAudioBecomingNoisy(JNIEnv* env, bool handle_audio_becoming_noisy) = 0;
   virtual void SetPriority(JNIEnv* env, int priority) = 0;
   virtual void SetPriorityTaskManager(JNIEnv* env, jobject priority_task_manager) = 0;
   virtual void SetPriorityTaskManagerEnabled(JNIEnv* env, bool enabled) = 0;
   virtual void SetPreloadConfiguration(JNIEnv* env, int64_t target_preload_duration_us) = 0;
+  virtual void SetForegroundMode(JNIEnv* env, bool foreground_mode) = 0;
   virtual PlayerMessageResult SendPlayerMessage(
       JNIEnv* env,
       const PlayerMessageDescriptor& message) = 0;
@@ -1163,12 +1266,43 @@ class ExoPlayerBridge {
       JNIEnv* env,
       const AudioAttributesDescriptor& attributes,
       bool handle_audio_focus) = 0;
+  virtual void SetAudioSessionId(JNIEnv* env, int audio_session_id) = 0;
+  virtual void SetAuxEffectInfo(
+      JNIEnv* env,
+      const AuxEffectInfoDescriptor& aux_effect_info) = 0;
+  virtual void ClearAuxEffectInfo(JNIEnv* env) = 0;
+  virtual void SetPreferredAudioDevice(JNIEnv* env, jobject audio_device_info) = 0;
+  virtual void SetVirtualDeviceId(JNIEnv* env, int virtual_device_id) = 0;
+  virtual void SetAudioCodecParameters(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SetVideoCodecParameters(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SetAudioCodecParametersChangeListener(
+      JNIEnv* env,
+      const std::vector<std::string>& keys) = 0;
+  virtual void ClearAudioCodecParametersChangeListener(JNIEnv* env) = 0;
+  virtual void SetVideoCodecParametersChangeListener(
+      JNIEnv* env,
+      const std::vector<std::string>& keys) = 0;
+  virtual void ClearVideoCodecParametersChangeListener(JNIEnv* env) = 0;
+  virtual void SetVideoFrameMetadataListener(JNIEnv* env) = 0;
+  virtual void ClearVideoFrameMetadataListener(JNIEnv* env) = 0;
+  virtual void SetCameraMotionListener(JNIEnv* env) = 0;
+  virtual void ClearCameraMotionListener(JNIEnv* env) = 0;
   virtual void SetDeviceVolume(JNIEnv* env, int volume, int flags) = 0;
   virtual void AdjustDeviceVolume(JNIEnv* env, int direction, int flags) = 0;
   virtual void IncreaseDeviceVolume(JNIEnv* env, int flags) = 0;
   virtual void DecreaseDeviceVolume(JNIEnv* env, int flags) = 0;
   virtual void SetDeviceMuted(JNIEnv* env, bool muted, int flags) = 0;
   virtual void SetSkipSilenceEnabled(JNIEnv* env, bool skip_silence_enabled) = 0;
+  virtual void SetScrubbingModeEnabled(JNIEnv* env, bool scrubbing_mode_enabled) = 0;
+  virtual bool IsScrubbingModeEnabled(JNIEnv* env) = 0;
+  virtual void SetScrubbingModeParameters(
+      JNIEnv* env,
+      const ScrubbingModeParametersDescriptor& parameters) = 0;
+  virtual ScrubbingModeParametersDescriptor GetScrubbingModeParameters(JNIEnv* env) = 0;
   virtual void SetPlayWhenReady(JNIEnv* env, bool play_when_ready) = 0;
   virtual void SetRepeatMode(JNIEnv* env, RepeatMode repeat_mode) = 0;
   virtual void SetShuffleModeEnabled(JNIEnv* env, bool shuffle_mode_enabled) = 0;
@@ -1178,10 +1312,24 @@ class ExoPlayerBridge {
       JNIEnv* env,
       const PlaybackParametersSnapshot& parameters) = 0;
   virtual void SetPauseAtEndOfMediaItems(JNIEnv* env, bool pause_at_end_of_media_items) = 0;
+  virtual bool GetPauseAtEndOfMediaItems(JNIEnv* env) = 0;
+  virtual void SetSeekBackIncrementMs(JNIEnv* env, int64_t seek_back_increment_ms) = 0;
+  virtual void SetSeekForwardIncrementMs(JNIEnv* env, int64_t seek_forward_increment_ms) = 0;
+  virtual void SetMaxSeekToPreviousPositionMs(
+      JNIEnv* env,
+      int64_t max_seek_to_previous_position_ms) = 0;
+  virtual void SetVideoScalingMode(JNIEnv* env, int video_scaling_mode) = 0;
+  virtual int GetVideoScalingMode(JNIEnv* env) = 0;
+  virtual void SetVideoChangeFrameRateStrategy(
+      JNIEnv* env,
+      int video_change_frame_rate_strategy) = 0;
+  virtual int GetVideoChangeFrameRateStrategy(JNIEnv* env) = 0;
   virtual void SetTrackSelectionParameters(
       JNIEnv* env,
       const TrackSelectionParametersDescriptor& parameters) = 0;
   virtual TrackSelectionParametersDescriptor GetTrackSelectionParameters(JNIEnv* env) = 0;
+  virtual int GetRendererCount(JNIEnv* env) = 0;
+  virtual int GetRendererType(JNIEnv* env, int index) = 0;
   virtual TracksSnapshot GetTracksSnapshot(JNIEnv* env) = 0;
   virtual std::vector<TrackGroupSnapshot> GetTrackGroups(JNIEnv* env) = 0;
   virtual PlaybackState GetPlaybackState(JNIEnv* env) = 0;
@@ -1222,6 +1370,9 @@ class ExoPlayerBridge {
   virtual bool IsCommandAvailable(JNIEnv* env, int command_code) = 0;
   virtual bool CanAdvertiseSession(JNIEnv* env) = 0;
   virtual ApplicationLooperDescriptor GetApplicationLooper(JNIEnv* env) = 0;
+  virtual bool IsSleepingForOffload(JNIEnv* env) = 0;
+  virtual bool IsTunnelingEnabled(JNIEnv* env) = 0;
+  virtual bool IsReleased(JNIEnv* env) = 0;
   virtual int GetCurrentAdGroupIndex(JNIEnv* env) = 0;
   virtual int GetCurrentAdIndexInAdGroup(JNIEnv* env) = 0;
   virtual bool IsCurrentMediaItemDynamic(JNIEnv* env) = 0;
@@ -1391,6 +1542,19 @@ class ExoPlayerBridge {
   virtual void SimulateVideoInputFormatChangedForTest(
       JNIEnv* env,
       const VideoInputFormatChangedEvent& video_input_format_changed) = 0;
+  virtual void SimulateAudioCodecParametersChangedForTest(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SimulateVideoCodecParametersChangedForTest(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SimulateVideoFrameAboutToBeRenderedForTest(
+      JNIEnv* env,
+      const VideoFrameMetadataSnapshot& video_frame_metadata) = 0;
+  virtual void SimulateCameraMotionForTest(
+      JNIEnv* env,
+      const CameraMotionSnapshot& camera_motion) = 0;
+  virtual void SimulateCameraMotionResetForTest(JNIEnv* env) = 0;
   virtual void SimulateImageOutputForTest(
       JNIEnv* env,
       const ImageFrameSnapshot& image_frame) = 0;
@@ -1409,4 +1573,3 @@ class ExoPlayerBridge {
 }  // namespace androidx::media3::cppbridge
 
 #endif  // ANDROIDX_MEDIA3_EXOPLAYER_CPPBRIDGE_EXOPLAYER_BRIDGE_H_
-
