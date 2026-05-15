@@ -1,0 +1,38 @@
+apply from: '../../constants.gradle'
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'androidx.media3.demo.cppbridge'
+
+    compileSdk project.ext.compileSdkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        versionName project.ext.releaseVersion
+        versionCode project.ext.releaseVersionCode
+        minSdkVersion 23
+        targetSdkVersion project.ext.appTargetSdkVersion
+    }
+
+    buildTypes {
+        release {
+            shrinkResources false
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+}
+
+dependencies {
+    implementation project(modulePrefix + 'lib-exoplayer-cppbridge')
+    implementation project(modulePrefix + 'lib-exoplayer-dash')
+    implementation project(modulePrefix + 'lib-exoplayer-hls')
+    implementation project(modulePrefix + 'lib-exoplayer-rtsp')
+    implementation project(modulePrefix + 'lib-exoplayer-smoothstreaming')
+    implementation project(modulePrefix + 'lib-ui')
+    implementation 'androidx.appcompat:appcompat:' + androidxAppCompatVersion
+}

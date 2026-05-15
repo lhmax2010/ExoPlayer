@@ -1,0 +1,35 @@
+<resources>
+  <string name="app_name">C++ Bridge Demo</string>
+  <string name="source_type_label">Source Type</string>
+  <string name="media_url_hint">Media URL / USB Content URI</string>
+  <string name="subtitle_url_hint">External Subtitle URL</string>
+  <string name="seek_seconds_hint">Seek position (seconds)</string>
+  <string name="load_source">Load URL</string>
+  <string name="load_subtitle">Load + Subtitle</string>
+  <string name="pick_usb_file">Pick USB/File</string>
+  <string name="http_sample">HTTP</string>
+  <string name="dash_sample">DASH</string>
+  <string name="hls_sample">HLS</string>
+  <string name="load_demo_playlist">Mixed Playlist</string>
+  <string name="play">Play</string>
+  <string name="pause">Pause</string>
+  <string name="stop">Stop</string>
+  <string name="seek_to">Seek To</string>
+  <string name="seek_back">Seek Back</string>
+  <string name="seek_forward">Seek Fwd</string>
+  <string name="previous_item">Prev</string>
+  <string name="next_item">Next</string>
+  <string name="prefer_text">Text EN</string>
+  <string name="speed_half">0.5x</string>
+  <string name="speed_normal">1.0x</string>
+  <string name="speed_one_half">1.5x</string>
+  <string name="speed_two">2.0x</string>
+  <string name="cycle_audio">Audio +</string>
+  <string name="cycle_text">Text +</string>
+  <string name="show_playback">Playback</string>
+  <string name="show_tracks">Tracks</string>
+  <string name="show_current_item">Item</string>
+  <string name="show_timeline">Timeline</string>
+  <string name="show_metadata">Metadata</string>
+  <string name="show_cues">Cues</string>
+</resources>

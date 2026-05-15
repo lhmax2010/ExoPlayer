@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/hao.lin/Downloads/media-release -type f -name *.md -o -name *.txt -o -name *.cpp -o -name *.h -o -name *.hpp -o -name *.json -o -name *.yaml -o -name *.yml)",
+      "Bash(wc -l /c/Users/hao.lin/Downloads/media-release/libraries/exoplayer_cppbridge/src/main/jni/*.cpp /c/Users/hao.lin/Downloads/media-release/libraries/exoplayer_cppbridge/src/main/jni/*.h)",
+      "Bash(python3 -c ':*)",
+      "Bash(python3 -c \"vals={'shuffleCb':1114317808,'seekBackCb':-1275068301,'trackCb':1114317616,'playbackParamsCb':-1275068301,'suppressionCb':1919515984,'commandsCb':-1275068302,'eventsCb':608064,'timelineCb':113,'tracksCb':-48913912,'mediaMetadataCb':113,'playlistMetadataCb':210495700,'cueCb':-212517836,'positionCb':-48919136,'timelineWindowCount':113,'timelinePeriodCount':-930023756,'cueCount':116};[print\\(f'{k:25s} = {v:>15d} = {hex\\(v & 0xFFFFFFFF\\)}'\\) for k,v in vals.items\\(\\)];print\\(f'shuffle-track diff = {1114317808-1114317616}'\\);print\\(f'tracksCb-positionCb diff = {-48913912-\\(-48919136\\)}'\\)\")",
+      "Bash(python -c \"vals={'shuffleCb':1114317808,'seekBackCb':-1275068301,'trackCb':1114317616,'playbackParamsCb':-1275068301,'suppressionCb':1919515984,'commandsCb':-1275068302,'eventsCb':608064,'timelineCb':113,'tracksCb':-48913912,'mediaMetadataCb':113,'playlistMetadataCb':210495700,'cueCb':-212517836,'positionCb':-48919136,'timelineWindowCount':113,'timelinePeriodCount':-930023756,'cueCount':116};[print\\(f'{k:25s} = {v:>15d} = {hex\\(v & 0xFFFFFFFF\\)}'\\) for k,v in vals.items\\(\\)];print\\(f'shuffle-track diff = {1114317808-1114317616}'\\);print\\(f'tracksCb-positionCb diff = {-48913912-\\(-48919136\\)}'\\)\")",
+      "Bash(node -e ':*)"
+    ]
+  }
+}

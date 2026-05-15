@@ -1,0 +1,53 @@
+apply from: "$gradle.ext.androidxMediaSettingsDir/common_library_config.gradle"
+
+def cppbridgeIncludeTestEntrypoints =
+        (project.findProperty("cppbridgeIncludeTestEntrypoints") ?: "ON").toString()
+def cppbridgeNativeTargets = ['exoplayer_cppbridge_jni']
+if (!cppbridgeIncludeTestEntrypoints.equalsIgnoreCase('OFF')) {
+    cppbridgeNativeTargets += 'exoplayer_cppbridge_jni_testhooks'
+}
+
+android {
+    namespace 'androidx.media3.exoplayer.cppbridge'
+
+    defaultConfig {
+        externalNativeBuild {
+            cmake {
+                targets(*cppbridgeNativeTargets)
+                arguments "-DEXOPLAYER_CPPBRIDGE_INCLUDE_TEST_ENTRYPOINTS=${cppbridgeIncludeTestEntrypoints}"
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = 'src/main/jni/CMakeLists.txt'
+            version = '3.21.0+'
+        }
+    }
+}
+
+dependencies {
+    api project(modulePrefix + 'lib-exoplayer')
+    api project(modulePrefix + 'lib-effect')
+    api project(modulePrefix + 'lib-ui')
+    implementation 'androidx.annotation:annotation:' + androidxAnnotationVersion
+    compileOnly 'org.jetbrains.kotlin:kotlin-annotations-jvm:' + kotlinAnnotationsVersion
+    androidTestImplementation project(modulePrefix + 'lib-exoplayer-dash')
+    androidTestImplementation project(modulePrefix + 'lib-exoplayer-hls')
+    androidTestImplementation project(modulePrefix + 'lib-exoplayer-rtsp')
+    androidTestImplementation project(modulePrefix + 'lib-exoplayer-smoothstreaming')
+    androidTestImplementation 'androidx.test:runner:' + androidxTestRunnerVersion
+    androidTestImplementation 'androidx.test.ext:junit:' + androidxTestJUnitVersion
+    androidTestImplementation 'com.google.truth:truth:' + truthVersion
+    testImplementation 'androidx.test.ext:junit:' + androidxTestJUnitVersion
+    testImplementation 'junit:junit:' + junitVersion
+    testImplementation 'com.google.truth:truth:' + truthVersion
+    testImplementation 'org.robolectric:robolectric:' + robolectricVersion
+}
+
+ext {
+    releaseArtifactId = 'media3-exoplayer-cppbridge'
+    releaseName = 'Media3 ExoPlayer C++ bridge module'
+}
+apply from: '../../publish.gradle'

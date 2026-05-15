@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"c:\\\\Users\\\\hao.lin\\\\Downloads\\\\media-release\\\\libraries\\\\exoplayer_cppbridge\" -type f \\\\\\( -name \"*.java\" -o -name \"*.cpp\" -o -name \"*.cc\" -o -name \"*.cxx\" -o -name \"*.c\" -o -name \"*.h\" -o -name \"*.hpp\" -o -name \"*.hxx\" -o -name \"CMakeLists.txt\" \\\\\\) -exec wc -l {} +)",
+      "Bash(find \"c:\\\\Users\\\\hao.lin\\\\Downloads\\\\media-release\\\\demos\\\\cppbridge\" -type f \\\\\\( -name \"*.java\" -o -name \"*.cpp\" -o -name \"*.cc\" -o -name \"*.cxx\" -o -name \"*.c\" -o -name \"*.h\" -o -name \"*.hpp\" -o -name \"*.hxx\" -o -name \"CMakeLists.txt\" \\\\\\) -exec wc -l {} +)"
+    ]
+  }
+}

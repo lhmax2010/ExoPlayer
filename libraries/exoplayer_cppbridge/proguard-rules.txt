@@ -1,0 +1,5 @@
+# Keep JNI entry points used by the native bridge.
+-keep class androidx.media3.exoplayer.cppbridge.** {
+    native <methods>;
+    <fields>;
+}
