@@ -340,13 +340,16 @@ Already in place:
 
 - reduced descriptor is stable in query smoke and opaque-token smoke
 - `tag`, `adsId`, and `requestMetadata.extras` have opaque-token baselines
+- `requestMetadata.extras` also carries decoded stable `Bundle` values for strings,
+  integer-like numbers, floating-point numbers, booleans, and byte arrays
 - subtitles, clipping, live, DRM, and representative metadata are already query-visible
 
 Still required for true full support:
 
 - define whether arbitrary Java-object parity is required or whether opaque-token semantics are the intended endpoint
 - if arbitrary-object parity is required, replace token-only semantics for `tag` and `adsId`
-- decide whether `RequestMetadata.extras` needs full decoded `Bundle` parity in C++
+- decide whether `RequestMetadata.extras` needs arbitrary/nested `Bundle` parity beyond the
+  current stable primitive value subset
 - expand tests from representative fields to complete object-behavior parity where required
 
 ### `Timeline`
@@ -389,13 +392,15 @@ Still required for true full support:
 
 Already in place:
 
-- representative text fields, artwork, extras baseline, and multiple query/listener smoke paths
+- representative text fields, artwork, extras baseline plus decoded stable extras values, and
+  multiple query/listener smoke paths
 - opaque-token baselines for representative `CharSequence` fields
 
 Still required for true full support:
 
 - decide whether full `CharSequence` semantics are required or whether opaque-token baselines are sufficient
-- decide whether metadata entry/extras behavior needs richer parity
+- decide whether metadata entry/extras behavior needs richer parity beyond the current stable
+  primitive `Bundle` value subset
 - extend from representative-field parity to intentional full-object parity where needed
 - validate metadata behavior under runtime updates on real devices
 

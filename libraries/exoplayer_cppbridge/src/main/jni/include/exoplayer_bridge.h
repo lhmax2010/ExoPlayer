@@ -184,6 +184,24 @@ struct PlayerMessageResult {
   std::string thread_name;
 };
 
+struct BundleValueInfo {
+  enum ValueType {
+    kString = 1,
+    kLong = 2,
+    kDouble = 3,
+    kBoolean = 4,
+    kByteArray = 5,
+  };
+
+  std::string key;
+  int value_type = 0;
+  std::string string_value;
+  int64_t long_value = 0;
+  double double_value = 0.0;
+  bool boolean_value = false;
+  std::vector<uint8_t> byte_array_value;
+};
+
 struct MediaMetadataSnapshot {
   std::string title;
   std::string title_token;
@@ -234,6 +252,7 @@ struct MediaMetadataSnapshot {
   bool extras_present = false;
   int extras_key_count = 0;
   std::string extras_token;
+  std::vector<BundleValueInfo> extras_values;
 };
 
 struct MediaItemDescriptor {
@@ -251,6 +270,7 @@ struct MediaItemDescriptor {
     bool extras_present = false;
     int extras_key_count = 0;
     std::string extras_token;
+    std::vector<BundleValueInfo> extras_values;
   };
   RequestMetadataDescriptor request_metadata;
   struct AdsConfigurationDescriptor {

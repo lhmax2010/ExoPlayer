@@ -70,6 +70,9 @@ Recent test-facing additions:
 - `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload` now covers richer
   `TrackInfo` / `Format` payload round-trip fields, including initialization bytes, DRM
   scheme-data shape, metadata/custom tokens, projection bytes, and HDR fields
+- `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary` and
+  `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata` now assert decoded stable
+  `Bundle` extras values for string, numeric, boolean, and byte-array entries
 
 Recent dev-facing additions:
 
@@ -123,6 +126,7 @@ Path root:
 Representative files:
 - [CppMediaItem.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppMediaItem.java)
 - [CppMediaMetadata.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppMediaMetadata.java)
+- [CppBundleValue.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppBundleValue.java)
 - [CppCue.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppCue.java)
 - [CppTrackGroup.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppTrackGroup.java)
 - [CppTrackInfo.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppTrackInfo.java)

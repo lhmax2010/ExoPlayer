@@ -41,6 +41,10 @@ Special current exception:
   `JniExoPlayerBridge::CreateJavaCodecParameterArray` in
   `exoplayer_cppbridge_jni_bridge.cpp`, because it is only used for C++ to Java codec parameter
   setter transport.
+- `CppBundleValue.java` is shared by `MediaItem.RequestMetadata.extras` and
+  `MediaMetadata.extras`; its C++ partner is `BundleValueInfo`, and the JNI helpers are
+  `CreateJavaBundleValueArray` / `FromJavaBundleValueArray` in
+  `exoplayer_cppbridge_jni_common.cpp`.
 
 If you have a callback name such as `onTracksChanged`, `onMediaMetadataChanged`, or
 `onDroppedVideoFrames`:
@@ -118,6 +122,7 @@ If you need JNI implementation:
 | `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativePlayerTestHelper.java` | Java loader for player/runtime smoke helpers | maps directly to `exoplayer_cppbridge_jni_player_tests.cpp` |
 | `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/Cpp*.java` DTO files | Java transport/value objects used across JNI | inspect when adding/removing fields |
 | `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppCodecParameter.java` | Java transport object for typed `CodecParameters` entries | inspect with `CodecParameterDescriptor`, `CodecParametersDescriptor`, and `CreateJavaCodecParameterArray` |
+| `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppBundleValue.java` | Java transport object for decoded stable `Bundle` extras entries | inspect with `BundleValueInfo`, `MediaItem.RequestMetadata`, `MediaMetadataSnapshot`, and `CreateJavaBundleValueArray` |
 
 ## 4. Validation And Demo Files
 

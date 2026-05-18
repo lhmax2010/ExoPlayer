@@ -298,6 +298,24 @@ float GetFloatFieldValue(
   return static_cast<float>(value);
 }
 
+double GetDoubleFieldValue(
+    JNIEnv* env,
+    jobject object,
+    jclass clazz,
+    const char* class_name,
+    const char* field_name) {
+  jfieldID field = GetFieldChecked(env, clazz, class_name, field_name, "D");
+  if (field == nullptr) {
+    return 0.0;
+  }
+  jdouble value = env->GetDoubleField(object, field);
+  if (ClearJniExceptionIfPresent(
+          env, std::string("GetDoubleField(") + class_name + "." + field_name + ")")) {
+    return 0.0;
+  }
+  return static_cast<double>(value);
+}
+
 bool GetBooleanFieldValue(
     JNIEnv* env,
     jobject object,
@@ -830,6 +848,127 @@ jint ToJavaSourceType(androidx::media3::cppbridge::MediaSourceType source_type) 
   return static_cast<jint>(source_type);
 }
 
+jobjectArray CreateJavaBundleValueArray(
+    JNIEnv* env,
+    const std::vector<BundleValueInfo>& values) {
+  jclass value_class =
+      FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppBundleValue");
+  if (value_class == nullptr) {
+    return nullptr;
+  }
+  jmethodID ctor = GetMethodChecked(
+      env,
+      value_class,
+      "CppBundleValue",
+      "<init>",
+      "(Ljava/lang/String;ILjava/lang/String;JDZ[B)V");
+  if (ctor == nullptr) {
+    DeleteLocalRefIfNotNull(env, value_class);
+    return nullptr;
+  }
+  jobjectArray array =
+      env->NewObjectArray(static_cast<jsize>(values.size()), value_class, nullptr);
+  if (ClearJniExceptionIfPresent(env, "NewObjectArray(CppBundleValue)") || array == nullptr) {
+    DeleteLocalRefIfNotNull(env, value_class);
+    DeleteLocalRefIfNotNull(env, array);
+    return nullptr;
+  }
+  for (jsize i = 0; i < static_cast<jsize>(values.size()); ++i) {
+    const BundleValueInfo& value = values[static_cast<size_t>(i)];
+    jstring key = NewStringUtfChecked(env, value.key, "CppBundleValue.key");
+    jstring string_value =
+        value.value_type == BundleValueInfo::kString || !value.string_value.empty()
+            ? NewStringUtfChecked(env, value.string_value, "CppBundleValue.stringValue")
+            : nullptr;
+    jbyteArray byte_array_value =
+        value.value_type == BundleValueInfo::kByteArray
+            ? CreateJavaByteArray(env, value.byte_array_value)
+            : nullptr;
+    if (key == nullptr ||
+        ((value.value_type == BundleValueInfo::kString || !value.string_value.empty()) &&
+         string_value == nullptr) ||
+        (value.value_type == BundleValueInfo::kByteArray && byte_array_value == nullptr)) {
+      DeleteLocalRefIfNotNull(env, key);
+      DeleteLocalRefIfNotNull(env, string_value);
+      DeleteLocalRefIfNotNull(env, byte_array_value);
+      DeleteLocalRefIfNotNull(env, array);
+      DeleteLocalRefIfNotNull(env, value_class);
+      return nullptr;
+    }
+    jobject object = NewObjectChecked(
+        env,
+        value_class,
+        ctor,
+        "CppBundleValue",
+        key,
+        static_cast<jint>(value.value_type),
+        string_value,
+        static_cast<jlong>(value.long_value),
+        static_cast<jdouble>(value.double_value),
+        static_cast<jboolean>(value.boolean_value),
+        byte_array_value);
+    DeleteLocalRefIfNotNull(env, key);
+    DeleteLocalRefIfNotNull(env, string_value);
+    DeleteLocalRefIfNotNull(env, byte_array_value);
+    if (object == nullptr) {
+      DeleteLocalRefIfNotNull(env, array);
+      DeleteLocalRefIfNotNull(env, value_class);
+      return nullptr;
+    }
+    env->SetObjectArrayElement(array, i, object);
+    if (ClearJniExceptionIfPresent(env, "SetObjectArrayElement(CppBundleValue)")) {
+      DeleteLocalRefIfNotNull(env, object);
+      DeleteLocalRefIfNotNull(env, array);
+      DeleteLocalRefIfNotNull(env, value_class);
+      return nullptr;
+    }
+    DeleteLocalRefIfNotNull(env, object);
+  }
+  DeleteLocalRefIfNotNull(env, value_class);
+  return array;
+}
+
+std::vector<BundleValueInfo> FromJavaBundleValueArray(JNIEnv* env, jobjectArray values) {
+  std::vector<BundleValueInfo> result;
+  if (values == nullptr) {
+    return result;
+  }
+  jsize length = env->GetArrayLength(values);
+  result.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    jobject value = env->GetObjectArrayElement(values, i);
+    if (ClearJniExceptionIfPresent(env, "GetObjectArrayElement(CppBundleValue)") ||
+        value == nullptr) {
+      DeleteLocalRefIfNotNull(env, value);
+      continue;
+    }
+    jclass value_class = GetObjectClassChecked(env, value, "CppBundleValue");
+    if (value_class == nullptr) {
+      DeleteLocalRefIfNotNull(env, value);
+      continue;
+    }
+    BundleValueInfo info;
+    info.key = GetStringFieldValue(env, value, value_class, "CppBundleValue", "key");
+    info.value_type = GetIntFieldValue(env, value, value_class, "CppBundleValue", "valueType");
+    info.string_value =
+        GetStringFieldValue(env, value, value_class, "CppBundleValue", "stringValue");
+    info.long_value =
+        GetLongFieldValue(env, value, value_class, "CppBundleValue", "longValue");
+    info.double_value =
+        GetDoubleFieldValue(env, value, value_class, "CppBundleValue", "doubleValue");
+    info.boolean_value =
+        GetBooleanFieldValue(env, value, value_class, "CppBundleValue", "booleanValue");
+    jbyteArray byte_array_value = static_cast<jbyteArray>(GetObjectFieldValue(
+        env, value, value_class, "CppBundleValue", "byteArrayValue", "[B"));
+    info.byte_array_value = JByteArrayToVector(env, byte_array_value);
+    DeleteLocalRefIfNotNull(env, byte_array_value);
+    result.push_back(std::move(info));
+    DeleteLocalRefIfNotNull(env, value_class);
+    DeleteLocalRefIfNotNull(env, value);
+  }
+  return result;
+}
+
 jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) {
   jclass item_class =
       FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppMediaItem");
@@ -879,7 +1018,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       request_metadata_class,
       "CppRequestMetadata",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;)V");
+      "(Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;)V");
   jmethodID ads_ctor = GetMethodChecked(
       env,
       ads_class,
@@ -956,7 +1095,8 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
   jobject request_metadata = nullptr;
   if (!media_item.request_metadata.media_uri.empty() ||
       !media_item.request_metadata.search_query.empty() ||
-      media_item.request_metadata.extras_present) {
+      media_item.request_metadata.extras_present ||
+      !media_item.request_metadata.extras_values.empty()) {
     jstring request_media_uri =
         media_item.request_metadata.media_uri.empty()
             ? nullptr
@@ -976,14 +1116,18 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
                   env,
                   media_item.request_metadata.extras_token,
                   "CppRequestMetadata.extrasToken");
+    jobjectArray request_extras_values =
+        CreateJavaBundleValueArray(env, media_item.request_metadata.extras_values);
     if ((!media_item.request_metadata.media_uri.empty() && request_media_uri == nullptr) ||
         (!media_item.request_metadata.search_query.empty() &&
          request_search_query == nullptr) ||
         (!media_item.request_metadata.extras_token.empty() &&
-         request_extras_token == nullptr)) {
+         request_extras_token == nullptr) ||
+        request_extras_values == nullptr) {
       DeleteLocalRefIfNotNull(env, request_media_uri);
       DeleteLocalRefIfNotNull(env, request_search_query);
       DeleteLocalRefIfNotNull(env, request_extras_token);
+      DeleteLocalRefIfNotNull(env, request_extras_values);
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
@@ -998,6 +1142,12 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       env->DeleteLocalRef(item_class);
       return nullptr;
     }
+    const int request_extras_key_count =
+        media_item.request_metadata.extras_values.empty()
+            ? media_item.request_metadata.extras_key_count
+            : std::max(
+                  media_item.request_metadata.extras_key_count,
+                  static_cast<int>(media_item.request_metadata.extras_values.size()));
     request_metadata = NewObjectChecked(
         env,
         request_metadata_class,
@@ -1005,12 +1155,16 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
         "CppRequestMetadata",
         request_media_uri,
         request_search_query,
-        static_cast<jboolean>(media_item.request_metadata.extras_present),
-        static_cast<jint>(media_item.request_metadata.extras_key_count),
-        request_extras_token);
+        static_cast<jboolean>(
+            media_item.request_metadata.extras_present ||
+            !media_item.request_metadata.extras_values.empty()),
+        static_cast<jint>(request_extras_key_count),
+        request_extras_token,
+        request_extras_values);
     DeleteLocalRefIfNotNull(env, request_media_uri);
     DeleteLocalRefIfNotNull(env, request_search_query);
     DeleteLocalRefIfNotNull(env, request_extras_token);
+    DeleteLocalRefIfNotNull(env, request_extras_values);
     if (request_metadata == nullptr) {
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
@@ -1744,6 +1898,21 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object) {
       GetIntFieldValue(env, object, clazz, "CppMediaMetadata", "extrasKeyCount");
   snapshot.extras_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "extrasToken");
+  jobjectArray extras_values = static_cast<jobjectArray>(GetObjectFieldValue(
+      env,
+      object,
+      clazz,
+      "CppMediaMetadata",
+      "extrasValues",
+      "[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;"));
+  snapshot.extras_values = FromJavaBundleValueArray(env, extras_values);
+  DeleteLocalRefIfNotNull(env, extras_values);
+  if (!snapshot.extras_values.empty()) {
+    snapshot.extras_present = true;
+    if (snapshot.extras_key_count == 0) {
+      snapshot.extras_key_count = static_cast<int>(snapshot.extras_values.size());
+    }
+  }
   env->DeleteLocalRef(clazz);
   return snapshot;
 }
@@ -2710,7 +2879,7 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       metadata_class,
       "CppMediaMetadata",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[BIJIIIIIIIIIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;ZILjava/lang/String;)V");
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[BIJIIIIIIIIIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;ZILjava/lang/String;[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;)V");
   if (metadata_class == nullptr || ctor == nullptr) {
     DeleteLocalRefIfNotNull(env, metadata_class);
     return nullptr;
@@ -2830,6 +2999,46 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       metadata.extras_token.empty()
           ? nullptr
           : NewStringUtfChecked(env, metadata.extras_token, "CppMediaMetadata.extrasToken");
+  jobjectArray extras_values = CreateJavaBundleValueArray(env, metadata.extras_values);
+  if (extras_values == nullptr) {
+    DeleteLocalRefIfNotNull(env, title);
+    DeleteLocalRefIfNotNull(env, title_token);
+    DeleteLocalRefIfNotNull(env, artist);
+    DeleteLocalRefIfNotNull(env, artist_token);
+    DeleteLocalRefIfNotNull(env, album_title);
+    DeleteLocalRefIfNotNull(env, album_title_token);
+    DeleteLocalRefIfNotNull(env, album_artist);
+    DeleteLocalRefIfNotNull(env, album_artist_token);
+    DeleteLocalRefIfNotNull(env, display_title);
+    DeleteLocalRefIfNotNull(env, display_title_token);
+    DeleteLocalRefIfNotNull(env, subtitle);
+    DeleteLocalRefIfNotNull(env, subtitle_token);
+    DeleteLocalRefIfNotNull(env, description);
+    DeleteLocalRefIfNotNull(env, description_token);
+    DeleteLocalRefIfNotNull(env, artwork_uri);
+    DeleteLocalRefIfNotNull(env, artwork_data);
+    DeleteLocalRefIfNotNull(env, writer);
+    DeleteLocalRefIfNotNull(env, writer_token);
+    DeleteLocalRefIfNotNull(env, author);
+    DeleteLocalRefIfNotNull(env, author_token);
+    DeleteLocalRefIfNotNull(env, composer);
+    DeleteLocalRefIfNotNull(env, composer_token);
+    DeleteLocalRefIfNotNull(env, conductor);
+    DeleteLocalRefIfNotNull(env, conductor_token);
+    DeleteLocalRefIfNotNull(env, genre);
+    DeleteLocalRefIfNotNull(env, genre_token);
+    DeleteLocalRefIfNotNull(env, compilation);
+    DeleteLocalRefIfNotNull(env, compilation_token);
+    DeleteLocalRefIfNotNull(env, station);
+    DeleteLocalRefIfNotNull(env, station_token);
+    DeleteLocalRefIfNotNull(env, extras_token);
+    DeleteLocalRefIfNotNull(env, metadata_class);
+    return nullptr;
+  }
+  const int extras_key_count =
+      metadata.extras_values.empty()
+          ? metadata.extras_key_count
+          : std::max(metadata.extras_key_count, static_cast<int>(metadata.extras_values.size()));
   jobject object = NewObjectChecked(
       env,
       metadata_class,
@@ -2881,9 +3090,10 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       static_cast<jint>(metadata.media_type),
       station,
       station_token,
-      static_cast<jboolean>(metadata.extras_present),
-      static_cast<jint>(metadata.extras_key_count),
-      extras_token);
+      static_cast<jboolean>(metadata.extras_present || !metadata.extras_values.empty()),
+      static_cast<jint>(extras_key_count),
+      extras_token,
+      extras_values);
   DeleteLocalRefIfNotNull(env, title);
   DeleteLocalRefIfNotNull(env, title_token);
   DeleteLocalRefIfNotNull(env, artist);
@@ -2915,6 +3125,7 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
   DeleteLocalRefIfNotNull(env, station);
   DeleteLocalRefIfNotNull(env, station_token);
   DeleteLocalRefIfNotNull(env, extras_token);
+  DeleteLocalRefIfNotNull(env, extras_values);
   env->DeleteLocalRef(metadata_class);
   return object;
 }
@@ -3069,6 +3280,24 @@ MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object) {
           env, request_metadata, request_metadata_class, "CppRequestMetadata", "extrasKeyCount");
       descriptor.request_metadata.extras_token = GetStringFieldValue(
           env, request_metadata, request_metadata_class, "CppRequestMetadata", "extrasToken");
+      jobjectArray request_extras_values =
+          static_cast<jobjectArray>(GetObjectFieldValue(
+              env,
+              request_metadata,
+              request_metadata_class,
+              "CppRequestMetadata",
+              "extrasValues",
+              "[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;"));
+      descriptor.request_metadata.extras_values =
+          FromJavaBundleValueArray(env, request_extras_values);
+      DeleteLocalRefIfNotNull(env, request_extras_values);
+      if (!descriptor.request_metadata.extras_values.empty()) {
+        descriptor.request_metadata.extras_present = true;
+        if (descriptor.request_metadata.extras_key_count == 0) {
+          descriptor.request_metadata.extras_key_count =
+              static_cast<int>(descriptor.request_metadata.extras_values.size());
+        }
+      }
       env->DeleteLocalRef(request_metadata_class);
     }
     DeleteLocalRefIfNotNull(env, request_metadata);

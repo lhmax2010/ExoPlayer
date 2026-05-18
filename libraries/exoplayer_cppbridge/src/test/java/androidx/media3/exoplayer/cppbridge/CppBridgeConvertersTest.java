@@ -4,6 +4,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 import android.text.Layout;
 import androidx.media3.common.C;
 import androidx.media3.common.ColorInfo;
@@ -198,6 +199,100 @@ public final class CppBridgeConvertersTest {
     } finally {
       CppOpaqueObjectRegistry.unregister("ads-token-1");
     }
+  }
+
+  @Test
+  public void toMediaItem_buildsRequestMetadataExtrasFromDecodedValues() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/content.m3u8",
+            "request-extras-id",
+            null,
+            2,
+            false,
+            null,
+            null,
+            null,
+            new CppRequestMetadata(
+                "https://example.com/request",
+                "search terms",
+                true,
+                5,
+                null,
+                new CppBundleValue[] {
+                  new CppBundleValue(
+                      "enabled", CppBundleValue.TYPE_BOOLEAN, null, 0L, 0.0, true, null),
+                  new CppBundleValue(
+                      "episode", CppBundleValue.TYPE_LONG, null, 42L, 0.0, false, null),
+                  new CppBundleValue(
+                      "gain", CppBundleValue.TYPE_DOUBLE, null, 0L, 1.5, false, null),
+                  new CppBundleValue(
+                      "payload",
+                      CppBundleValue.TYPE_BYTE_ARRAY,
+                      null,
+                      0L,
+                      0.0,
+                      false,
+                      new byte[] {1, 2, 3}),
+                  new CppBundleValue(
+                      "source",
+                      CppBundleValue.TYPE_STRING,
+                      "cppbridge",
+                      0L,
+                      0.0,
+                      false,
+                      null)
+                }),
+            null,
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.requestMetadata.mediaUri.toString())
+        .isEqualTo("https://example.com/request");
+    assertThat(mediaItem.requestMetadata.searchQuery).isEqualTo("search terms");
+    assertThat(mediaItem.requestMetadata.extras.getBoolean("enabled")).isTrue();
+    assertThat(mediaItem.requestMetadata.extras.getLong("episode")).isEqualTo(42L);
+    assertThat(mediaItem.requestMetadata.extras.getDouble("gain")).isEqualTo(1.5);
+    assertThat(mediaItem.requestMetadata.extras.getByteArray("payload"))
+        .isEqualTo(new byte[] {1, 2, 3});
+    assertThat(mediaItem.requestMetadata.extras.getString("source")).isEqualTo("cppbridge");
+  }
+
+  @Test
+  public void toMediaItem_buildsRequestMetadataExtrasWhenPresenceFlagIsFalse() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/content.mpd",
+            "request-extras-id",
+            null,
+            1,
+            false,
+            null,
+            null,
+            null,
+            new CppRequestMetadata(
+                null,
+                null,
+                false,
+                0,
+                null,
+                new CppBundleValue[] {
+                  new CppBundleValue(
+                      "source", CppBundleValue.TYPE_STRING, "decoded", 0L, 0.0, false, null)
+                }),
+            null,
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.requestMetadata.extras.getString("source")).isEqualTo("decoded");
   }
 
   @Test
@@ -640,6 +735,12 @@ public final class CppBridgeConvertersTest {
 
   @Test
   public void fromMediaMetadata_mapsExpandedTextFields() {
+    Bundle extras = new Bundle();
+    extras.putBoolean("available", true);
+    extras.putByteArray("blob", new byte[] {9, 8, 7});
+    extras.putDouble("rating", 4.5);
+    extras.putLong("season", 2L);
+    extras.putString("studio", "Studio");
     MediaMetadata metadata =
         new MediaMetadata.Builder()
             .setTitle("Title")
@@ -672,6 +773,7 @@ public final class CppBridgeConvertersTest {
             .setCompilation("Compilation")
             .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
             .setStation("Station")
+            .setExtras(extras)
             .build();
 
     CppMediaMetadata converted = CppBridgeConverters.fromMediaMetadata(metadata);
@@ -706,6 +808,155 @@ public final class CppBridgeConvertersTest {
     assertThat(converted.compilation).isEqualTo("Compilation");
     assertThat(converted.mediaType).isEqualTo(MediaMetadata.MEDIA_TYPE_MUSIC);
     assertThat(converted.station).isEqualTo("Station");
+    assertThat(converted.extrasPresent).isTrue();
+    assertThat(converted.extrasKeyCount).isEqualTo(5);
+    assertThat(converted.extrasToken).isNotNull();
+    assertThat(converted.extrasValues).hasLength(5);
+    assertThat(converted.extrasValues[0].key).isEqualTo("available");
+    assertThat(converted.extrasValues[0].valueType).isEqualTo(CppBundleValue.TYPE_BOOLEAN);
+    assertThat(converted.extrasValues[0].booleanValue).isTrue();
+    assertThat(converted.extrasValues[1].key).isEqualTo("blob");
+    assertThat(converted.extrasValues[1].valueType).isEqualTo(CppBundleValue.TYPE_BYTE_ARRAY);
+    assertThat(converted.extrasValues[1].byteArrayValue).isEqualTo(new byte[] {9, 8, 7});
+    assertThat(converted.extrasValues[2].key).isEqualTo("rating");
+    assertThat(converted.extrasValues[2].valueType).isEqualTo(CppBundleValue.TYPE_DOUBLE);
+    assertThat(converted.extrasValues[2].doubleValue).isEqualTo(4.5);
+    assertThat(converted.extrasValues[3].key).isEqualTo("season");
+    assertThat(converted.extrasValues[3].valueType).isEqualTo(CppBundleValue.TYPE_LONG);
+    assertThat(converted.extrasValues[3].longValue).isEqualTo(2L);
+    assertThat(converted.extrasValues[4].key).isEqualTo("studio");
+    assertThat(converted.extrasValues[4].valueType).isEqualTo(CppBundleValue.TYPE_STRING);
+    assertThat(converted.extrasValues[4].stringValue).isEqualTo("Studio");
+  }
+
+  @Test
+  public void toMediaMetadata_buildsExtrasFromDecodedValues() {
+    CppMediaMetadata metadata =
+        new CppMediaMetadata(
+            "Title",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1L,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            null,
+            null,
+            true,
+            2,
+            null,
+            new CppBundleValue[] {
+              new CppBundleValue(
+                  "episode", CppBundleValue.TYPE_LONG, null, 17L, 0.0, false, null),
+              new CppBundleValue(
+                  "title", CppBundleValue.TYPE_STRING, "Decoded", 0L, 0.0, false, null)
+            });
+
+    MediaMetadata converted = CppBridgeConverters.toMediaMetadata(metadata);
+
+    assertThat(converted.title.toString()).isEqualTo("Title");
+    assertThat(converted.extras.getLong("episode")).isEqualTo(17L);
+    assertThat(converted.extras.getString("title")).isEqualTo("Decoded");
+  }
+
+  @Test
+  public void toMediaMetadata_buildsExtrasWhenPresenceFlagIsFalse() {
+    CppMediaMetadata metadata =
+        new CppMediaMetadata(
+            "Title",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1L,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            null,
+            null,
+            false,
+            0,
+            null,
+            new CppBundleValue[] {
+              new CppBundleValue(
+                  "title", CppBundleValue.TYPE_STRING, "Decoded", 0L, 0.0, false, null)
+            });
+
+    MediaMetadata converted = CppBridgeConverters.toMediaMetadata(metadata);
+
+    assertThat(converted.extras.getString("title")).isEqualTo("Decoded");
   }
 
   @Test

@@ -22,6 +22,7 @@ import androidx.media3.effect.Presentation;
 import androidx.media3.effect.RgbAdjustment;
 import androidx.media3.effect.ScaleAndRotateTransformation;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -123,6 +124,93 @@ final class CppBridgeConverters {
         Util.inferContentTypeForUriAndMimeType(Uri.parse(normalizedUri), normalizedMimeType));
   }
 
+  private static CppBundleValue[] toCppBundleValues(@Nullable Bundle bundle) {
+    if (bundle == null) {
+      return new CppBundleValue[0];
+    }
+    ArrayList<String> keys = new ArrayList<>(bundle.keySet());
+    Collections.sort(keys);
+    ArrayList<CppBundleValue> values = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      Object value = bundle.get(key);
+      if (value instanceof CharSequence) {
+        values.add(
+            new CppBundleValue(
+                key, CppBundleValue.TYPE_STRING, value.toString(), 0L, 0.0, false, null));
+      } else if (value instanceof Byte
+          || value instanceof Short
+          || value instanceof Integer
+          || value instanceof Long) {
+        values.add(
+            new CppBundleValue(
+                key,
+                CppBundleValue.TYPE_LONG,
+                null,
+                ((Number) value).longValue(),
+                0.0,
+                false,
+                null));
+      } else if (value instanceof Float || value instanceof Double) {
+        values.add(
+            new CppBundleValue(
+                key,
+                CppBundleValue.TYPE_DOUBLE,
+                null,
+                0L,
+                ((Number) value).doubleValue(),
+                false,
+                null));
+      } else if (value instanceof Boolean) {
+        values.add(
+            new CppBundleValue(
+                key, CppBundleValue.TYPE_BOOLEAN, null, 0L, 0.0, (Boolean) value, null));
+      } else if (value instanceof byte[]) {
+        values.add(
+            new CppBundleValue(
+                key,
+                CppBundleValue.TYPE_BYTE_ARRAY,
+                null,
+                0L,
+                0.0,
+                false,
+                ((byte[]) value).clone()));
+      }
+    }
+    return values.toArray(new CppBundleValue[0]);
+  }
+
+  private static Bundle toBundle(CppBundleValue[] values) {
+    Bundle bundle = new Bundle();
+    if (values == null) {
+      return bundle;
+    }
+    for (CppBundleValue value : values) {
+      if (value == null || value.key == null) {
+        continue;
+      }
+      switch (value.valueType) {
+        case CppBundleValue.TYPE_STRING:
+          bundle.putString(value.key, value.stringValue != null ? value.stringValue : "");
+          break;
+        case CppBundleValue.TYPE_LONG:
+          bundle.putLong(value.key, value.longValue);
+          break;
+        case CppBundleValue.TYPE_DOUBLE:
+          bundle.putDouble(value.key, value.doubleValue);
+          break;
+        case CppBundleValue.TYPE_BOOLEAN:
+          bundle.putBoolean(value.key, value.booleanValue);
+          break;
+        case CppBundleValue.TYPE_BYTE_ARRAY:
+          bundle.putByteArray(value.key, value.byteArrayValue.clone());
+          break;
+        default:
+          break;
+      }
+    }
+    return bundle;
+  }
+
   static MediaItem toMediaItem(CppMediaItem mediaItem) {
     MediaItem.Builder builder = new MediaItem.Builder();
     if (mediaItem.uri != null && !mediaItem.uri.isEmpty()) {
@@ -152,10 +240,13 @@ final class CppBridgeConverters {
       if (mediaItem.requestMetadata.searchQuery != null) {
         requestMetadataBuilder.setSearchQuery(mediaItem.requestMetadata.searchQuery);
       }
-      if (mediaItem.requestMetadata.extrasPresent) {
+      if (mediaItem.requestMetadata.extrasPresent
+          || mediaItem.requestMetadata.extrasValues.length > 0) {
         Object resolvedExtras = CppOpaqueObjectRegistry.resolve(mediaItem.requestMetadata.extrasToken);
         requestMetadataBuilder.setExtras(
-            resolvedExtras instanceof Bundle ? (Bundle) resolvedExtras : new Bundle());
+            resolvedExtras instanceof Bundle
+                ? (Bundle) resolvedExtras
+                : toBundle(mediaItem.requestMetadata.extrasValues));
       }
       builder.setRequestMetadata(requestMetadataBuilder.build());
     }
@@ -389,7 +480,8 @@ final class CppBridgeConverters {
               mediaItem.requestMetadata.extras != null ? mediaItem.requestMetadata.extras.size() : 0,
               mediaItem.requestMetadata.extras != null
                   ? CppOpaqueObjectRegistry.register(mediaItem.requestMetadata.extras)
-                  : null);
+                  : null,
+              toCppBundleValues(mediaItem.requestMetadata.extras));
     }
 
     return new CppMediaItem(
@@ -544,9 +636,10 @@ final class CppBridgeConverters {
         resolvedStation instanceof CharSequence
             ? (CharSequence) resolvedStation
             : (resolvedStation != null ? resolvedStation.toString() : metadata.station));
-    if (metadata.extrasPresent) {
+    if (metadata.extrasPresent || metadata.extrasValues.length > 0) {
       Object resolvedExtras = CppOpaqueObjectRegistry.resolve(metadata.extrasToken);
-      builder.setExtras(resolvedExtras instanceof Bundle ? (Bundle) resolvedExtras : new Bundle());
+      builder.setExtras(
+          resolvedExtras instanceof Bundle ? (Bundle) resolvedExtras : toBundle(metadata.extrasValues));
     }
     return builder.build();
   }
@@ -653,7 +746,8 @@ final class CppBridgeConverters {
         metadata.station != null ? CppOpaqueObjectRegistry.register(metadata.station) : null,
         metadata.extras != null,
         metadata.extras != null ? metadata.extras.size() : 0,
-        metadata.extras != null ? CppOpaqueObjectRegistry.register(metadata.extras) : null);
+        metadata.extras != null ? CppOpaqueObjectRegistry.register(metadata.extras) : null,
+        toCppBundleValues(metadata.extras));
   }
 
   static CppCue fromCue(Cue cue) {

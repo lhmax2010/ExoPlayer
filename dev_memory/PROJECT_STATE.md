@@ -114,6 +114,10 @@ This is consistent with a large smoke-first validation strategy.
 - Stage 2 then deepened the same `TrackInfo` route with label arrays, metadata/custom-data tokens,
   initialization byte vectors, DRM scheme-data uuid/license/mime/bytes/has-data, projection byte
   vectors, auxiliary track type, and `ColorInfo` HDR static info plus luma/chroma bitdepth.
+- Stage 3 has started with `MediaItem.RequestMetadata.extras` and `MediaMetadata.extras` decoded
+  `Bundle` value transport: C++ `BundleValueInfo` and Java `CppBundleValue` now cover stable
+  string, integer-like, floating-point, boolean, and byte-array entries while preserving opaque
+  token fallback for arbitrary Java-only values.
 - Stage 1 full API inventory closed the direct `Player.Listener#onIsLoadingChanged` gap through
   C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; current exact gap report shows
   `Player`/`ExoPlayer` method gaps `0`, direct `Player.Listener` callback gaps `0`, and one
@@ -125,6 +129,7 @@ For the next AI:
 
 - Treat this project as "reduced endpoint is broad and heavily smoke-documented".
 - Treat the current local environment as validated for the smoke suite on Android 16.
-- The highest-risk next work moved past the first callback-style bridge slice and the
-  codec-parameter multi-listener immediate-notification edge case; remaining work is deeper
-  full-object parity and richer payload fidelity beyond the reduced callback descriptors.
+- The highest-risk next work moved past the first callback-style bridge slice, the
+  codec-parameter multi-listener immediate-notification edge case, and the first decoded extras
+  value-model slice; remaining work is deeper full-object parity for `MediaItem`, `Timeline`,
+  `MediaMetadata`, `Tracks`, and richer payload fidelity beyond the reduced descriptors.

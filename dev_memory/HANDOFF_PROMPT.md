@@ -82,6 +82,11 @@ Important context:
   auxiliary track type. Coverage now includes
   `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload` plus the converter and
   current-tracks smoke assertions.
+- The 2026-05-18 Stage 3 first slice adds decoded `Bundle` extras transport for
+  `MediaItem.RequestMetadata.extras` and `MediaMetadata.extras`: C++ `BundleValueInfo` and Java
+  `CppBundleValue` carry string, integer-like, floating-point, boolean, and byte-array entries,
+  while opaque tokens remain the fallback for arbitrary Java-only values. Coverage includes
+  converter UTs and current-item / playlist-metadata native smoke markers.
 - `CppBridgeConverters` now normalizes HLS MIME aliases like
   `application/vnd.apple.mpegurl` / lowercase `application/x-mpegurl`, and maps Media3
   `CONTENT_TYPE_OTHER` back to C++ `MediaSourceType::kProgressive`.
@@ -92,9 +97,10 @@ Important context:
 - Direct `Player.Listener#onIsLoadingChanged` is now bridged through
   `OnIsLoadingChanged` / `nativeOnIsLoadingChanged`, with `nativeListenerSmokeTest` checking
   `isLoadingCb=1` and `isLoading=1`.
-- The highest-value next development work is full Java `Tracks.Group` / `Format` object semantic
-  parity beyond the current reduced DTO shape, plus broader Java/api.txt parity where the inventory
-  still marks non-player classes for later stages.
+- The highest-value next development work is continuing Stage 3 object parity: timeline
+  window/period identity and manifest semantics, richer `MediaItem` tag/ads/request metadata
+  semantics beyond the stable extras subset, and broader `MediaMetadata` object parity. Full
+  Java/api.txt parity for non-player classes remains a later-stage concern.
 
 When you report status, separate these clearly:
 

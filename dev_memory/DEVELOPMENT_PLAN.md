@@ -84,6 +84,15 @@ Exit criteria:
 - New or expanded smoke tests cover the decided semantics.
 - Mapping docs call out any remaining deliberate non-parity.
 
+Current progress:
+
+- 2026-05-18: first Stage 3 slice adds a stable decoded `Bundle` value model for
+  `MediaItem.RequestMetadata.extras` and `MediaMetadata.extras`. The C++ bridge now transports
+  string, integer-like, floating-point, boolean, and byte-array entries through `BundleValueInfo` /
+  `CppBundleValue`, while preserving opaque-token fallback for unsupported arbitrary Java values.
+- Coverage includes Java converter UTs plus native current-item and playlist-metadata smoke
+  assertions for decoded extras values.
+
 ## Stage 4: Listener / Analytics Completeness
 
 Objective:

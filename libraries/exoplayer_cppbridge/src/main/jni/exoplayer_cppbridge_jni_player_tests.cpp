@@ -321,6 +321,55 @@ bool RegisterBundleForOpaqueToken(
   return !failed;
 }
 
+int ByteVectorChecksum(const std::vector<uint8_t>& values) {
+  int checksum = 0;
+  for (uint8_t value : values) {
+    checksum += static_cast<int>(value);
+  }
+  return checksum;
+}
+
+void AppendBundleValueSummary(
+    std::string* summary,
+    const std::string& prefix,
+    const std::vector<BundleValueInfo>& values) {
+  if (summary == nullptr) {
+    return;
+  }
+  *summary += "," + prefix + "ValueCount=" + std::to_string(values.size());
+  for (size_t i = 0; i < values.size(); ++i) {
+    const BundleValueInfo& value = values[i];
+    *summary += "," + prefix + "Value" + std::to_string(i) + "Key=" + value.key;
+    *summary += "," + prefix + "Value" + std::to_string(i) + "Type=" +
+        std::to_string(value.value_type);
+    switch (value.value_type) {
+      case BundleValueInfo::kString:
+        *summary += "," + prefix + "Value" + std::to_string(i) + "String=" +
+            value.string_value;
+        break;
+      case BundleValueInfo::kLong:
+        *summary += "," + prefix + "Value" + std::to_string(i) + "Long=" +
+            std::to_string(value.long_value);
+        break;
+      case BundleValueInfo::kDouble:
+        *summary += "," + prefix + "Value" + std::to_string(i) + "Double=" +
+            std::to_string(value.double_value);
+        break;
+      case BundleValueInfo::kBoolean:
+        *summary += "," + prefix + "Value" + std::to_string(i) + "Bool=" +
+            std::to_string(value.boolean_value ? 1 : 0);
+        break;
+      case BundleValueInfo::kByteArray:
+        *summary += "," + prefix + "Value" + std::to_string(i) + "Bytes=" +
+            std::to_string(value.byte_array_value.size()) + ":" +
+            std::to_string(ByteVectorChecksum(value.byte_array_value));
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 }  // namespace
 
 class CapturingImageOutputListener : public ExoPlayerSdkImageOutputListener {
@@ -3562,9 +3611,14 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   media_item.request_metadata.media_uri = "https://example.com/current-request";
   media_item.request_metadata.search_query = "current search";
   media_item.request_metadata.extras_present = true;
-  media_item.request_metadata.extras_key_count = 1;
-  media_item.request_metadata.extras_token =
-      "generated-opaque-object-token-current-request-extras";
+  media_item.request_metadata.extras_key_count = 5;
+  media_item.request_metadata.extras_values = {
+      {"enabled", BundleValueInfo::kBoolean, "", 0, 0.0, true, {}},
+      {"episode", BundleValueInfo::kLong, "", 42, 0.0, false, {}},
+      {"gain", BundleValueInfo::kDouble, "", 0, 1.5, false, {}},
+      {"payload", BundleValueInfo::kByteArray, "", 0, 0.0, false, {1, 2, 3}},
+      {"source", BundleValueInfo::kString, "cppbridge", 0, 0.0, false, {}},
+  };
   media_item.ads_configuration.ad_tag_uri = "https://ads.example.com/tag.xml";
   media_item.ads_configuration.ads_id = "ads-current";
   media_item.media_metadata.title = "Current Item Title";
@@ -3597,16 +3651,14 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   media_item.media_metadata.media_type = 7;
   media_item.media_metadata.station = "Current Item Station";
   media_item.media_metadata.extras_present = true;
-  media_item.media_metadata.extras_key_count = 1;
-  media_item.media_metadata.extras_token =
-      "generated-opaque-object-token-current-item-metadata-extras";
-  RegisterBundleForOpaqueToken(
-      env, media_item.request_metadata.extras_token, "current-request-key", "current-request-value");
-  RegisterBundleForOpaqueToken(
-      env,
-      media_item.media_metadata.extras_token,
-      "current-metadata-key",
-      "current-metadata-value");
+  media_item.media_metadata.extras_key_count = 5;
+  media_item.media_metadata.extras_values = {
+      {"available", BundleValueInfo::kBoolean, "", 0, 0.0, true, {}},
+      {"blob", BundleValueInfo::kByteArray, "", 0, 0.0, false, {9, 8, 7}},
+      {"rating", BundleValueInfo::kDouble, "", 0, 4.5, false, {}},
+      {"season", BundleValueInfo::kLong, "", 2, 0.0, false, {}},
+      {"studio", BundleValueInfo::kString, "Studio", 0, 0.0, false, {}},
+  };
   media_item.media_metadata.artwork_uri = "https://example.com/current-artwork.jpg";
   media_item.media_metadata.artwork_data = {1, 2, 3, 4};
   media_item.media_metadata.artwork_data_type = 3;
@@ -3705,6 +3757,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       std::to_string(current_media_item.request_metadata.extras_key_count);
   summary += ",requestMetadataExtrasTokenPresent=" +
       std::to_string(current_media_item.request_metadata.extras_token.empty() ? 0 : 1);
+  AppendBundleValueSummary(
+      &summary, "requestMetadataExtras", current_media_item.request_metadata.extras_values);
   summary += ",adTagUri=" + current_media_item.ads_configuration.ad_tag_uri;
   summary += ",adsId=" + current_media_item.ads_configuration.ads_id;
   summary += ",adsIdTokenPresent=" +
@@ -3787,6 +3841,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       std::to_string(current_media_item.media_metadata.extras_key_count);
   summary += ",mediaMetadataExtrasTokenPresent=" +
       std::to_string(current_media_item.media_metadata.extras_token.empty() ? 0 : 1);
+  AppendBundleValueSummary(
+      &summary, "mediaMetadataExtras", current_media_item.media_metadata.extras_values);
   summary += ",artworkUri=" + current_media_item.media_metadata.artwork_uri;
   summary += ",artworkDataLength=" +
       std::to_string(current_media_item.media_metadata.artwork_data.size());
@@ -3829,11 +3885,14 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
   playlist_metadata.release_day = 22;
   playlist_metadata.station = "Playlist Station";
   playlist_metadata.extras_present = true;
-  playlist_metadata.extras_key_count = 1;
-  playlist_metadata.extras_token =
-      "generated-opaque-object-token-playlist-metadata-extras";
-  RegisterBundleForOpaqueToken(
-      env, playlist_metadata.extras_token, "playlist-metadata-key", "playlist-metadata-value");
+  playlist_metadata.extras_key_count = 5;
+  playlist_metadata.extras_values = {
+      {"enabled", BundleValueInfo::kBoolean, "", 0, 0.0, true, {}},
+      {"episode", BundleValueInfo::kLong, "", 12, 0.0, false, {}},
+      {"gain", BundleValueInfo::kDouble, "", 0, 0.75, false, {}},
+      {"payload", BundleValueInfo::kByteArray, "", 0, 0.0, false, {4, 5, 6}},
+      {"source", BundleValueInfo::kString, "playlist-decoded", 0, 0.0, false, {}},
+  };
   player->SetPlaylistMetadata(playlist_metadata);
   MediaMetadataSnapshot actual = player->GetPlaylistMetadata();
   std::string summary = "title=" + actual.title;
@@ -3884,6 +3943,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
   summary += ",extrasPresent=" + std::to_string(actual.extras_present ? 1 : 0);
   summary += ",extrasKeyCount=" + std::to_string(actual.extras_key_count);
   summary += ",extrasTokenPresent=" + std::to_string(actual.extras_token.empty() ? 0 : 1);
+  AppendBundleValueSummary(&summary, "extras", actual.extras_values);
   return NewStringUtfChecked(env, summary, "nativePlaylistMetadataSmokeTest");
 }
 

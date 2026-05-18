@@ -54,6 +54,7 @@ public final class CppMediaMetadata {
   public final boolean extrasPresent;
   public final int extrasKeyCount;
   @Nullable public final String extrasToken;
+  public final CppBundleValue[] extrasValues;
 
   public CppMediaMetadata(
       @Nullable String title,
@@ -105,6 +106,110 @@ public final class CppMediaMetadata {
       boolean extrasPresent,
       int extrasKeyCount,
       @Nullable String extrasToken) {
+    this(
+        title,
+        titleToken,
+        artist,
+        artistToken,
+        albumTitle,
+        albumTitleToken,
+        albumArtist,
+        albumArtistToken,
+        displayTitle,
+        displayTitleToken,
+        subtitle,
+        subtitleToken,
+        description,
+        descriptionToken,
+        artworkUri,
+        artworkData,
+        artworkDataType,
+        durationMs,
+        trackNumber,
+        totalTrackCount,
+        isBrowsable,
+        isPlayable,
+        folderType,
+        recordingYear,
+        recordingMonth,
+        recordingDay,
+        releaseYear,
+        releaseMonth,
+        releaseDay,
+        writer,
+        writerToken,
+        author,
+        authorToken,
+        composer,
+        composerToken,
+        conductor,
+        conductorToken,
+        discNumber,
+        totalDiscCount,
+        genre,
+        genreToken,
+        compilation,
+        compilationToken,
+        mediaType,
+        station,
+        stationToken,
+        extrasPresent,
+        extrasKeyCount,
+        extrasToken,
+        null);
+  }
+
+  public CppMediaMetadata(
+      @Nullable String title,
+      @Nullable String titleToken,
+      @Nullable String artist,
+      @Nullable String artistToken,
+      @Nullable String albumTitle,
+      @Nullable String albumTitleToken,
+      @Nullable String albumArtist,
+      @Nullable String albumArtistToken,
+      @Nullable String displayTitle,
+      @Nullable String displayTitleToken,
+      @Nullable String subtitle,
+      @Nullable String subtitleToken,
+      @Nullable String description,
+      @Nullable String descriptionToken,
+      @Nullable String artworkUri,
+      @Nullable byte[] artworkData,
+      int artworkDataType,
+      long durationMs,
+      int trackNumber,
+      int totalTrackCount,
+      int isBrowsable,
+      int isPlayable,
+      int folderType,
+      int recordingYear,
+      int recordingMonth,
+      int recordingDay,
+      int releaseYear,
+      int releaseMonth,
+      int releaseDay,
+      @Nullable String writer,
+      @Nullable String writerToken,
+      @Nullable String author,
+      @Nullable String authorToken,
+      @Nullable String composer,
+      @Nullable String composerToken,
+      @Nullable String conductor,
+      @Nullable String conductorToken,
+      int discNumber,
+      int totalDiscCount,
+      @Nullable String genre,
+      @Nullable String genreToken,
+      @Nullable String compilation,
+      @Nullable String compilationToken,
+      int mediaType,
+      @Nullable String station,
+      @Nullable String stationToken,
+      boolean extrasPresent,
+      int extrasKeyCount,
+      @Nullable String extrasToken,
+      @Nullable CppBundleValue[] extrasValues) {
     this.title = title;
     this.titleToken = titleToken;
     this.artist = artist;
@@ -154,5 +259,6 @@ public final class CppMediaMetadata {
     this.extrasPresent = extrasPresent;
     this.extrasKeyCount = extrasKeyCount;
     this.extrasToken = extrasToken;
+    this.extrasValues = extrasValues != null ? extrasValues : new CppBundleValue[0];
   }
 }
