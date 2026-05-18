@@ -2062,6 +2062,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("tagPresent=1");
     assertThat(summary).contains("tagString=current-tag");
     assertThat(summary).contains("tagTokenPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueClass=java.lang.String");
+    assertThat(summary).contains("tagValueType=1");
+    assertThat(summary).contains("tagValueString=current-tag");
     assertThat(summary).contains("subtitleCount=2");
     assertThat(summary).contains("subtitle0Uri=https://example.com/current.vtt");
     assertThat(summary).contains("subtitle0MimeType=text/vtt");
@@ -2125,6 +2129,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("adTagUri=https://ads.example.com/tag.xml");
     assertThat(summary).contains("adsId=ads-current");
     assertThat(summary).contains("adsIdTokenPresent=1");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueClass=java.lang.String");
+    assertThat(summary).contains("adsIdValueType=1");
+    assertThat(summary).contains("adsIdValueString=ads-current");
     assertThat(summary).contains("mediaMetadataTitle=Current Item Title");
     assertThat(summary).contains("mediaMetadataTitleTokenPresent=1");
     assertThat(summary).contains("mediaMetadataArtist=Current Item Artist");
@@ -2354,6 +2362,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("tagPresent=1");
     assertThat(summary).contains("tagString=at-two-tag");
     assertThat(summary).contains("tagTokenPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueClass=java.lang.String");
+    assertThat(summary).contains("tagValueType=1");
+    assertThat(summary).contains("tagValueString=at-two-tag");
     assertThat(summary).contains("subtitleCount=2");
     assertThat(summary).contains("subtitle0Uri=https://example.com/at-two.vtt");
     assertThat(summary).contains("subtitle0Id=sub-at-2");
@@ -2389,6 +2401,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("adTagUri=https://ads.example.com/at-two.xml");
     assertThat(summary).contains("adsId=ads-at-2");
     assertThat(summary).contains("adsIdTokenPresent=1");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueClass=java.lang.String");
+    assertThat(summary).contains("adsIdValueType=1");
+    assertThat(summary).contains("adsIdValueString=ads-at-2");
     assertThat(summary).contains("mediaMetadataTitle=At Two Title");
     assertThat(summary).contains("mediaMetadataTitleTokenPresent=1");
     assertThat(summary).contains("mediaMetadataArtist=At Two Artist");
@@ -2456,8 +2472,14 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     assertThat(summary).contains("tagString=registered-tag-object");
     assertThat(summary).contains("tagTokenPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueType=5");
+    assertThat(summary).contains("tagValueString=registered-tag-object");
     assertThat(summary).contains("adsId=registered-ads-object");
     assertThat(summary).contains("adsIdTokenPresent=1");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueType=5");
+    assertThat(summary).contains("adsIdValueString=registered-ads-object");
     assertThat(summary).contains("requestMetadataExtrasPresent=1");
     assertThat(summary).contains("requestMetadataExtrasKeyCount=1");
     assertThat(summary).contains("requestMetadataExtrasTokenPresent=1");

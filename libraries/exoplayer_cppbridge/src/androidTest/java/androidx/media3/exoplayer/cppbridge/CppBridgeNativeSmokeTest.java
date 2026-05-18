@@ -56,6 +56,26 @@ public final class CppBridgeNativeSmokeTest {
   }
 
   @Test
+  public void nativeMediaItemObjectValueConversionSmokeTest_roundTripsObjectMetadata() {
+    String summary =
+        CppBridgeNativeSmokeTestHelper.nativeMediaItemObjectValueConversionSmokeTest();
+
+    assertThat(summary).contains("mediaItemObjectValueConversion=1");
+    assertThat(summary).contains("mediaId=object-value-item");
+    assertThat(summary).contains("sourceType=2");
+    assertThat(summary).contains("tagPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueClass=java.lang.Long");
+    assertThat(summary).contains("tagValueType=2");
+    assertThat(summary).contains("tagValueLong=77");
+    assertThat(summary).contains("adTagUri=https://ads.example.com/object-value.xml");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueClass=java.lang.Boolean");
+    assertThat(summary).contains("adsIdValueType=4");
+    assertThat(summary).contains("adsIdValueBool=1");
+  }
+
+  @Test
   public void nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary() {
     String summary = CppBridgeNativeSmokeTestHelper.nativeTracksSnapshotConversionSmokeTest();
 

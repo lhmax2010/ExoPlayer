@@ -48,7 +48,7 @@ Commands that passed:
 Interpretation:
 
 - The current Android 16 emulator run verified the smoke suite end to end.
-- The current Android 16 emulator run reported `126/126` connected instrumentation tests passed.
+- The current Android 16 emulator run reported `127/127` connected instrumentation tests passed.
 - Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
   `api.txt` parity.
 - The 2026-05-18 Stage 1 inventory report is now checked in at
@@ -64,7 +64,7 @@ Interpretation:
 Current androidTest count found in the workspace:
 
 - Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
-  `CppBridgeNativePlayerInstrumentationTest.java`: `126`
+  `CppBridgeNativePlayerInstrumentationTest.java`: `127`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -125,6 +125,10 @@ This is consistent with a large smoke-first validation strategy.
   `Timeline.Window.uid`, `Timeline.Window.manifest`, `Timeline.Period.id`,
   `Timeline.Period.uid`, and `Timeline.Period.adsId`, while retaining opaque-token identity
   baselines.
+- Stage 3 now also deepens `MediaItem.LocalConfiguration.tag` and
+  `MediaItem.AdsConfiguration.adsId`: Java `CppObjectValue` plus C++ `ObjectValueInfo` metadata
+  expose reduced class/type/scalar payload visibility while retaining existing string fallback and
+  opaque-token identity behavior.
 - Stage 1 full API inventory closed the direct `Player.Listener#onIsLoadingChanged` gap through
   C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; current exact gap report shows
   `Player`/`ExoPlayer` method gaps `0`, direct `Player.Listener` callback gaps `0`, and one

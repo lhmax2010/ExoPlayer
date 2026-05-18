@@ -56,6 +56,10 @@ Notable current dirty areas:
 - Stage 3 timeline object-value slice: timeline window `uid`/`manifest` and period
   `id`/`uid`/`adsId` now carry reduced `ObjectValueInfo` descriptors with class/type and stable
   scalar payload fields in addition to the existing string/token baselines
+- Stage 3 MediaItem object-value slice: `MediaItemDescriptor.tag_value` and
+  `AdsConfigurationDescriptor.ads_id_value` now use Java `CppObjectValue` / C++ `ObjectValueInfo`
+  metadata for reduced scalar object visibility while preserving existing string fallback and
+  opaque-token identity behavior
 - Stage 1 full API inventory added `dev_memory/DEVELOPMENT_PLAN.md`,
   `scripts/cppbridge/api_parity_inventory.py`, parser unit tests, and
   `docs/cppbridge/API_PARITY_GAP_REPORT.md`; it also closed direct
@@ -117,7 +121,7 @@ Passed commands:
 
 - `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`126/126`)
+- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`127/127`)
 - `./gradlew :demo-cppbridge:assembleDebug`
 - `git diff --check`
 

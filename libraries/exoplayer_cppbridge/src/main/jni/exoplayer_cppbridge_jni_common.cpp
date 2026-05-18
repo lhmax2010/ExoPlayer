@@ -1000,6 +1000,86 @@ std::vector<BundleValueInfo> FromJavaBundleValueArray(JNIEnv* env, jobjectArray 
   return result;
 }
 
+jobject CreateJavaObjectValueInfo(JNIEnv* env, const ObjectValueInfo& value) {
+  jclass value_class =
+      FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppObjectValue");
+  if (value_class == nullptr) {
+    return nullptr;
+  }
+  jmethodID ctor = GetMethodChecked(
+      env,
+      value_class,
+      "CppObjectValue",
+      "<init>",
+      "(ZLjava/lang/String;ILjava/lang/String;JDZ)V");
+  if (ctor == nullptr) {
+    DeleteLocalRefIfNotNull(env, value_class);
+    return nullptr;
+  }
+  jstring class_name =
+      value.class_name.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, value.class_name, "CppObjectValue.className");
+  const bool needs_string_value =
+      value.value_type == ObjectValueInfo::kString ||
+      value.value_type == ObjectValueInfo::kOther ||
+      !value.string_value.empty();
+  jstring string_value =
+      needs_string_value
+          ? NewStringUtfChecked(env, value.string_value, "CppObjectValue.stringValue")
+          : nullptr;
+  if ((!value.class_name.empty() && class_name == nullptr) ||
+      (needs_string_value && string_value == nullptr)) {
+    DeleteLocalRefIfNotNull(env, class_name);
+    DeleteLocalRefIfNotNull(env, string_value);
+    DeleteLocalRefIfNotNull(env, value_class);
+    return nullptr;
+  }
+  jobject object = NewObjectChecked(
+      env,
+      value_class,
+      ctor,
+      "CppObjectValue",
+      static_cast<jboolean>(value.present),
+      class_name,
+      static_cast<jint>(value.value_type),
+      string_value,
+      static_cast<jlong>(value.long_value),
+      static_cast<jdouble>(value.double_value),
+      static_cast<jboolean>(value.boolean_value));
+  DeleteLocalRefIfNotNull(env, class_name);
+  DeleteLocalRefIfNotNull(env, string_value);
+  DeleteLocalRefIfNotNull(env, value_class);
+  return object;
+}
+
+ObjectValueInfo FromJavaObjectValueInfo(JNIEnv* env, jobject object) {
+  ObjectValueInfo value;
+  if (object == nullptr) {
+    return value;
+  }
+  jclass value_class = GetObjectClassChecked(env, object, "CppObjectValue");
+  if (value_class == nullptr) {
+    return value;
+  }
+  value.present =
+      GetBooleanFieldValue(env, object, value_class, "CppObjectValue", "present");
+  value.class_name =
+      GetStringFieldValue(env, object, value_class, "CppObjectValue", "className");
+  value.value_type =
+      GetIntFieldValue(env, object, value_class, "CppObjectValue", "valueType");
+  value.string_value =
+      GetStringFieldValue(env, object, value_class, "CppObjectValue", "stringValue");
+  value.long_value =
+      GetLongFieldValue(env, object, value_class, "CppObjectValue", "longValue");
+  value.double_value =
+      GetDoubleFieldValue(env, object, value_class, "CppObjectValue", "doubleValue");
+  value.boolean_value =
+      GetBooleanFieldValue(env, object, value_class, "CppObjectValue", "booleanValue");
+  DeleteLocalRefIfNotNull(env, value_class);
+  return value;
+}
+
 jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) {
   jclass item_class =
       FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppMediaItem");
@@ -1037,6 +1117,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       "CppMediaItem",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IZLjava/lang/String;Ljava/lang/String;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
       "Landroidx/media3/exoplayer/cppbridge/CppMediaMetadata;"
       "Landroidx/media3/exoplayer/cppbridge/CppRequestMetadata;"
       "Landroidx/media3/exoplayer/cppbridge/CppAdsConfiguration;"
@@ -1055,7 +1136,8 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       ads_class,
       "CppAdsConfiguration",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;)V");
   jmethodID subtitle_ctor = GetMethodChecked(
       env,
       subtitle_class,
@@ -1226,12 +1308,18 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
             ? nullptr
             : NewStringUtfChecked(
                   env, media_item.ads_configuration.ads_id_token, "CppAdsConfiguration.adsIdToken");
+    jobject ads_id_value =
+        media_item.ads_configuration.ads_id_value.present
+            ? CreateJavaObjectValueInfo(env, media_item.ads_configuration.ads_id_value)
+            : nullptr;
     if (ad_tag_uri == nullptr ||
         (!media_item.ads_configuration.ads_id.empty() && ads_id == nullptr) ||
-        (!media_item.ads_configuration.ads_id_token.empty() && ads_id_token == nullptr)) {
+        (!media_item.ads_configuration.ads_id_token.empty() && ads_id_token == nullptr) ||
+        (media_item.ads_configuration.ads_id_value.present && ads_id_value == nullptr)) {
       DeleteLocalRefIfNotNull(env, ad_tag_uri);
       DeleteLocalRefIfNotNull(env, ads_id);
       DeleteLocalRefIfNotNull(env, ads_id_token);
+      DeleteLocalRefIfNotNull(env, ads_id_value);
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
@@ -1248,10 +1336,18 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       return nullptr;
     }
     ads = NewObjectChecked(
-        env, ads_class, ads_ctor, "CppAdsConfiguration", ad_tag_uri, ads_id, ads_id_token);
+        env,
+        ads_class,
+        ads_ctor,
+        "CppAdsConfiguration",
+        ad_tag_uri,
+        ads_id,
+        ads_id_token,
+        ads_id_value);
     DeleteLocalRefIfNotNull(env, ad_tag_uri);
     DeleteLocalRefIfNotNull(env, ads_id);
     DeleteLocalRefIfNotNull(env, ads_id_token);
+    DeleteLocalRefIfNotNull(env, ads_id_value);
     if (ads == nullptr) {
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
@@ -1567,6 +1663,31 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
     DeleteLocalRefIfNotNull(env, forced_session_track_types);
     DeleteLocalRefIfNotNull(env, key_set_id);
   }
+  jobject tag_value =
+      media_item.tag_value.present ? CreateJavaObjectValueInfo(env, media_item.tag_value) : nullptr;
+  if (media_item.tag_value.present && tag_value == nullptr) {
+    DeleteLocalRefIfNotNull(env, uri);
+    DeleteLocalRefIfNotNull(env, media_id);
+    DeleteLocalRefIfNotNull(env, mime_type);
+    DeleteLocalRefIfNotNull(env, tag_string);
+    DeleteLocalRefIfNotNull(env, tag_token);
+    DeleteLocalRefIfNotNull(env, metadata);
+    DeleteLocalRefIfNotNull(env, request_metadata);
+    DeleteLocalRefIfNotNull(env, ads);
+    DeleteLocalRefIfNotNull(env, subtitles);
+    DeleteLocalRefIfNotNull(env, clipping);
+    DeleteLocalRefIfNotNull(env, live);
+    DeleteLocalRefIfNotNull(env, drm);
+    env->DeleteLocalRef(subtitle_class);
+    env->DeleteLocalRef(clipping_class);
+    env->DeleteLocalRef(live_class);
+    env->DeleteLocalRef(drm_class);
+    env->DeleteLocalRef(ads_class);
+    env->DeleteLocalRef(request_metadata_class);
+    env->DeleteLocalRef(metadata_class);
+    env->DeleteLocalRef(item_class);
+    return nullptr;
+  }
   jobject item = NewObjectChecked(env,
                                   item_class,
                                   item_ctor,
@@ -1578,6 +1699,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
                                   static_cast<jboolean>(media_item.tag_present),
                                   tag_string,
                                   tag_token,
+                                  tag_value,
                                   metadata,
                                   request_metadata,
                                   ads,
@@ -1595,6 +1717,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
   }
   DeleteLocalRefIfNotNull(env, tag_string);
   DeleteLocalRefIfNotNull(env, tag_token);
+  DeleteLocalRefIfNotNull(env, tag_value);
   DeleteLocalRefIfNotNull(env, metadata);
   DeleteLocalRefIfNotNull(env, request_metadata);
   DeleteLocalRefIfNotNull(env, ads);
@@ -3281,6 +3404,15 @@ MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object) {
   descriptor.tag_present = GetBooleanFieldValue(env, object, clazz, "CppMediaItem", "tagPresent");
   descriptor.tag_string = GetStringFieldValue(env, object, clazz, "CppMediaItem", "tagString");
   descriptor.tag_token = GetStringFieldValue(env, object, clazz, "CppMediaItem", "tagToken");
+  jobject tag_value = GetObjectFieldValue(
+      env,
+      object,
+      clazz,
+      "CppMediaItem",
+      "tagValue",
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;");
+  descriptor.tag_value = FromJavaObjectValueInfo(env, tag_value);
+  DeleteLocalRefIfNotNull(env, tag_value);
   jobject metadata = GetObjectFieldValue(
       env,
       object,
@@ -3350,6 +3482,15 @@ MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object) {
           GetStringFieldValue(env, ads, ads_class, "CppAdsConfiguration", "adsId");
       descriptor.ads_configuration.ads_id_token =
           GetStringFieldValue(env, ads, ads_class, "CppAdsConfiguration", "adsIdToken");
+      jobject ads_id_value = GetObjectFieldValue(
+          env,
+          ads,
+          ads_class,
+          "CppAdsConfiguration",
+          "adsIdValue",
+          "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;");
+      descriptor.ads_configuration.ads_id_value = FromJavaObjectValueInfo(env, ads_id_value);
+      DeleteLocalRefIfNotNull(env, ads_id_value);
       env->DeleteLocalRef(ads_class);
     }
     env->DeleteLocalRef(ads);

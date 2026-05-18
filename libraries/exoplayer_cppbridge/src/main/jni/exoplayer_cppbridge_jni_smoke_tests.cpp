@@ -360,6 +360,43 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeOb
 }
 
 JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeMediaItemObjectValueConversionSmokeTest(
+    JNIEnv* env,
+    jclass) {
+  MediaItemDescriptor media_item;
+  media_item.uri = "https://example.com/object-value.m3u8";
+  media_item.media_id = "object-value-item";
+  media_item.source_type = MediaSourceType::kHls;
+  media_item.tag_present = true;
+  media_item.tag_value.present = true;
+  media_item.tag_value.class_name = "java.lang.Long";
+  media_item.tag_value.value_type = ObjectValueInfo::kLong;
+  media_item.tag_value.long_value = 77;
+  media_item.ads_configuration.ad_tag_uri = "https://ads.example.com/object-value.xml";
+  media_item.ads_configuration.ads_id_value.present = true;
+  media_item.ads_configuration.ads_id_value.class_name = "java.lang.Boolean";
+  media_item.ads_configuration.ads_id_value.value_type = ObjectValueInfo::kBoolean;
+  media_item.ads_configuration.ads_id_value.boolean_value = true;
+
+  jobject java_item = CreateJavaMediaItem(env, media_item);
+  if (java_item == nullptr) {
+    return nullptr;
+  }
+  MediaItemDescriptor round_trip = FromJavaMediaItem(env, java_item);
+  DeleteLocalRefIfNotNull(env, java_item);
+
+  std::string summary = "mediaItemObjectValueConversion=1";
+  summary += ",mediaId=" + round_trip.media_id;
+  summary += ",sourceType=" + std::to_string(static_cast<int>(round_trip.source_type));
+  summary += ",tagPresent=" + std::to_string(round_trip.tag_present ? 1 : 0);
+  AppendObjectValueSummary(&summary, "tagValue", round_trip.tag_value);
+  summary += ",adTagUri=" + round_trip.ads_configuration.ad_tag_uri;
+  AppendObjectValueSummary(
+      &summary, "adsIdValue", round_trip.ads_configuration.ads_id_value);
+  return NewStringUtfChecked(env, summary, "nativeMediaItemObjectValueConversionSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTracksSnapshotConversionSmokeTest(
     JNIEnv* env,
     jclass) {

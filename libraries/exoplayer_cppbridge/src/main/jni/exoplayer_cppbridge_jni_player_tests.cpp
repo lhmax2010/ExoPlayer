@@ -3759,6 +3759,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   summary += ",tagString=" + current_media_item.tag_string;
   summary += ",tagTokenPresent=" +
       std::to_string(current_media_item.tag_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "tagValue", current_media_item.tag_value);
   summary += ",subtitleCount=" +
       std::to_string(current_media_item.subtitle_configurations.size());
   if (!current_media_item.subtitle_configurations.empty()) {
@@ -3849,6 +3850,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   summary += ",adsId=" + current_media_item.ads_configuration.ads_id;
   summary += ",adsIdTokenPresent=" +
       std::to_string(current_media_item.ads_configuration.ads_id_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(
+      &summary, "adsIdValue", current_media_item.ads_configuration.ads_id_value);
   summary += ",mediaMetadataTitle=" + current_media_item.media_metadata.title;
   summary += ",mediaMetadataTitleTokenPresent=" +
       std::to_string(current_media_item.media_metadata.title_token.empty() ? 0 : 1);
@@ -4215,6 +4218,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeM
   summary += ",tagPresent=" + std::to_string(existing.tag_present ? 1 : 0);
   summary += ",tagString=" + existing.tag_string;
   summary += ",tagTokenPresent=" + std::to_string(existing.tag_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "tagValue", existing.tag_value);
   summary += ",subtitleCount=" + std::to_string(existing.subtitle_configurations.size());
   if (!existing.subtitle_configurations.empty()) {
     const auto& subtitle = existing.subtitle_configurations[0];
@@ -4272,6 +4276,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeM
   summary += ",adsId=" + existing.ads_configuration.ads_id;
   summary += ",adsIdTokenPresent=" +
       std::to_string(existing.ads_configuration.ads_id_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "adsIdValue", existing.ads_configuration.ads_id_value);
   summary += ",mediaMetadataTitle=" + existing.media_metadata.title;
   summary += ",mediaMetadataTitleTokenPresent=" +
       std::to_string(existing.media_metadata.title_token.empty() ? 0 : 1);
@@ -4360,9 +4365,12 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeM
   MediaItemDescriptor current_media_item = player->GetCurrentMediaItem();
   std::string summary = "tagString=" + current_media_item.tag_string;
   summary += ",tagTokenPresent=" + std::to_string(current_media_item.tag_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "tagValue", current_media_item.tag_value);
   summary += ",adsId=" + current_media_item.ads_configuration.ads_id;
   summary += ",adsIdTokenPresent=" +
       std::to_string(current_media_item.ads_configuration.ads_id_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(
+      &summary, "adsIdValue", current_media_item.ads_configuration.ads_id_value);
   summary += ",requestMetadataExtrasPresent=" +
       std::to_string(current_media_item.request_metadata.extras_present ? 1 : 0);
   summary += ",requestMetadataExtrasKeyCount=" +

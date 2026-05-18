@@ -88,7 +88,7 @@ DTO tracker below.
 
 | Object family | Full-support status | Currently supported | Still missing |
 | --- | --- | --- | --- |
-| `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM, tag/adsId/requestMetadata opaque-token baselines, decoded stable `requestMetadata.extras` values for strings/numbers/booleans/byte arrays | full arbitrary-object semantics and full Java object parity |
+| `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM, tag/adsId/requestMetadata opaque-token baselines, reduced `ObjectValueInfo` semantics for tag/adsId, decoded stable `requestMetadata.extras` values for strings/numbers/booleans/byte arrays | full arbitrary-object semantics and full Java object parity |
 | `Timeline` | Partial | reduced summary/window/period snapshots, uid/id/adsId/manifest token baselines, reduced `ObjectValueInfo` semantics for window `uid`/`manifest` and period `id`/`uid`/`adsId`, multi-window/multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` behavior, arbitrary object graph semantics, and deeper ad/playback structure parity beyond the reduced row model |
 | `Tracks` | Partial | reduced tracks/group/format snapshots, group and label token baselines, representative query/listener coverage | full `Tracks.Group` / `Format` parity and deeper second-group parity |
 | `MediaMetadata` | Partial | representative text fields, artwork, extras token baseline, decoded stable extras values for strings/numbers/booleans/byte arrays, query/listener/playlist smoke coverage | full Java `MediaMetadata` semantics beyond reduced snapshot |
@@ -113,13 +113,13 @@ Field observability conventions:
 
 | Java type | C++ type | Status | Preserved fields / concepts | Smoke test reference |
 | --- | --- | --- | --- | --- |
-| `MediaItem` | `MediaItemDescriptor` | Done | uri, media id, mime type, source type, reduced local tag observability (`tagPresent`, `tagString`) plus opaque token round-trip baseline, reduced metadata identity fields, reduced request metadata (`mediaUri`, `searchQuery`, extras-presence/key-count/token plus decoded stable extras values), reduced ads config plus opaque `adsId` token baseline, subtitles, clipping, live, DRM | `CppBridgeNativePlayerInstrumentationTest.nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`; `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
+| `MediaItem` | `MediaItemDescriptor` | Done | uri, media id, mime type, source type, reduced local tag observability (`tagPresent`, `tagString`) plus opaque token and reduced object-value metadata, reduced metadata identity fields, reduced request metadata (`mediaUri`, `searchQuery`, extras-presence/key-count/token plus decoded stable extras values), reduced ads config plus opaque `adsId` token and reduced object-value metadata, subtitles, clipping, live, DRM | `CppBridgeNativePlayerInstrumentationTest.nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`; `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects`; `CppBridgeNativeSmokeTest.nativeMediaItemObjectValueConversionSmokeTest_roundTripsObjectMetadata` |
 | `MediaItem.RequestMetadata` | `MediaItemDescriptor::RequestMetadataDescriptor` | Done | `mediaUri`, `searchQuery`, extras presence flag, extras key count, opaque extras token baseline, decoded stable extras values (`String`, integer-like, floating-point, boolean, `byte[]`) | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
 | `MediaItem.SubtitleConfiguration` | `MediaItemDescriptor::SubtitleConfigurationDescriptor` | Done | uri, mime type, language, label, id, selection flags, role flags | `nativeSubtitleSmokeTest_returnsSubtitleSummary`; `nativeMultiSubtitleSmokeTest_returnsSubtitleAndPreferenceSummary` |
 | `MediaItem.ClippingConfiguration` | `MediaItemDescriptor::ClippingConfigurationDescriptor` | Done | start/end position, live/default/keyframe/unseekable flags | `nativeClippingSmokeTest_returnsClippingSummary` |
 | `MediaItem.LiveConfiguration` | `MediaItemDescriptor::LiveConfigurationDescriptor` | Done | target/min/max offsets, min/max speed | `nativeLiveConfigurationSmokeTest_returnsLiveSummary` |
 | `MediaItem.DrmConfiguration` | `MediaItemDescriptor::DrmConfigurationDescriptor` | Done | scheme UUID, license URI, request headers, forced session track types, key-set id, core flags | `nativeDrmSmokeTest_returnsDrmSummary` |
-| `MediaItem.AdsConfiguration` | `MediaItemDescriptor::AdsConfigurationDescriptor` | Done | `adTagUri`, string `adsId` | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds` |
+| `MediaItem.AdsConfiguration` | `MediaItemDescriptor::AdsConfigurationDescriptor` | Done | `adTagUri`, string/token `adsId` baseline, reduced `adsId` object-value metadata | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemObjectValueConversionSmokeTest_roundTripsObjectMetadata` |
 
 ## 3. Playback State And Query Snapshots
 
@@ -220,8 +220,12 @@ Field observability conventions:
 
 - current `Done` rows are reduced-endpoint complete, not full `api.txt` object parity
 - no full Java `MediaItem` parity
-- `MediaItem.LocalConfiguration.tag` now has presence-plus-string observability and opaque token round-trip baseline, but still not full arbitrary Java object semantics across processes or persistence boundaries
-- `MediaItem.AdsConfiguration.adsId` now has string identity plus opaque token round-trip baseline, but still not full arbitrary Java object semantics across processes or persistence boundaries
+- `MediaItem.LocalConfiguration.tag` now has presence-plus-string observability, opaque token
+  round-trip baseline, and reduced `ObjectValueInfo` semantics for stable scalar values, but still
+  not full arbitrary Java object semantics across processes or persistence boundaries
+- `MediaItem.AdsConfiguration.adsId` now has string identity, opaque token round-trip baseline, and
+  reduced `ObjectValueInfo` semantics for stable scalar values, but still not full arbitrary Java
+  object semantics across processes or persistence boundaries
 - `MediaItem.RequestMetadata.extras` and `MediaMetadata.extras` now have decoded stable primitive
   `Bundle` value transport for strings, integer-like numbers, floating-point numbers, booleans, and
   byte arrays, plus opaque-token fallback for unsupported arbitrary Java values; this is still not
@@ -253,9 +257,11 @@ Directly observed by smoke:
 - `tag_present`
 - `tag_string`
 - `tag_token`
+- `tag_value`
 - `ads_configuration.ad_tag_uri`
 - `ads_configuration.ads_id`
 - `ads_configuration.ads_id_token`
+- `ads_configuration.ads_id_value`
 - `request_metadata.media_uri`
 - `request_metadata.search_query`
 - `request_metadata.extras_present`

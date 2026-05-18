@@ -211,6 +211,85 @@ final class CppBridgeConverters {
     return bundle;
   }
 
+  private static CppObjectValue toCppObjectValue(@Nullable Object value) {
+    if (value == null) {
+      return CppObjectValue.nullValue();
+    }
+    if (value instanceof CharSequence) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_STRING,
+          value.toString(),
+          0L,
+          0.0,
+          false);
+    }
+    if (value instanceof Byte
+        || value instanceof Short
+        || value instanceof Integer
+        || value instanceof Long) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_LONG,
+          null,
+          ((Number) value).longValue(),
+          0.0,
+          false);
+    }
+    if (value instanceof Float || value instanceof Double) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_DOUBLE,
+          null,
+          0L,
+          ((Number) value).doubleValue(),
+          false);
+    }
+    if (value instanceof Boolean) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_BOOLEAN,
+          null,
+          0L,
+          0.0,
+          (Boolean) value);
+    }
+    return new CppObjectValue(
+        true,
+        value.getClass().getName(),
+        CppObjectValue.TYPE_OTHER,
+        String.valueOf(value),
+        0L,
+        0.0,
+        false);
+  }
+
+  private static Object toJavaObjectValue(
+      @Nullable CppObjectValue value, @Nullable String fallbackString) {
+    if (value == null || !value.present) {
+      return fallbackString != null ? fallbackString : "";
+    }
+    switch (value.valueType) {
+      case CppObjectValue.TYPE_STRING:
+      case CppObjectValue.TYPE_OTHER:
+        return value.stringValue != null
+            ? value.stringValue
+            : fallbackString != null ? fallbackString : "";
+      case CppObjectValue.TYPE_LONG:
+        return value.longValue;
+      case CppObjectValue.TYPE_DOUBLE:
+        return value.doubleValue;
+      case CppObjectValue.TYPE_BOOLEAN:
+        return value.booleanValue;
+      default:
+        return fallbackString != null ? fallbackString : "";
+    }
+  }
+
   static MediaItem toMediaItem(CppMediaItem mediaItem) {
     MediaItem.Builder builder = new MediaItem.Builder();
     if (mediaItem.uri != null && !mediaItem.uri.isEmpty()) {
@@ -227,7 +306,10 @@ final class CppBridgeConverters {
     }
     if (mediaItem.tagPresent) {
       Object resolvedTag = CppOpaqueObjectRegistry.resolve(mediaItem.tagToken);
-      builder.setTag(resolvedTag != null ? resolvedTag : mediaItem.tagString != null ? mediaItem.tagString : "");
+      builder.setTag(
+          resolvedTag != null
+              ? resolvedTag
+              : toJavaObjectValue(mediaItem.tagValue, mediaItem.tagString));
     }
     if (mediaItem.mediaMetadata != null) {
       builder.setMediaMetadata(toMediaMetadata(mediaItem.mediaMetadata));
@@ -253,9 +335,14 @@ final class CppBridgeConverters {
     if (mediaItem.adsConfiguration != null && mediaItem.adsConfiguration.adTagUri != null) {
       MediaItem.AdsConfiguration.Builder adsBuilder =
           new MediaItem.AdsConfiguration.Builder(Uri.parse(mediaItem.adsConfiguration.adTagUri));
-      if (mediaItem.adsConfiguration.adsId != null) {
+      if (mediaItem.adsConfiguration.adsId != null
+          || mediaItem.adsConfiguration.adsIdValue.present) {
         Object resolvedAdsId = CppOpaqueObjectRegistry.resolve(mediaItem.adsConfiguration.adsIdToken);
-        adsBuilder.setAdsId(resolvedAdsId != null ? resolvedAdsId : mediaItem.adsConfiguration.adsId);
+        adsBuilder.setAdsId(
+            resolvedAdsId != null
+                ? resolvedAdsId
+                : toJavaObjectValue(
+                    mediaItem.adsConfiguration.adsIdValue, mediaItem.adsConfiguration.adsId));
       }
       builder.setAdsConfiguration(adsBuilder.build());
     }
@@ -463,7 +550,8 @@ final class CppBridgeConverters {
           new CppAdsConfiguration(
               ads.adTagUri.toString(),
               ads.adsId != null ? ads.adsId.toString() : null,
-              ads.adsId != null ? CppOpaqueObjectRegistry.register(ads.adsId) : null);
+              ads.adsId != null ? CppOpaqueObjectRegistry.register(ads.adsId) : null,
+              toCppObjectValue(ads.adsId));
     }
 
     CppRequestMetadata requestMetadata = null;
@@ -492,6 +580,7 @@ final class CppBridgeConverters {
         tagPresent,
         tagString,
         tagToken,
+        toCppObjectValue(localConfiguration != null ? localConfiguration.tag : null),
         fromMediaMetadata(mediaItem.mediaMetadata),
         requestMetadata,
         adsConfiguration,

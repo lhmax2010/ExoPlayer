@@ -39,6 +39,9 @@ Current review note:
 - Timeline object identity rows now also expose reduced `ObjectValueInfo` descriptors for window
   `uid`/`manifest` and period `id`/`uid`/`adsId`, with direct string/null smoke visibility in
   runtime timeline query and lighter query-smoke markers.
+- MediaItem local `tag` and ads `adsId` now also expose reduced object-value metadata through
+  `CppObjectValue` / `ObjectValueInfo`, with Java converter UTs plus JNI and runtime smoke
+  visibility while retaining existing opaque-token baselines.
 - Track snapshots now preserve an opaque-token baseline for representative `label` identity, with
   direct smoke visibility in runtime tracks query, JNI tracks conversion smoke, and listener
   payload capture.
@@ -274,8 +277,9 @@ Use these search chains when you want exact grep targets instead of reading the 
   extras-present/key-count/token) plus decoded stable extras values for strings, integer-like
   numbers, floating-point numbers, booleans, and byte arrays; opaque extras-token round-trip
   baseline remains for unsupported arbitrary Java values. It also carries reduced local tag
-  observability (`tagPresent`, `tagString`) plus opaque tag-token round-trip baseline, and reduced
-  `adsId` string identity plus opaque adsId-token round-trip baseline; it still does not provide
+  observability (`tagPresent`, `tagString`) plus opaque tag-token round-trip baseline and reduced
+  `ObjectValueInfo` metadata, and reduced `adsId` string identity plus opaque adsId-token
+  round-trip baseline and reduced `ObjectValueInfo` metadata; it still does not provide
   unrestricted arbitrary-object semantics beyond the current opaque-token bridge model
   strongest new smoke for this boundary: `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects`
 - full Java `Timeline`, `Tracks`, `MediaMetadata`, and `Cue` parity
@@ -312,7 +316,7 @@ reduced-endpoint tracker above.
 
 | Theme | Full-support status | What is already supported | What is still missing for true full support |
 | --- | --- | --- | --- |
-| `MediaItem` | Partial | uri/media id/source type, subtitles, clipping/live/DRM, reduced request metadata with decoded stable extras values, reduced ads config, local tag observability, opaque token baselines for `tag`, `adsId`, and unsupported `requestMetadata.extras` values | full arbitrary-object semantics for `tag` and `adsId`; arbitrary/nested `Bundle` parity for `requestMetadata.extras`; broader Java-object parity beyond the reduced descriptor |
+| `MediaItem` | Partial | uri/media id/source type, subtitles, clipping/live/DRM, reduced request metadata with decoded stable extras values, reduced ads config, local tag/adsId observability, reduced `ObjectValueInfo` metadata for `tag` and `adsId`, opaque token baselines for `tag`, `adsId`, and unsupported `requestMetadata.extras` values | full arbitrary-object semantics for `tag` and `adsId`; arbitrary/nested `Bundle` parity for `requestMetadata.extras`; broader Java-object parity beyond the reduced descriptor |
 | `Timeline` | Partial | reduced summary, window list, period list, window/period identity baselines, live config baseline, manifest presence/string plus opaque token baseline, reduced `ObjectValueInfo` descriptors for window `uid`/`manifest` and period `id`/`uid`/`adsId`, multi-window and multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` parity, arbitrary object graph semantics, and deeper ad/playback structure parity beyond the reduced row model |
 | `Tracks` | Partial | tracks/group/format snapshots, group token baseline, first/second group smoke visibility, listener/query coverage for representative audio/video fields, and richer `Format` fields including label arrays, metadata/custom tokens, initialization bytes, DRM scheme-data shape, subsample/preroll, decoded/projection bytes/stereo/color/HDR, PCM/encoder/tile/crypto, and auxiliary type | full Java `Tracks.Group` object semantics and decoded arbitrary `Metadata.Entry` / `customData` object semantics beyond current token transfer |
 | `MediaMetadata` | Partial | representative text fields, artwork uri/data/type, extras presence/key-count/token baseline plus decoded stable extras values, current-item/query/listener/playlist smoke coverage | full Java `MediaMetadata` parity for styled `CharSequence`, arbitrary/nested extras semantics, and richer nested object behavior beyond the reduced snapshot |

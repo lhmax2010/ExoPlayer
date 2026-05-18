@@ -282,6 +282,7 @@ struct MediaItemDescriptor {
   bool tag_present = false;
   std::string tag_string;
   std::string tag_token;
+  ObjectValueInfo tag_value;
   MediaMetadataSnapshot media_metadata;
   struct RequestMetadataDescriptor {
     std::string media_uri;
@@ -296,6 +297,7 @@ struct MediaItemDescriptor {
     std::string ad_tag_uri;
     std::string ads_id;
     std::string ads_id_token;
+    ObjectValueInfo ads_id_value;
   };
   AdsConfigurationDescriptor ads_configuration;
   struct SubtitleConfigurationDescriptor {

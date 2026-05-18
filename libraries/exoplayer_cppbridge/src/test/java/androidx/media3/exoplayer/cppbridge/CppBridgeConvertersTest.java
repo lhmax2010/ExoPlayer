@@ -202,6 +202,46 @@ public final class CppBridgeConvertersTest {
   }
 
   @Test
+  public void toMediaItem_usesObjectValueFallbackForTagAndAdsId() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/content.m3u8",
+            "object-value-id",
+            null,
+            2,
+            true,
+            null,
+            null,
+            new CppObjectValue(
+                true, "java.lang.Long", CppObjectValue.TYPE_LONG, null, 44L, 0.0, false),
+            null,
+            null,
+            new CppAdsConfiguration(
+                "https://example.com/ads-tag.vmap",
+                null,
+                null,
+                new CppObjectValue(
+                    true,
+                    "java.lang.Boolean",
+                    CppObjectValue.TYPE_BOOLEAN,
+                    null,
+                    0L,
+                    0.0,
+                    true)),
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.localConfiguration).isNotNull();
+    assertThat(mediaItem.localConfiguration.tag).isEqualTo(44L);
+    assertThat(mediaItem.localConfiguration.adsConfiguration).isNotNull();
+    assertThat(mediaItem.localConfiguration.adsConfiguration.adsId).isEqualTo(true);
+  }
+
+  @Test
   public void toMediaItem_buildsRequestMetadataExtrasFromDecodedValues() {
     CppMediaItem item =
         new CppMediaItem(
@@ -678,6 +718,38 @@ public final class CppBridgeConvertersTest {
     assertThat(cppItem.clippingConfiguration.startPositionMs).isEqualTo(1000);
     assertThat(cppItem.liveConfiguration).isNotNull();
     assertThat(cppItem.liveConfiguration.targetOffsetMs).isEqualTo(3000);
+  }
+
+  @Test
+  public void fromMediaItem_mapsObjectValueMetadataBackToCppDescriptor() {
+    MediaItem mediaItem =
+        new MediaItem.Builder()
+            .setUri("https://example.com/object-values.m3u8")
+            .setTag(123L)
+            .setAdsConfiguration(
+                new MediaItem.AdsConfiguration.Builder(
+                        Uri.parse("https://example.com/ads-tag.vmap"))
+                    .setAdsId(false)
+                    .build())
+            .build();
+
+    CppMediaItem cppItem = CppBridgeConverters.fromMediaItem(mediaItem);
+
+    assertThat(cppItem.tagPresent).isTrue();
+    assertThat(cppItem.tagString).isEqualTo("123");
+    assertThat(cppItem.tagToken).isNotNull();
+    assertThat(cppItem.tagValue.present).isTrue();
+    assertThat(cppItem.tagValue.className).isEqualTo("java.lang.Long");
+    assertThat(cppItem.tagValue.valueType).isEqualTo(CppObjectValue.TYPE_LONG);
+    assertThat(cppItem.tagValue.longValue).isEqualTo(123L);
+    assertThat(cppItem.adsConfiguration).isNotNull();
+    assertThat(cppItem.adsConfiguration.adsId).isEqualTo("false");
+    assertThat(cppItem.adsConfiguration.adsIdToken).isNotNull();
+    assertThat(cppItem.adsConfiguration.adsIdValue.present).isTrue();
+    assertThat(cppItem.adsConfiguration.adsIdValue.className).isEqualTo("java.lang.Boolean");
+    assertThat(cppItem.adsConfiguration.adsIdValue.valueType)
+        .isEqualTo(CppObjectValue.TYPE_BOOLEAN);
+    assertThat(cppItem.adsConfiguration.adsIdValue.booleanValue).isFalse();
   }
 
   @Test

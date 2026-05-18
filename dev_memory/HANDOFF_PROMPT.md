@@ -46,7 +46,7 @@ Important context:
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
 - Latest local validation passed on 2026-05-18 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`126/126`),
+  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`127/127`),
   `:demo-cppbridge:assembleDebug`, and `git diff --check`.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
@@ -94,6 +94,11 @@ Important context:
   baselines. Coverage includes expanded current-timeline smoke assertions and runtime query-smoke
   markers plus a native parser smoke that exercises string/long/double/boolean/null/other and
   malformed-row fallback behavior.
+- The 2026-05-18 Stage 3 MediaItem object-value slice adds Java `CppObjectValue` and C++
+  `MediaItemDescriptor.tag_value` / `AdsConfigurationDescriptor.ads_id_value` for
+  `MediaItem.LocalConfiguration.tag` and `MediaItem.AdsConfiguration.adsId`. Coverage includes
+  converter UTs, a JNI DTO round-trip smoke, and runtime current-item / indexed-item /
+  opaque-token assertions for reduced class/type/scalar metadata.
 - `CppBridgeConverters` now normalizes HLS MIME aliases like
   `application/vnd.apple.mpegurl` / lowercase `application/x-mpegurl`, and maps Media3
   `CONTENT_TYPE_OTHER` back to C++ `MediaSourceType::kProgressive`.

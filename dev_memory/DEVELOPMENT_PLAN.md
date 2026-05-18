@@ -100,6 +100,14 @@ Current progress:
 - Coverage includes a native `ObjectValueInfo` parser smoke for string/long/double/boolean/null/
   other/truncated rows, expanded native current-timeline assertions, and query-smoke markers for
   real runtime timeline rows.
+- 2026-05-18: third Stage 3 slice reuses the reduced object-value model for
+  `MediaItem.LocalConfiguration.tag` and `MediaItem.AdsConfiguration.adsId`. The bridge now
+  carries `ObjectValueInfo`-style metadata through Java `CppObjectValue`, C++
+  `MediaItemDescriptor.tag_value`, and `AdsConfigurationDescriptor.ads_id_value`, while preserving
+  existing string fallback and opaque-token object identity.
+- Coverage includes Java converter UTs for C++-to-Java scalar fallback and Java-to-C++ metadata
+  extraction, a JNI media-item object-value DTO round-trip smoke, and expanded runtime assertions
+  for current item, indexed item, and opaque-token media-item flows.
 
 ## Stage 4: Listener / Analytics Completeness
 
