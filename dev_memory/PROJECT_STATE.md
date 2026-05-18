@@ -3,7 +3,7 @@
 ## Snapshot
 
 - Workspace: `/home/linhao/Toolchain/development/ExoPlayer`
-- Date of this handoff memory: `2026-05-15`
+- Date of this handoff memory: `2026-05-18`
 - Module focus: `libraries/exoplayer_cppbridge`
 - Goal: Java-side ExoPlayer usage replaced by a reduced but usable C++ bridge/SDK surface, with smoke coverage and validation docs.
 
@@ -26,7 +26,7 @@ Important nuance:
 
 ## Validation status
 
-Latest local validation on this machine:
+Latest local validation on this machine, refreshed on `2026-05-18`:
 
 - Build/native link: `Pass`
 - JNI/value smoke: `Pass`
@@ -100,8 +100,9 @@ This is consistent with a large smoke-first validation strategy.
 - Review follow-up closed the video-frame metadata fallback edge case: C++ `format_bitrate` now
   reaches Java simulation as average bitrate when average/peak are unset, and absent color/audio
   shape fields preserve `Format.NO_VALUE` semantics.
-- The next Tracks/Format payload slice expanded `TrackInfo` with average/peak bitrate, rotation,
-  pixel width-height ratio, and color fields, covered by Java converter, JNI conversion, and native
+- The next Tracks/Format payload slice expanded `TrackInfo` with average/peak bitrate,
+  initialization/DRM counts, subsample/preroll, decoded/projection/stereo/color, max sublayers,
+  PCM/encoder, tile, and crypto fields, covered by Java converter, JNI conversion, and native
   current-tracks smoke tests.
 
 ## Practical conclusion

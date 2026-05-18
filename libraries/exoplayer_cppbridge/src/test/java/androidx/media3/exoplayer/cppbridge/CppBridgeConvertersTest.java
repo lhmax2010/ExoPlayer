@@ -7,9 +7,11 @@ import android.net.Uri;
 import android.text.Layout;
 import androidx.media3.common.C;
 import androidx.media3.common.ColorInfo;
+import androidx.media3.common.DrmInitData;
 import androidx.media3.common.Effect;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.Metadata;
 import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
@@ -295,19 +297,41 @@ public final class CppBridgeConvertersTest {
                 .setSampleMimeType("video/avc")
                 .setContainerMimeType("video/mp4")
                 .setCodecs("avc1.640028")
+                .setMetadata(new Metadata(new Metadata.Entry() {}, new Metadata.Entry() {}))
+                .setMaxInputSize(4096)
+                .setMaxNumReorderSamples(3)
+                .setInitializationData(Arrays.asList(new byte[] {1, 2, 3}, new byte[] {4, 5, 6, 7}))
+                .setDrmInitData(
+                    new DrmInitData(
+                        new DrmInitData.SchemeData(
+                            C.WIDEVINE_UUID, "video/mp4", new byte[] {8, 9})))
+                .setSubsampleOffsetUs(987_654)
+                .setHasPrerollSamples(true)
                 .setWidth(1920)
                 .setHeight(1080)
+                .setDecodedWidth(1936)
+                .setDecodedHeight(1096)
                 .setFrameRate(23.976f)
                 .setAverageBitrate(4_000_000)
                 .setPeakBitrate(5_000_000)
                 .setRotationDegrees(90)
                 .setPixelWidthHeightRatio(1.25f)
+                .setProjectionData(new byte[] {9, 8, 7, 6})
+                .setStereoMode(C.STEREO_MODE_LEFT_RIGHT)
                 .setColorInfo(
                     new ColorInfo.Builder()
                         .setColorSpace(C.COLOR_SPACE_BT709)
                         .setColorRange(C.COLOR_RANGE_LIMITED)
                         .setColorTransfer(C.COLOR_TRANSFER_SDR)
                         .build())
+                .setMaxSubLayers(4)
+                .setPcmEncoding(C.ENCODING_PCM_16BIT)
+                .setEncoderDelay(12)
+                .setEncoderPadding(34)
+                .setCueReplacementBehavior(Format.CUE_REPLACEMENT_BEHAVIOR_REPLACE)
+                .setTileCountHorizontal(5)
+                .setTileCountVertical(6)
+                .setCryptoType(C.CRYPTO_TYPE_FRAMEWORK)
                 .setRoleFlags(C.ROLE_FLAG_MAIN)
                 .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                 .build(),
@@ -374,12 +398,33 @@ public final class CppBridgeConvertersTest {
     assertThat(groups[0].tracks[0].bitrate).isEqualTo(5_000_000);
     assertThat(groups[0].tracks[0].averageBitrate).isEqualTo(4_000_000);
     assertThat(groups[0].tracks[0].peakBitrate).isEqualTo(5_000_000);
+    assertThat(groups[0].tracks[0].metadataEntryCount).isEqualTo(2);
+    assertThat(groups[0].tracks[0].maxInputSize).isEqualTo(4096);
+    assertThat(groups[0].tracks[0].maxNumReorderSamples).isEqualTo(3);
+    assertThat(groups[0].tracks[0].initializationDataCount).isEqualTo(2);
+    assertThat(groups[0].tracks[0].initializationDataTotalBytes).isEqualTo(7);
+    assertThat(groups[0].tracks[0].drmSchemeDataCount).isEqualTo(1);
+    assertThat(groups[0].tracks[0].subsampleOffsetUs).isEqualTo(987_654);
+    assertThat(groups[0].tracks[0].hasPrerollSamples).isTrue();
+    assertThat(groups[0].tracks[0].decodedWidth).isEqualTo(1936);
+    assertThat(groups[0].tracks[0].decodedHeight).isEqualTo(1096);
     assertThat(groups[0].tracks[0].frameRate).isEqualTo(23.976f);
     assertThat(groups[0].tracks[0].rotationDegrees).isEqualTo(90);
     assertThat(groups[0].tracks[0].pixelWidthHeightRatio).isEqualTo(1.25f);
+    assertThat(groups[0].tracks[0].projectionDataLength).isEqualTo(4);
+    assertThat(groups[0].tracks[0].stereoMode).isEqualTo(C.STEREO_MODE_LEFT_RIGHT);
     assertThat(groups[0].tracks[0].colorStandard).isEqualTo(C.COLOR_SPACE_BT709);
     assertThat(groups[0].tracks[0].colorRange).isEqualTo(C.COLOR_RANGE_LIMITED);
     assertThat(groups[0].tracks[0].colorTransfer).isEqualTo(C.COLOR_TRANSFER_SDR);
+    assertThat(groups[0].tracks[0].maxSubLayers).isEqualTo(4);
+    assertThat(groups[0].tracks[0].pcmEncoding).isEqualTo(C.ENCODING_PCM_16BIT);
+    assertThat(groups[0].tracks[0].encoderDelay).isEqualTo(12);
+    assertThat(groups[0].tracks[0].encoderPadding).isEqualTo(34);
+    assertThat(groups[0].tracks[0].cueReplacementBehavior)
+        .isEqualTo(Format.CUE_REPLACEMENT_BEHAVIOR_REPLACE);
+    assertThat(groups[0].tracks[0].tileCountHorizontal).isEqualTo(5);
+    assertThat(groups[0].tracks[0].tileCountVertical).isEqualTo(6);
+    assertThat(groups[0].tracks[0].cryptoType).isEqualTo(C.CRYPTO_TYPE_FRAMEWORK);
     assertThat(groups[0].tracks[0].roleFlags).isEqualTo(C.ROLE_FLAG_MAIN);
     assertThat(groups[0].tracks[0].selectionFlags).isEqualTo(C.SELECTION_FLAG_DEFAULT);
     assertThat(groups[0].tracks[0].formatSupport).isEqualTo(C.FORMAT_HANDLED);
@@ -387,6 +432,12 @@ public final class CppBridgeConvertersTest {
     assertThat(groups[0].tracks[1].supported).isTrue();
     assertThat(groups[0].tracks[1].averageBitrate).isEqualTo(2_000_000);
     assertThat(groups[0].tracks[1].peakBitrate).isEqualTo(Format.NO_VALUE);
+    assertThat(groups[0].tracks[1].metadataEntryCount).isEqualTo(0);
+    assertThat(groups[0].tracks[1].initializationDataCount).isEqualTo(0);
+    assertThat(groups[0].tracks[1].initializationDataTotalBytes).isEqualTo(0);
+    assertThat(groups[0].tracks[1].drmSchemeDataCount).isEqualTo(0);
+    assertThat(groups[0].tracks[1].subsampleOffsetUs).isEqualTo(Format.OFFSET_SAMPLE_RELATIVE);
+    assertThat(groups[0].tracks[1].hasPrerollSamples).isFalse();
     assertThat(groups[0].tracks[1].colorStandard).isEqualTo(Format.NO_VALUE);
     assertThat(groups[0].tracks[1].colorRange).isEqualTo(Format.NO_VALUE);
     assertThat(groups[0].tracks[1].colorTransfer).isEqualTo(Format.NO_VALUE);

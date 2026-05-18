@@ -43,7 +43,7 @@ Important context:
 - The legacy reduced endpoint tracker claims `Done: 99`, `Partial: 0`, `Not started: 0`; a
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
-- Latest local validation passed on Android 16 AVD `cppbridge_android16_api36`:
+- Latest local validation passed on 2026-05-18 with Android 16 AVD `cppbridge_android16_api36`:
   `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`124/124`),
   `:demo-cppbridge:assembleDebug`, and `git diff --check`.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
@@ -69,8 +69,9 @@ Important context:
   was ignored; `nativeVideoFrameMetadataSimulationFallbackSmokeTest_preservesFallbackFields`
   verifies fallback into Java average bitrate plus `Format.NO_VALUE` preservation for absent
   color/audio-shape fields.
-- The next Tracks/Format payload slice expands `TrackInfo` with average/peak bitrate, rotation,
-  pixel width-height ratio, and color info, covered by `CppBridgeConvertersTest`,
+- The next Tracks/Format payload slice expands `TrackInfo` with average/peak bitrate,
+  initialization/DRM counts, subsample/preroll, decoded/projection/stereo/color, max sublayers,
+  PCM/encoder, tile, and crypto fields, covered by `CppBridgeConvertersTest`,
   `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`, and
   `nativeCurrentTracksSmokeTest_returnsTracksSummary`.
 - `CppBridgeConverters` now normalizes HLS MIME aliases like

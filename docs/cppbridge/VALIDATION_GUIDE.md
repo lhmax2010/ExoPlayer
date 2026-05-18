@@ -1,6 +1,6 @@
 # C++ Bridge Validation Guide
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 This guide is for moving the current `exoplayer_cppbridge` work to another machine and validating
 that the JNI bridge, C++ API surface, smoke coverage, and demo app all behave as expected.
@@ -28,10 +28,10 @@ Current readiness snapshot:
   `exoplayer_cppbridge_jni` and `exoplayer_cppbridge_jni_testhooks`
 - explicit opaque-token cleanup helpers now exist for the main C++ query APIs, but they are
   developer-facing convenience helpers rather than a separately validated tester flow in this pass
-- latest local validation on 2026-05-15 passed on the Android 16 AVD
+- latest local validation on 2026-05-18 passed on the Android 16 AVD
   `cppbridge_android16_api36`
 - the current connected suite contains 124 instrumentation tests after the runtime/audio/codec/
-  auxiliary-callback and HTTP/HLS/DASH playback parity addenda
+  auxiliary-callback, TrackInfo format-payload, and HTTP/HLS/DASH playback parity addenda
 
 ## 1. Validation Goals
 
@@ -344,8 +344,8 @@ Markers that should appear:
 - `nativeAnalyticsTracksChangedSmokeTest_reportsConcreteAnalyticsEvent` -> `groupCount=2`; `firstGroupId=video-main`; `containsVideo=1`
 - `nativeAnalyticsMediaItemTransitionSmokeTest_reportsConcreteAnalyticsEvent` -> `mediaId=analytics-transition-final`; `sourceType=2`; `reason=2`
 - `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` -> `cueCount=2`; `cuePresentationTimeUs=456789`; `cue0Text=Query Cue 1`; `cue0TextTokenPresent=1`; `cue0BitmapTokenPresent=1`; `cue1Text=Query Cue 2`; `cue1TextTokenPresent=1`; `cue1BitmapTokenPresent=0`; `tracksGroupCount=`; `trackGroupVectorCount=`; `bridgeTracksGroupCount=`; `bridgeTrackGroupVectorCount=`
-- `nativeCurrentTracksSmokeTest_returnsTracksSummary` -> `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0RotationDegrees=90`; `track0PixelRatio=1.250000`; `track0Color=1:2:3`; `group1Track0AverageBitrate=160000`; `group1Track0PeakBitrate=192000`
-- `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary` -> `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0RotationDegrees=90`; `track0PixelRatio=1.250000`; `track0Color=1:2:3`; `group1Track0AverageBitrate=160000`; `group1Track0PeakBitrate=192000`
+- `nativeCurrentTracksSmokeTest_returnsTracksSummary` -> `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0MetadataEntryCount=2`; `track0InitializationData=2:7`; `track0DrmSchemeDataCount=1`; `track0SubsampleOffsetUs=987654`; `track0HasPrerollSamples=1`; `track0DecodedSize=1936x1096`; `track0ProjectionDataLength=4`; `track0StereoMode=2`; `track0Color=1:2:3`; `track0MaxSubLayers=4`; `track0PcmEncoding=-1`; `track0EncoderTrim=0:0`; `track0Tiles=5x6`; `track0CryptoType=2`; `group1Track0InitializationData=1:3`; `group1Track0PcmEncoding=2`; `group1Track0EncoderTrim=12:34`
+- `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary` -> `track0AverageBitrate=2000000`; `track0PeakBitrate=2500000`; `track0MetadataEntryCount=2`; `track0InitializationData=2:7`; `track0DrmSchemeDataCount=1`; `track0SubsampleOffsetUs=987654`; `track0HasPrerollSamples=1`; `track0DecodedSize=1936x1096`; `track0ProjectionDataLength=4`; `track0StereoMode=2`; `track0Color=1:2:3`; `track0MaxSubLayers=4`; `track0PcmEncoding=-1`; `track0EncoderTrim=0:0`; `track0Tiles=5x6`; `track0CryptoType=2`; `group1Track0InitializationData=1:3`; `group1Track0PcmEncoding=2`; `group1Track0EncoderTrim=12:34`
 - `nativePlaylistMutationSmokeTest_returnsUpdatedPlaylistState` -> `moveRangeFirstMediaId=item-4`; `singleRemoveRestoredCount=3`; `nextIndex=1`; `previousIndex=-1`; `hasNext=1`; `hasPrevious=0`
 - `nativeDeviceAndSkipSilenceSmokeTest_returnsDeviceSummary` -> `deviceControlCalls=1`
 - `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` -> `bridgeCodecRegistrationSafe=1`; `frameLabel=Main Camera`; `frameContainerMime=video/mp4`; `frameBitrates=333000:222000:333000`; `frameRotation=180`; `framePixelRatio=1.500000`; `frameColor=1:2:3`; `frameAudioShape=2:48000`; `frameFlags=5:7`; `frameMediaFormatMime=video/avc`; `frameMediaFormatSize=1920x1080`; `frameMediaFormatFrameRate=23.976000`; `frameMediaFormatRotation=90`; `frameMediaFormatColor=1:2:3`

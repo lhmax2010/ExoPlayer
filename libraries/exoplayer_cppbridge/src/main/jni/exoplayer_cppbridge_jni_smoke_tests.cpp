@@ -301,7 +301,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       "CppTrackInfo",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-      "Ljava/lang/String;IIIIIFIFIIIIIIIIIZZZ)V");
+      "Ljava/lang/String;IIIIIIIIIJZIIIIFIF"
+      "IIIIIIIIIIIIIIIIIIIZZZ)V");
   jmethodID track_group_ctor = GetMethodChecked(
       env,
       track_group_class,
@@ -378,17 +379,37 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       static_cast<jint>(2500000),
       static_cast<jint>(2000000),
       static_cast<jint>(2500000),
+      static_cast<jint>(2),
+      static_cast<jint>(4096),
+      static_cast<jint>(3),
+      static_cast<jint>(2),
+      static_cast<jint>(7),
+      static_cast<jint>(1),
+      static_cast<jlong>(987654),
+      static_cast<jboolean>(JNI_TRUE),
       static_cast<jint>(1920),
       static_cast<jint>(1080),
+      static_cast<jint>(1936),
+      static_cast<jint>(1096),
       static_cast<jfloat>(30.0f),
       static_cast<jint>(90),
       static_cast<jfloat>(1.25f),
+      static_cast<jint>(4),
+      static_cast<jint>(2),
       static_cast<jint>(1),
       static_cast<jint>(2),
       static_cast<jint>(3),
+      static_cast<jint>(4),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
+      static_cast<jint>(1),
+      static_cast<jint>(5),
+      static_cast<jint>(6),
+      static_cast<jint>(2),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(1),
@@ -410,16 +431,36 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       static_cast<jint>(1200000),
       static_cast<jint>(1000000),
       static_cast<jint>(1200000),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jlong>(9223372036854775807LL),
+      static_cast<jboolean>(JNI_FALSE),
       static_cast<jint>(1280),
       static_cast<jint>(720),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jfloat>(30.0f),
       static_cast<jint>(0),
       static_cast<jfloat>(1.0f),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(-1),
       static_cast<jint>(-1),
       static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
@@ -442,16 +483,36 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       static_cast<jint>(192000),
       static_cast<jint>(160000),
       static_cast<jint>(192000),
+      static_cast<jint>(1),
+      static_cast<jint>(1024),
+      static_cast<jint>(-1),
+      static_cast<jint>(1),
+      static_cast<jint>(3),
+      static_cast<jint>(0),
+      static_cast<jlong>(9223372036854775807LL),
+      static_cast<jboolean>(JNI_FALSE),
       static_cast<jint>(0),
       static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jfloat>(0.0f),
       static_cast<jint>(0),
       static_cast<jfloat>(1.0f),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(-1),
       static_cast<jint>(-1),
       static_cast<jint>(-1),
       static_cast<jint>(48000),
       static_cast<jint>(2),
+      static_cast<jint>(2),
+      static_cast<jint>(12),
+      static_cast<jint>(34),
+      static_cast<jint>(0),
+      static_cast<jint>(1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
@@ -737,16 +798,44 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       summary += ",track0Bitrate=" + std::to_string(track0.bitrate);
       summary += ",track0AverageBitrate=" + std::to_string(track0.average_bitrate);
       summary += ",track0PeakBitrate=" + std::to_string(track0.peak_bitrate);
+      summary += ",track0MetadataEntryCount=" +
+          std::to_string(track0.metadata_entry_count);
+      summary += ",track0MaxInputSize=" + std::to_string(track0.max_input_size);
+      summary += ",track0MaxNumReorderSamples=" +
+          std::to_string(track0.max_num_reorder_samples);
+      summary += ",track0InitializationData=" +
+          std::to_string(track0.initialization_data_count) + ":" +
+          std::to_string(track0.initialization_data_total_bytes);
+      summary += ",track0DrmSchemeDataCount=" +
+          std::to_string(track0.drm_scheme_data_count);
+      summary += ",track0SubsampleOffsetUs=" +
+          std::to_string(track0.subsample_offset_us);
+      summary += ",track0HasPrerollSamples=" +
+          std::to_string(track0.has_preroll_samples ? 1 : 0);
       summary += ",track0Width=" + std::to_string(track0.width);
       summary += ",track0Height=" + std::to_string(track0.height);
+      summary += ",track0DecodedSize=" + std::to_string(track0.decoded_width) + "x" +
+          std::to_string(track0.decoded_height);
       summary += ",track0FrameRate=" + std::to_string(track0.frame_rate);
       summary += ",track0RotationDegrees=" + std::to_string(track0.rotation_degrees);
       summary += ",track0PixelRatio=" +
           std::to_string(track0.pixel_width_height_ratio);
+      summary += ",track0ProjectionDataLength=" +
+          std::to_string(track0.projection_data_length);
+      summary += ",track0StereoMode=" + std::to_string(track0.stereo_mode);
       summary += ",track0Color=" + std::to_string(track0.color_standard) + ":" +
           std::to_string(track0.color_range) + ":" +
           std::to_string(track0.color_transfer);
+      summary += ",track0MaxSubLayers=" + std::to_string(track0.max_sub_layers);
+      summary += ",track0PcmEncoding=" + std::to_string(track0.pcm_encoding);
+      summary += ",track0EncoderTrim=" + std::to_string(track0.encoder_delay) + ":" +
+          std::to_string(track0.encoder_padding);
       summary += ",track0AccessibilityChannel=" + std::to_string(track0.accessibility_channel);
+      summary += ",track0CueReplacementBehavior=" +
+          std::to_string(track0.cue_replacement_behavior);
+      summary += ",track0Tiles=" + std::to_string(track0.tile_count_horizontal) + "x" +
+          std::to_string(track0.tile_count_vertical);
+      summary += ",track0CryptoType=" + std::to_string(track0.crypto_type);
       summary += ",track0RoleFlags=" + std::to_string(track0.role_flags);
       summary += ",track0SelectionFlags=" + std::to_string(track0.selection_flags);
       summary += ",track0Selected=" + std::to_string(track0.selected ? 1 : 0);
@@ -784,6 +873,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       summary += ",group1Track0AverageBitrate=" +
           std::to_string(track0.average_bitrate);
       summary += ",group1Track0PeakBitrate=" + std::to_string(track0.peak_bitrate);
+      summary += ",group1Track0MetadataEntryCount=" +
+          std::to_string(track0.metadata_entry_count);
+      summary += ",group1Track0InitializationData=" +
+          std::to_string(track0.initialization_data_count) + ":" +
+          std::to_string(track0.initialization_data_total_bytes);
+      summary += ",group1Track0PcmEncoding=" + std::to_string(track0.pcm_encoding);
+      summary += ",group1Track0EncoderTrim=" +
+          std::to_string(track0.encoder_delay) + ":" +
+          std::to_string(track0.encoder_padding);
       summary += ",group1Track0ChannelCount=" + std::to_string(track0.channel_count);
       summary += ",group1Track0SampleRate=" + std::to_string(track0.sample_rate);
       summary += ",group1Track0RoleFlags=" + std::to_string(track0.role_flags);

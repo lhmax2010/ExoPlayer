@@ -817,17 +817,37 @@ final class CppBridgeConverters {
                 format.bitrate,
                 format.averageBitrate,
                 format.peakBitrate,
+                format.metadata != null ? format.metadata.length() : 0,
+                format.maxInputSize,
+                format.maxNumReorderSamples,
+                format.initializationData.size(),
+                getInitializationDataTotalBytes(format.initializationData),
+                format.drmInitData != null ? format.drmInitData.schemeDataCount : 0,
+                format.subsampleOffsetUs,
+                format.hasPrerollSamples,
                 format.width,
                 format.height,
+                format.decodedWidth,
+                format.decodedHeight,
                 format.frameRate,
                 format.rotationDegrees,
                 format.pixelWidthHeightRatio,
+                format.projectionData != null ? format.projectionData.length : 0,
+                format.stereoMode,
                 format.colorInfo != null ? format.colorInfo.colorSpace : Format.NO_VALUE,
                 format.colorInfo != null ? format.colorInfo.colorRange : Format.NO_VALUE,
                 format.colorInfo != null ? format.colorInfo.colorTransfer : Format.NO_VALUE,
+                format.maxSubLayers,
                 format.sampleRate,
                 format.channelCount,
+                format.pcmEncoding,
+                format.encoderDelay,
+                format.encoderPadding,
                 format.accessibilityChannel,
+                format.cueReplacementBehavior,
+                format.tileCountHorizontal,
+                format.tileCountVertical,
+                format.cryptoType,
                 format.roleFlags,
                 format.selectionFlags,
                 group.getTrackSupport(j),
@@ -847,6 +867,14 @@ final class CppBridgeConverters {
               trackInfos);
     }
     return result;
+  }
+
+  private static int getInitializationDataTotalBytes(List<byte[]> initializationData) {
+    int totalBytes = 0;
+    for (byte[] data : initializationData) {
+      totalBytes += data.length;
+    }
+    return totalBytes;
   }
 
   static CppTracks toCppTracks(Tracks tracks) {

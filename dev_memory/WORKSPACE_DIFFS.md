@@ -40,9 +40,10 @@ Notable current dirty areas:
   auxiliary callback smoke
 - video-frame metadata fallback/sentinel fix: C++ `format_bitrate` now reaches Java simulation
   fallback behavior, and unset color/audio-shape fields preserve `Format.NO_VALUE`
-- Tracks/Format payload slice: `TrackInfo` now includes average/peak bitrate, rotation, pixel
-  width-height ratio, and color info through Java DTO, JNI create/parse, converter unit tests, and
-  native current-tracks smokes
+- Tracks/Format payload slice: `TrackInfo` now includes average/peak bitrate, initialization/DRM
+  counts, subsample/preroll, decoded/projection/stereo/color, max sublayers, PCM/encoder, tile, and
+  crypto fields through Java DTO, JNI create/parse, converter unit tests, and native current-tracks
+  smokes
 
 ## 2. Current docs differ from older handoff naming
 
@@ -90,8 +91,8 @@ Implication:
 
 ## 5. Validation status was closed locally on Android 16
 
-Older docs said validation was still open. The latest local pass on 2026-05-15 closed the main
-smoke loop on an Android 16 emulator.
+Older docs said validation was still open. The latest local pass on 2026-05-18 refreshed the main
+smoke loop on an Android 16 emulator after the TrackInfo format-payload expansion.
 
 Passed commands:
 

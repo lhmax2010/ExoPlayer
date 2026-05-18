@@ -1788,7 +1788,8 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
       "CppTrackInfo",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-      "Ljava/lang/String;IIIIIFIFIIIIIIIIIZZZ)V");
+      "Ljava/lang/String;IIIIIIIIIJZIIIIFIF"
+      "IIIIIIIIIIIIIIIIIIIZZZ)V");
   jmethodID track_group_ctor = GetMethodChecked(
       env,
       track_group_class,
@@ -1864,17 +1865,37 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           static_cast<jint>(track.bitrate),
           static_cast<jint>(track.average_bitrate),
           static_cast<jint>(track.peak_bitrate),
+          static_cast<jint>(track.metadata_entry_count),
+          static_cast<jint>(track.max_input_size),
+          static_cast<jint>(track.max_num_reorder_samples),
+          static_cast<jint>(track.initialization_data_count),
+          static_cast<jint>(track.initialization_data_total_bytes),
+          static_cast<jint>(track.drm_scheme_data_count),
+          static_cast<jlong>(track.subsample_offset_us),
+          static_cast<jboolean>(track.has_preroll_samples),
           static_cast<jint>(track.width),
           static_cast<jint>(track.height),
+          static_cast<jint>(track.decoded_width),
+          static_cast<jint>(track.decoded_height),
           static_cast<jfloat>(track.frame_rate),
           static_cast<jint>(track.rotation_degrees),
           static_cast<jfloat>(track.pixel_width_height_ratio),
+          static_cast<jint>(track.projection_data_length),
+          static_cast<jint>(track.stereo_mode),
           static_cast<jint>(track.color_standard),
           static_cast<jint>(track.color_range),
           static_cast<jint>(track.color_transfer),
+          static_cast<jint>(track.max_sub_layers),
           static_cast<jint>(track.sample_rate),
           static_cast<jint>(track.channel_count),
+          static_cast<jint>(track.pcm_encoding),
+          static_cast<jint>(track.encoder_delay),
+          static_cast<jint>(track.encoder_padding),
           static_cast<jint>(track.accessibility_channel),
+          static_cast<jint>(track.cue_replacement_behavior),
+          static_cast<jint>(track.tile_count_horizontal),
+          static_cast<jint>(track.tile_count_vertical),
+          static_cast<jint>(track.crypto_type),
           static_cast<jint>(track.role_flags),
           static_cast<jint>(track.selection_flags),
           static_cast<jint>(track.format_support),
@@ -2067,27 +2088,67 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "averageBitrate");
           track_info.peak_bitrate =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "peakBitrate");
+          track_info.metadata_entry_count =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "metadataEntryCount");
+          track_info.max_input_size =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxInputSize");
+          track_info.max_num_reorder_samples =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxNumReorderSamples");
+          track_info.initialization_data_count =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "initializationDataCount");
+          track_info.initialization_data_total_bytes = GetIntFieldValue(
+              env, track, track_class, "CppTrackInfo", "initializationDataTotalBytes");
+          track_info.drm_scheme_data_count =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "drmSchemeDataCount");
+          track_info.subsample_offset_us =
+              GetLongFieldValue(env, track, track_class, "CppTrackInfo", "subsampleOffsetUs");
+          track_info.has_preroll_samples =
+              GetBooleanFieldValue(env, track, track_class, "CppTrackInfo", "hasPrerollSamples");
           track_info.width = GetIntFieldValue(env, track, track_class, "CppTrackInfo", "width");
           track_info.height =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "height");
+          track_info.decoded_width =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "decodedWidth");
+          track_info.decoded_height =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "decodedHeight");
           track_info.frame_rate =
               GetFloatFieldValue(env, track, track_class, "CppTrackInfo", "frameRate");
           track_info.rotation_degrees =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "rotationDegrees");
           track_info.pixel_width_height_ratio = GetFloatFieldValue(
               env, track, track_class, "CppTrackInfo", "pixelWidthHeightRatio");
+          track_info.projection_data_length =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "projectionDataLength");
+          track_info.stereo_mode =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "stereoMode");
           track_info.color_standard =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorStandard");
           track_info.color_range =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorRange");
           track_info.color_transfer =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorTransfer");
+          track_info.max_sub_layers =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxSubLayers");
           track_info.sample_rate =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "sampleRate");
           track_info.channel_count =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "channelCount");
+          track_info.pcm_encoding =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "pcmEncoding");
+          track_info.encoder_delay =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "encoderDelay");
+          track_info.encoder_padding =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "encoderPadding");
           track_info.accessibility_channel = GetIntFieldValue(
               env, track, track_class, "CppTrackInfo", "accessibilityChannel");
+          track_info.cue_replacement_behavior =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "cueReplacementBehavior");
+          track_info.tile_count_horizontal =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "tileCountHorizontal");
+          track_info.tile_count_vertical =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "tileCountVertical");
+          track_info.crypto_type =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "cryptoType");
           track_info.role_flags =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "roleFlags");
           track_info.selection_flags =

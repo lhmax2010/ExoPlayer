@@ -3003,15 +3003,35 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   video_hd.bitrate = 2500000;
   video_hd.average_bitrate = 2000000;
   video_hd.peak_bitrate = 2500000;
+  video_hd.metadata_entry_count = 2;
+  video_hd.max_input_size = 4096;
+  video_hd.max_num_reorder_samples = 3;
+  video_hd.initialization_data_count = 2;
+  video_hd.initialization_data_total_bytes = 7;
+  video_hd.drm_scheme_data_count = 1;
+  video_hd.subsample_offset_us = 987654;
+  video_hd.has_preroll_samples = true;
   video_hd.width = 1920;
   video_hd.height = 1080;
+  video_hd.decoded_width = 1936;
+  video_hd.decoded_height = 1096;
   video_hd.frame_rate = 30.0f;
   video_hd.rotation_degrees = 90;
   video_hd.pixel_width_height_ratio = 1.25f;
+  video_hd.projection_data_length = 4;
+  video_hd.stereo_mode = 2;
   video_hd.color_standard = 1;
   video_hd.color_range = 2;
   video_hd.color_transfer = 3;
+  video_hd.max_sub_layers = 4;
+  video_hd.pcm_encoding = -1;
+  video_hd.encoder_delay = 0;
+  video_hd.encoder_padding = 0;
   video_hd.accessibility_channel = -1;
+  video_hd.cue_replacement_behavior = 1;
+  video_hd.tile_count_horizontal = 5;
+  video_hd.tile_count_vertical = 6;
+  video_hd.crypto_type = 2;
   video_hd.role_flags = 0;
   video_hd.selection_flags = 0;
   video_hd.supported_within_capabilities = true;
@@ -3055,6 +3075,13 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   audio_main.bitrate = 192000;
   audio_main.average_bitrate = 160000;
   audio_main.peak_bitrate = 192000;
+  audio_main.metadata_entry_count = 1;
+  audio_main.max_input_size = 1024;
+  audio_main.initialization_data_count = 1;
+  audio_main.initialization_data_total_bytes = 3;
+  audio_main.pcm_encoding = 2;
+  audio_main.encoder_delay = 12;
+  audio_main.encoder_padding = 34;
   audio_main.channel_count = 2;
   audio_main.sample_rate = 48000;
   audio_main.role_flags = 0;
@@ -3102,14 +3129,40 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       summary += ",track0Bitrate=" + std::to_string(track.bitrate);
       summary += ",track0AverageBitrate=" + std::to_string(track.average_bitrate);
       summary += ",track0PeakBitrate=" + std::to_string(track.peak_bitrate);
+      summary += ",track0MetadataEntryCount=" + std::to_string(track.metadata_entry_count);
+      summary += ",track0MaxInputSize=" + std::to_string(track.max_input_size);
+      summary += ",track0MaxNumReorderSamples=" +
+          std::to_string(track.max_num_reorder_samples);
+      summary += ",track0InitializationData=" +
+          std::to_string(track.initialization_data_count) + ":" +
+          std::to_string(track.initialization_data_total_bytes);
+      summary += ",track0DrmSchemeDataCount=" +
+          std::to_string(track.drm_scheme_data_count);
+      summary += ",track0SubsampleOffsetUs=" + std::to_string(track.subsample_offset_us);
+      summary += ",track0HasPrerollSamples=" +
+          std::to_string(track.has_preroll_samples ? 1 : 0);
       summary += ",track0Width=" + std::to_string(track.width);
       summary += ",track0Height=" + std::to_string(track.height);
+      summary += ",track0DecodedSize=" + std::to_string(track.decoded_width) + "x" +
+          std::to_string(track.decoded_height);
       summary += ",track0FrameRate=" + std::to_string(track.frame_rate);
       summary += ",track0RotationDegrees=" + std::to_string(track.rotation_degrees);
       summary += ",track0PixelRatio=" + std::to_string(track.pixel_width_height_ratio);
+      summary += ",track0ProjectionDataLength=" +
+          std::to_string(track.projection_data_length);
+      summary += ",track0StereoMode=" + std::to_string(track.stereo_mode);
       summary += ",track0Color=" + std::to_string(track.color_standard) + ":" +
           std::to_string(track.color_range) + ":" + std::to_string(track.color_transfer);
+      summary += ",track0MaxSubLayers=" + std::to_string(track.max_sub_layers);
+      summary += ",track0PcmEncoding=" + std::to_string(track.pcm_encoding);
+      summary += ",track0EncoderTrim=" + std::to_string(track.encoder_delay) + ":" +
+          std::to_string(track.encoder_padding);
       summary += ",track0AccessibilityChannel=" + std::to_string(track.accessibility_channel);
+      summary += ",track0CueReplacementBehavior=" +
+          std::to_string(track.cue_replacement_behavior);
+      summary += ",track0Tiles=" + std::to_string(track.tile_count_horizontal) + "x" +
+          std::to_string(track.tile_count_vertical);
+      summary += ",track0CryptoType=" + std::to_string(track.crypto_type);
       summary += ",track0RoleFlags=" + std::to_string(track.role_flags);
       summary += ",track0SelectionFlags=" + std::to_string(track.selection_flags);
       summary += ",track0SupportedWithinCapabilities=" +
@@ -3137,6 +3190,14 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       summary += ",group1Track0Bitrate=" + std::to_string(track.bitrate);
       summary += ",group1Track0AverageBitrate=" + std::to_string(track.average_bitrate);
       summary += ",group1Track0PeakBitrate=" + std::to_string(track.peak_bitrate);
+      summary += ",group1Track0MetadataEntryCount=" +
+          std::to_string(track.metadata_entry_count);
+      summary += ",group1Track0InitializationData=" +
+          std::to_string(track.initialization_data_count) + ":" +
+          std::to_string(track.initialization_data_total_bytes);
+      summary += ",group1Track0PcmEncoding=" + std::to_string(track.pcm_encoding);
+      summary += ",group1Track0EncoderTrim=" + std::to_string(track.encoder_delay) + ":" +
+          std::to_string(track.encoder_padding);
       summary += ",group1Track0ChannelCount=" + std::to_string(track.channel_count);
       summary += ",group1Track0SampleRate=" + std::to_string(track.sample_rate);
       summary += ",group1Track0RoleFlags=" + std::to_string(track.role_flags);
