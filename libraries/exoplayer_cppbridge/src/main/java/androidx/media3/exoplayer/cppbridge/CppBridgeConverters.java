@@ -290,6 +290,34 @@ final class CppBridgeConverters {
     }
   }
 
+  private static @Nullable CharSequence toJavaCharSequenceValue(
+      @Nullable CppObjectValue value, @Nullable String fallbackString) {
+    if (value == null || !value.present) {
+      return fallbackString;
+    }
+    switch (value.valueType) {
+      case CppObjectValue.TYPE_STRING:
+      case CppObjectValue.TYPE_OTHER:
+        return value.stringValue != null ? value.stringValue : fallbackString;
+      case CppObjectValue.TYPE_LONG:
+        return Long.toString(value.longValue);
+      case CppObjectValue.TYPE_DOUBLE:
+        return Double.toString(value.doubleValue);
+      case CppObjectValue.TYPE_BOOLEAN:
+        return Boolean.toString(value.booleanValue);
+      default:
+        return fallbackString;
+    }
+  }
+
+  private static @Nullable CharSequence resolveMetadataText(
+      @Nullable String token, @Nullable CppObjectValue value, @Nullable String fallbackString) {
+    Object resolved = CppOpaqueObjectRegistry.resolve(token);
+    return resolved instanceof CharSequence
+        ? (CharSequence) resolved
+        : (resolved != null ? resolved.toString() : toJavaCharSequenceValue(value, fallbackString));
+  }
+
   static MediaItem toMediaItem(CppMediaItem mediaItem) {
     MediaItem.Builder builder = new MediaItem.Builder();
     if (mediaItem.uri != null && !mediaItem.uri.isEmpty()) {
@@ -592,49 +620,24 @@ final class CppBridgeConverters {
 
   static MediaMetadata toMediaMetadata(CppMediaMetadata metadata) {
     MediaMetadata.Builder builder = new MediaMetadata.Builder();
-    Object resolvedTitle = CppOpaqueObjectRegistry.resolve(metadata.titleToken);
     builder.setTitle(
-        resolvedTitle instanceof CharSequence
-            ? (CharSequence) resolvedTitle
-            : (resolvedTitle != null ? resolvedTitle.toString() : metadata.title));
-    Object resolvedArtist = CppOpaqueObjectRegistry.resolve(metadata.artistToken);
+        resolveMetadataText(metadata.titleToken, metadata.titleValue, metadata.title));
     builder.setArtist(
-        resolvedArtist instanceof CharSequence
-            ? (CharSequence) resolvedArtist
-            : (resolvedArtist != null ? resolvedArtist.toString() : metadata.artist));
-    Object resolvedAlbumTitle = CppOpaqueObjectRegistry.resolve(metadata.albumTitleToken);
+        resolveMetadataText(metadata.artistToken, metadata.artistValue, metadata.artist));
     builder.setAlbumTitle(
-        resolvedAlbumTitle instanceof CharSequence
-            ? (CharSequence) resolvedAlbumTitle
-            : (resolvedAlbumTitle != null
-                ? resolvedAlbumTitle.toString()
-                : metadata.albumTitle));
-    Object resolvedAlbumArtist = CppOpaqueObjectRegistry.resolve(metadata.albumArtistToken);
+        resolveMetadataText(
+            metadata.albumTitleToken, metadata.albumTitleValue, metadata.albumTitle));
     builder.setAlbumArtist(
-        resolvedAlbumArtist instanceof CharSequence
-            ? (CharSequence) resolvedAlbumArtist
-            : (resolvedAlbumArtist != null
-                ? resolvedAlbumArtist.toString()
-                : metadata.albumArtist));
-    Object resolvedDisplayTitle = CppOpaqueObjectRegistry.resolve(metadata.displayTitleToken);
+        resolveMetadataText(
+            metadata.albumArtistToken, metadata.albumArtistValue, metadata.albumArtist));
     builder.setDisplayTitle(
-        resolvedDisplayTitle instanceof CharSequence
-            ? (CharSequence) resolvedDisplayTitle
-            : (resolvedDisplayTitle != null
-                ? resolvedDisplayTitle.toString()
-                : metadata.displayTitle));
-    Object resolvedSubtitle = CppOpaqueObjectRegistry.resolve(metadata.subtitleToken);
+        resolveMetadataText(
+            metadata.displayTitleToken, metadata.displayTitleValue, metadata.displayTitle));
     builder.setSubtitle(
-        resolvedSubtitle instanceof CharSequence
-            ? (CharSequence) resolvedSubtitle
-            : (resolvedSubtitle != null ? resolvedSubtitle.toString() : metadata.subtitle));
-    Object resolvedDescription = CppOpaqueObjectRegistry.resolve(metadata.descriptionToken);
+        resolveMetadataText(metadata.subtitleToken, metadata.subtitleValue, metadata.subtitle));
     builder.setDescription(
-        resolvedDescription instanceof CharSequence
-            ? (CharSequence) resolvedDescription
-            : (resolvedDescription != null
-                ? resolvedDescription.toString()
-                : metadata.description));
+        resolveMetadataText(
+            metadata.descriptionToken, metadata.descriptionValue, metadata.description));
     if (metadata.artworkUri != null) {
       builder.setArtworkUri(Uri.parse(metadata.artworkUri));
     }
@@ -679,52 +682,31 @@ final class CppBridgeConverters {
     if (metadata.releaseDay >= 0) {
       builder.setReleaseDay(metadata.releaseDay);
     }
-    Object resolvedWriter = CppOpaqueObjectRegistry.resolve(metadata.writerToken);
     builder.setWriter(
-        resolvedWriter instanceof CharSequence
-            ? (CharSequence) resolvedWriter
-            : (resolvedWriter != null ? resolvedWriter.toString() : metadata.writer));
-    Object resolvedAuthor = CppOpaqueObjectRegistry.resolve(metadata.authorToken);
+        resolveMetadataText(metadata.writerToken, metadata.writerValue, metadata.writer));
     builder.setAuthor(
-        resolvedAuthor instanceof CharSequence
-            ? (CharSequence) resolvedAuthor
-            : (resolvedAuthor != null ? resolvedAuthor.toString() : metadata.author));
-    Object resolvedComposer = CppOpaqueObjectRegistry.resolve(metadata.composerToken);
+        resolveMetadataText(metadata.authorToken, metadata.authorValue, metadata.author));
     builder.setComposer(
-        resolvedComposer instanceof CharSequence
-            ? (CharSequence) resolvedComposer
-            : (resolvedComposer != null ? resolvedComposer.toString() : metadata.composer));
-    Object resolvedConductor = CppOpaqueObjectRegistry.resolve(metadata.conductorToken);
+        resolveMetadataText(metadata.composerToken, metadata.composerValue, metadata.composer));
     builder.setConductor(
-        resolvedConductor instanceof CharSequence
-            ? (CharSequence) resolvedConductor
-            : (resolvedConductor != null ? resolvedConductor.toString() : metadata.conductor));
+        resolveMetadataText(
+            metadata.conductorToken, metadata.conductorValue, metadata.conductor));
     if (metadata.discNumber >= 0) {
       builder.setDiscNumber(metadata.discNumber);
     }
     if (metadata.totalDiscCount >= 0) {
       builder.setTotalDiscCount(metadata.totalDiscCount);
     }
-    Object resolvedGenre = CppOpaqueObjectRegistry.resolve(metadata.genreToken);
     builder.setGenre(
-        resolvedGenre instanceof CharSequence
-            ? (CharSequence) resolvedGenre
-            : (resolvedGenre != null ? resolvedGenre.toString() : metadata.genre));
-    Object resolvedCompilation = CppOpaqueObjectRegistry.resolve(metadata.compilationToken);
+        resolveMetadataText(metadata.genreToken, metadata.genreValue, metadata.genre));
     builder.setCompilation(
-        resolvedCompilation instanceof CharSequence
-            ? (CharSequence) resolvedCompilation
-            : (resolvedCompilation != null
-                ? resolvedCompilation.toString()
-                : metadata.compilation));
+        resolveMetadataText(
+            metadata.compilationToken, metadata.compilationValue, metadata.compilation));
     if (metadata.mediaType >= 0) {
       builder.setMediaType(metadata.mediaType);
     }
-    Object resolvedStation = CppOpaqueObjectRegistry.resolve(metadata.stationToken);
     builder.setStation(
-        resolvedStation instanceof CharSequence
-            ? (CharSequence) resolvedStation
-            : (resolvedStation != null ? resolvedStation.toString() : metadata.station));
+        resolveMetadataText(metadata.stationToken, metadata.stationValue, metadata.station));
     if (metadata.extrasPresent || metadata.extrasValues.length > 0) {
       Object resolvedExtras = CppOpaqueObjectRegistry.resolve(metadata.extrasToken);
       builder.setExtras(
@@ -836,7 +818,21 @@ final class CppBridgeConverters {
         metadata.extras != null,
         metadata.extras != null ? metadata.extras.size() : 0,
         metadata.extras != null ? CppOpaqueObjectRegistry.register(metadata.extras) : null,
-        toCppBundleValues(metadata.extras));
+        toCppBundleValues(metadata.extras),
+        toCppObjectValue(metadata.title),
+        toCppObjectValue(metadata.artist),
+        toCppObjectValue(metadata.albumTitle),
+        toCppObjectValue(metadata.albumArtist),
+        toCppObjectValue(metadata.displayTitle),
+        toCppObjectValue(metadata.subtitle),
+        toCppObjectValue(metadata.description),
+        toCppObjectValue(metadata.writer),
+        toCppObjectValue(metadata.author),
+        toCppObjectValue(metadata.composer),
+        toCppObjectValue(metadata.conductor),
+        toCppObjectValue(metadata.genre),
+        toCppObjectValue(metadata.compilation),
+        toCppObjectValue(metadata.station));
   }
 
   static CppCue fromCue(Cue cue) {

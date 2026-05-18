@@ -762,6 +762,8 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     assertThat(summary).contains("mediaMetadataTitle=Listener Item Title");
     assertThat(summary).contains("mediaMetadataTitleTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValuePresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValueString=Listener Item Title");
     assertThat(summary).contains("mediaMetadataArtist=Listener Item Artist");
     assertThat(summary).contains("mediaMetadataArtistTokenPresent=1");
     assertThat(summary).contains("mediaMetadataAlbumArtist=Listener Item Album Artist");
@@ -782,8 +784,12 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("mediaMetadataCompilationTokenPresent=1");
     assertThat(summary).contains("mediaMetadataStation=Listener Item Station");
     assertThat(summary).contains("mediaMetadataStationTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataStationValuePresent=1");
+    assertThat(summary).contains("mediaMetadataStationValueString=Listener Item Station");
     assertThat(summary).contains("mediaMetadataMediaType=5");
     assertThat(summary).contains("playlistMetadataTitle=Listener Playlist");
+    assertThat(summary).contains("playlistMetadataTitleValuePresent=1");
+    assertThat(summary).contains("playlistMetadataTitleValueString=Listener Playlist");
     assertThat(summary).contains("playlistMetadataArtist=Listener Artist");
     assertThat(summary).contains("playlistMetadataAlbumArtist=Listener Playlist Album Artist");
     assertThat(summary).contains("playlistMetadataDisplayTitle=Listener Playlist Display");
@@ -2135,6 +2141,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("adsIdValueString=ads-current");
     assertThat(summary).contains("mediaMetadataTitle=Current Item Title");
     assertThat(summary).contains("mediaMetadataTitleTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValuePresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValueClass=java.lang.String");
+    assertThat(summary).contains("mediaMetadataTitleValueType=1");
+    assertThat(summary).contains("mediaMetadataTitleValueString=Current Item Title");
     assertThat(summary).contains("mediaMetadataArtist=Current Item Artist");
     assertThat(summary).contains("mediaMetadataArtistTokenPresent=1");
     assertThat(summary).contains("mediaMetadataAlbumTitle=Current Album");
@@ -2171,11 +2181,19 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("mediaMetadataTotalDiscCount=4");
     assertThat(summary).contains("mediaMetadataGenre=Current Item Genre");
     assertThat(summary).contains("mediaMetadataGenreTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataGenreValuePresent=1");
+    assertThat(summary).contains("mediaMetadataGenreValueClass=java.lang.String");
+    assertThat(summary).contains("mediaMetadataGenreValueType=1");
+    assertThat(summary).contains("mediaMetadataGenreValueString=Current Item Genre");
     assertThat(summary).contains("mediaMetadataCompilation=Current Item Compilation");
     assertThat(summary).contains("mediaMetadataCompilationTokenPresent=1");
     assertThat(summary).contains("mediaMetadataMediaType=7");
     assertThat(summary).contains("mediaMetadataStation=Current Item Station");
     assertThat(summary).contains("mediaMetadataStationTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataStationValuePresent=1");
+    assertThat(summary).contains("mediaMetadataStationValueClass=java.lang.String");
+    assertThat(summary).contains("mediaMetadataStationValueType=1");
+    assertThat(summary).contains("mediaMetadataStationValueString=Current Item Station");
     assertThat(summary).contains("mediaMetadataExtrasPresent=1");
     assertThat(summary).contains("mediaMetadataExtrasKeyCount=5");
     assertThat(summary).contains("mediaMetadataExtrasTokenPresent=1");
@@ -2214,6 +2232,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("albumTitleTokenPresent=1");
     assertThat(summary).contains("albumArtistTokenPresent=1");
     assertThat(summary).contains("titleTokenPresent=1");
+    assertThat(summary).contains("titleValuePresent=1");
+    assertThat(summary).contains("titleValueClass=java.lang.String");
+    assertThat(summary).contains("titleValueType=1");
+    assertThat(summary).contains("titleValueString=Playlist Title");
     assertThat(summary).contains("artistTokenPresent=1");
     assertThat(summary).contains("displayTitleTokenPresent=1");
     assertThat(summary).contains("subtitle=Playlist Subtitle");
@@ -2232,6 +2254,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("totalDiscCount=5");
     assertThat(summary).contains("genre=Playlist Genre");
     assertThat(summary).contains("genreTokenPresent=1");
+    assertThat(summary).contains("genreValuePresent=1");
+    assertThat(summary).contains("genreValueClass=java.lang.String");
+    assertThat(summary).contains("genreValueType=1");
+    assertThat(summary).contains("genreValueString=Playlist Genre");
     assertThat(summary).contains("compilation=Playlist Compilation");
     assertThat(summary).contains("compilationTokenPresent=1");
     assertThat(summary).contains("artworkUri=https://example.com/playlist-artwork.jpg");
@@ -2245,6 +2271,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("releaseDay=22");
     assertThat(summary).contains("station=Playlist Station");
     assertThat(summary).contains("stationTokenPresent=1");
+    assertThat(summary).contains("stationValuePresent=1");
+    assertThat(summary).contains("stationValueClass=java.lang.String");
+    assertThat(summary).contains("stationValueType=1");
+    assertThat(summary).contains("stationValueString=Playlist Station");
     assertThat(summary).contains("extrasPresent=1");
     assertThat(summary).contains("extrasKeyCount=5");
     assertThat(summary).contains("extrasTokenPresent=1");

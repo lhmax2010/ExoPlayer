@@ -48,7 +48,7 @@ Commands that passed:
 Interpretation:
 
 - The current Android 16 emulator run verified the smoke suite end to end.
-- The current Android 16 emulator run reported `127/127` connected instrumentation tests passed.
+- The current Android 16 emulator run reported `128/128` connected instrumentation tests passed.
 - Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
   `api.txt` parity.
 - The 2026-05-18 Stage 1 inventory report is now checked in at
@@ -64,7 +64,7 @@ Interpretation:
 Current androidTest count found in the workspace:
 
 - Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
-  `CppBridgeNativePlayerInstrumentationTest.java`: `127`
+  `CppBridgeNativePlayerInstrumentationTest.java`: `128`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -129,6 +129,11 @@ This is consistent with a large smoke-first validation strategy.
   `MediaItem.AdsConfiguration.adsId`: Java `CppObjectValue` plus C++ `ObjectValueInfo` metadata
   expose reduced class/type/scalar payload visibility while retaining existing string fallback and
   opaque-token identity behavior.
+- Stage 3 now also deepens representative `MediaMetadata` text/`CharSequence` fields: Java
+  `CppMediaMetadata` exposes `CppObjectValue` fields for title, artist, album title/artist,
+  display title, subtitle, description, writer, author, composer, conductor, genre, compilation,
+  and station; C++ `MediaMetadataSnapshot` mirrors them through `ObjectValueInfo` while preserving
+  token-first and string fallback semantics.
 - Stage 1 full API inventory closed the direct `Player.Listener#onIsLoadingChanged` gap through
   C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; current exact gap report shows
   `Player`/`ExoPlayer` method gaps `0`, direct `Player.Listener` callback gaps `0`, and one
@@ -141,6 +146,7 @@ For the next AI:
 - Treat this project as "reduced endpoint is broad and heavily smoke-documented".
 - Treat the current local environment as validated for the smoke suite on Android 16.
 - The highest-risk next work moved past the first callback-style bridge slice, the
-  codec-parameter multi-listener immediate-notification edge case, and the first decoded extras
-  value-model slice; remaining work is deeper full-object parity for `MediaItem`, `Timeline`,
-  `MediaMetadata`, `Tracks`, and richer payload fidelity beyond the reduced descriptors.
+  codec-parameter multi-listener immediate-notification edge case, and the planned Stage 3
+  reduced object/value-model slices; remaining work is deeper full-object parity for `MediaItem`,
+  `Timeline`, `MediaMetadata`, `Tracks`, and richer payload fidelity beyond the reduced
+  descriptors.

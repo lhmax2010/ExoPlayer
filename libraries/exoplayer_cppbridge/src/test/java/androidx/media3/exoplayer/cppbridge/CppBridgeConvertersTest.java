@@ -6,6 +6,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.Layout;
+import android.text.SpannableString;
 import androidx.media3.common.C;
 import androidx.media3.common.ColorInfo;
 import androidx.media3.common.DrmInitData;
@@ -815,7 +816,7 @@ public final class CppBridgeConvertersTest {
     extras.putString("studio", "Studio");
     MediaMetadata metadata =
         new MediaMetadata.Builder()
-            .setTitle("Title")
+            .setTitle(new SpannableString("Title"))
             .setArtist("Artist")
             .setAlbumTitle("Album")
             .setAlbumArtist("Album Artist")
@@ -880,6 +881,20 @@ public final class CppBridgeConvertersTest {
     assertThat(converted.compilation).isEqualTo("Compilation");
     assertThat(converted.mediaType).isEqualTo(MediaMetadata.MEDIA_TYPE_MUSIC);
     assertThat(converted.station).isEqualTo("Station");
+    assertStringObjectValue(converted.titleValue, SpannableString.class.getName(), "Title");
+    assertStringObjectValue(converted.artistValue, String.class.getName(), "Artist");
+    assertStringObjectValue(converted.albumTitleValue, String.class.getName(), "Album");
+    assertStringObjectValue(converted.albumArtistValue, String.class.getName(), "Album Artist");
+    assertStringObjectValue(converted.displayTitleValue, String.class.getName(), "Display");
+    assertStringObjectValue(converted.subtitleValue, String.class.getName(), "Subtitle");
+    assertStringObjectValue(converted.descriptionValue, String.class.getName(), "Description");
+    assertStringObjectValue(converted.writerValue, String.class.getName(), "Writer");
+    assertStringObjectValue(converted.authorValue, String.class.getName(), "Author");
+    assertStringObjectValue(converted.composerValue, String.class.getName(), "Composer");
+    assertStringObjectValue(converted.conductorValue, String.class.getName(), "Conductor");
+    assertStringObjectValue(converted.genreValue, String.class.getName(), "Genre");
+    assertStringObjectValue(converted.compilationValue, String.class.getName(), "Compilation");
+    assertStringObjectValue(converted.stationValue, String.class.getName(), "Station");
     assertThat(converted.extrasPresent).isTrue();
     assertThat(converted.extrasKeyCount).isEqualTo(5);
     assertThat(converted.extrasToken).isNotNull();
@@ -966,6 +981,29 @@ public final class CppBridgeConvertersTest {
     assertThat(converted.title.toString()).isEqualTo("Title");
     assertThat(converted.extras.getLong("episode")).isEqualTo(17L);
     assertThat(converted.extras.getString("title")).isEqualTo("Decoded");
+  }
+
+  @Test
+  public void toMediaMetadata_usesObjectValuesForTextFields() {
+    CppMediaMetadata metadata =
+        mediaMetadataWithTextObjectValues(
+            stringObjectValue(String.class.getName(), "Object Title"),
+            new CppObjectValue(
+                true, Long.class.getName(), CppObjectValue.TYPE_LONG, null, 42L, 0.0, false),
+            new CppObjectValue(
+                true,
+                Boolean.class.getName(),
+                CppObjectValue.TYPE_BOOLEAN,
+                null,
+                0L,
+                0.0,
+                true));
+
+    MediaMetadata converted = CppBridgeConverters.toMediaMetadata(metadata);
+
+    assertThat(converted.title.toString()).isEqualTo("Object Title");
+    assertThat(converted.genre.toString()).isEqualTo("42");
+    assertThat(converted.station.toString()).isEqualTo("true");
   }
 
   @Test
@@ -1226,5 +1264,87 @@ public final class CppBridgeConvertersTest {
     assertThat(CppMediaSourceFactoryRegistry.register(factory)).isEqualTo("factory-new-token");
 
     CppMediaSourceFactoryRegistry.unregister("factory-new-token");
+  }
+
+  private static CppObjectValue stringObjectValue(String className, String stringValue) {
+    return new CppObjectValue(
+        true, className, CppObjectValue.TYPE_STRING, stringValue, 0L, 0.0, false);
+  }
+
+  private static void assertStringObjectValue(
+      CppObjectValue value, String expectedClassName, String expectedStringValue) {
+    assertThat(value.present).isTrue();
+    assertThat(value.className).isEqualTo(expectedClassName);
+    assertThat(value.valueType).isEqualTo(CppObjectValue.TYPE_STRING);
+    assertThat(value.stringValue).isEqualTo(expectedStringValue);
+  }
+
+  private static CppMediaMetadata mediaMetadataWithTextObjectValues(
+      CppObjectValue titleValue, CppObjectValue genreValue, CppObjectValue stationValue) {
+    return new CppMediaMetadata(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        -1,
+        -1L,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        -1,
+        -1,
+        null,
+        null,
+        null,
+        null,
+        -1,
+        null,
+        null,
+        false,
+        0,
+        null,
+        new CppBundleValue[0],
+        titleValue,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        genreValue,
+        null,
+        stationValue);
   }
 }

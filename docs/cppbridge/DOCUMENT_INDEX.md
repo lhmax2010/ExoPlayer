@@ -127,6 +127,7 @@ Representative files:
 - [CppMediaItem.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppMediaItem.java)
 - [CppMediaMetadata.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppMediaMetadata.java)
 - [CppBundleValue.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppBundleValue.java)
+- [CppObjectValue.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppObjectValue.java)
 - [CppCue.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppCue.java)
 - [CppTrackGroup.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppTrackGroup.java)
 - [CppTrackInfo.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppTrackInfo.java)

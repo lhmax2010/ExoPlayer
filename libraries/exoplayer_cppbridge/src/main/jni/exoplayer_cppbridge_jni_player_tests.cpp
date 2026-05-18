@@ -3855,6 +3855,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   summary += ",mediaMetadataTitle=" + current_media_item.media_metadata.title;
   summary += ",mediaMetadataTitleTokenPresent=" +
       std::to_string(current_media_item.media_metadata.title_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(
+      &summary, "mediaMetadataTitleValue", current_media_item.media_metadata.title_value);
   summary += ",mediaMetadataArtist=" + current_media_item.media_metadata.artist;
   summary += ",mediaMetadataArtistTokenPresent=" +
       std::to_string(current_media_item.media_metadata.artist_token.empty() ? 0 : 1);
@@ -3916,6 +3918,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   summary += ",mediaMetadataGenre=" + current_media_item.media_metadata.genre;
   summary += ",mediaMetadataGenreTokenPresent=" +
       std::to_string(current_media_item.media_metadata.genre_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(
+      &summary, "mediaMetadataGenreValue", current_media_item.media_metadata.genre_value);
   summary += ",mediaMetadataCompilation=" + current_media_item.media_metadata.compilation;
   summary += ",mediaMetadataCompilationTokenPresent=" +
       std::to_string(current_media_item.media_metadata.compilation_token.empty() ? 0 : 1);
@@ -3924,6 +3928,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   summary += ",mediaMetadataStation=" + current_media_item.media_metadata.station;
   summary += ",mediaMetadataStationTokenPresent=" +
       std::to_string(current_media_item.media_metadata.station_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(
+      &summary, "mediaMetadataStationValue", current_media_item.media_metadata.station_value);
   summary += ",mediaMetadataExtrasPresent=" +
       std::to_string(current_media_item.media_metadata.extras_present ? 1 : 0);
   summary += ",mediaMetadataExtrasKeyCount=" +
@@ -3994,6 +4000,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
       std::to_string(actual.album_artist_token.empty() ? 0 : 1);
   summary += ",displayTitle=" + actual.display_title;
   summary += ",titleTokenPresent=" + std::to_string(actual.title_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "titleValue", actual.title_value);
   summary += ",artistTokenPresent=" + std::to_string(actual.artist_token.empty() ? 0 : 1);
   summary +=
       ",displayTitleTokenPresent=" + std::to_string(actual.display_title_token.empty() ? 0 : 1);
@@ -4015,6 +4022,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
   summary += ",totalDiscCount=" + std::to_string(actual.total_disc_count);
   summary += ",genre=" + actual.genre;
   summary += ",genreTokenPresent=" + std::to_string(actual.genre_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "genreValue", actual.genre_value);
   summary += ",compilation=" + actual.compilation;
   summary += ",compilationTokenPresent=" +
       std::to_string(actual.compilation_token.empty() ? 0 : 1);
@@ -4029,6 +4037,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
   summary += ",releaseDay=" + std::to_string(actual.release_day);
   summary += ",station=" + actual.station;
   summary += ",stationTokenPresent=" + std::to_string(actual.station_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "stationValue", actual.station_value);
   summary += ",extrasPresent=" + std::to_string(actual.extras_present ? 1 : 0);
   summary += ",extrasKeyCount=" + std::to_string(actual.extras_key_count);
   summary += ",extrasTokenPresent=" + std::to_string(actual.extras_token.empty() ? 0 : 1);
@@ -5041,6 +5050,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeL
   std::string summary = "mediaMetadataTitle=" + media_metadata.title;
   summary += ",mediaMetadataTitleTokenPresent=" +
       std::to_string(media_metadata.title_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(&summary, "mediaMetadataTitleValue", media_metadata.title_value);
   summary += ",mediaMetadataArtist=" + media_metadata.artist;
   summary += ",mediaMetadataArtistTokenPresent=" +
       std::to_string(media_metadata.artist_token.empty() ? 0 : 1);
@@ -5071,9 +5081,12 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeL
   summary += ",mediaMetadataStation=" + media_metadata.station;
   summary += ",mediaMetadataStationTokenPresent=" +
       std::to_string(media_metadata.station_token.empty() ? 0 : 1);
+  AppendObjectValueSummary(
+      &summary, "mediaMetadataStationValue", media_metadata.station_value);
   summary += ",mediaMetadataMediaType=" +
       std::to_string(media_metadata.media_type);
   summary += ",playlistMetadataTitle=" + playlist_metadata.title;
+  AppendObjectValueSummary(&summary, "playlistMetadataTitleValue", playlist_metadata.title_value);
   summary += ",playlistMetadataArtist=" + playlist_metadata.artist;
   summary += ",playlistMetadataAlbumArtist=" + playlist_metadata.album_artist;
   summary += ",playlistMetadataDisplayTitle=" + playlist_metadata.display_title;

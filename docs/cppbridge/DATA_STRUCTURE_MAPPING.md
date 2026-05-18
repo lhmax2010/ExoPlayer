@@ -91,7 +91,7 @@ DTO tracker below.
 | `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM, tag/adsId/requestMetadata opaque-token baselines, reduced `ObjectValueInfo` semantics for tag/adsId, decoded stable `requestMetadata.extras` values for strings/numbers/booleans/byte arrays | full arbitrary-object semantics and full Java object parity |
 | `Timeline` | Partial | reduced summary/window/period snapshots, uid/id/adsId/manifest token baselines, reduced `ObjectValueInfo` semantics for window `uid`/`manifest` and period `id`/`uid`/`adsId`, multi-window/multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` behavior, arbitrary object graph semantics, and deeper ad/playback structure parity beyond the reduced row model |
 | `Tracks` | Partial | reduced tracks/group/format snapshots, group and label token baselines, representative query/listener coverage | full `Tracks.Group` / `Format` parity and deeper second-group parity |
-| `MediaMetadata` | Partial | representative text fields, artwork, extras token baseline, decoded stable extras values for strings/numbers/booleans/byte arrays, query/listener/playlist smoke coverage | full Java `MediaMetadata` semantics beyond reduced snapshot |
+| `MediaMetadata` | Partial | representative text fields, reduced object-value metadata for text/`CharSequence` fields, artwork, extras token baseline, decoded stable extras values for strings/numbers/booleans/byte arrays, query/listener/playlist smoke coverage | full Java `MediaMetadata` semantics beyond reduced snapshot |
 | `Cue` | Partial | representative text, bitmap token baseline, layout/style smoke coverage, query/listener/analytics visibility | full Java `Cue` styled-text and bitmap-object parity |
 
 Field observability conventions:
@@ -164,7 +164,7 @@ Field observability conventions:
 | `VideoSize` | `VideoSizeSnapshot` | Done | width, height, unapplied rotation degrees, pixel ratio | `nativeVideoAndMetadataSmokeTest_returnsQuerySummary` |
 | `VideoFrameMetadataListener` callback | `VideoFrameMetadataSnapshot` | Done | presentation time, release time, representative `Format` id/mime/codecs/size/frame-rate/label/language/container MIME/bitrate/rotation/pixel-ratio/color/audio-shape/flags fields, media-format presence and summary string, plus representative `MediaFormat` mime/width/height/frame-rate/rotation/color-standard/color-range/color-transfer fields | `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` |
 | `CameraMotionListener` callback | `CameraMotionSnapshot` | Done | motion `timeUs`, rotation float vector, and reset callback delivery/removal behavior | `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` |
-| `MediaMetadata` | `MediaMetadataSnapshot` | Done | common text metadata, representative text opaque token baseline (`title`, `artist`, `albumTitle`, `albumArtist`, `displayTitle`, `subtitle`, `description`, `writer`, `author`, `composer`, `conductor`, `genre`, `compilation`, `station`), extras presence/key-count plus opaque token baseline and decoded stable extras values (`String`, integer-like, floating-point, boolean, `byte[]`), artwork uri/data/type, browsable/playable/folder fields, dates, credits, disc/track counts, media type | `nativeVideoAndMetadataSmokeTest_returnsQuerySummary`; `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata`; `nativePlaylistMetadataOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
+| `MediaMetadata` | `MediaMetadataSnapshot` | Done | common text metadata, representative text opaque token baseline and reduced object-value metadata (`title`, `artist`, `albumTitle`, `albumArtist`, `displayTitle`, `subtitle`, `description`, `writer`, `author`, `composer`, `conductor`, `genre`, `compilation`, `station`), extras presence/key-count plus opaque token baseline and decoded stable extras values (`String`, integer-like, floating-point, boolean, `byte[]`), artwork uri/data/type, browsable/playable/folder fields, dates, credits, disc/track counts, media type | `nativeVideoAndMetadataSmokeTest_returnsQuerySummary`; `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata`; `nativePlaylistMetadataOpaqueTokenSmokeTest_resolvesRegisteredObjects`; `nativeMediaMetadataObjectValueConversionSmokeTest_roundTripsObjectTextFields` |
 | `CueGroup` / `Cue` | `CueSnapshot` | Done | cue count, presentation time, cue text list plus representative text opaque token baseline, cue layout/style descriptors, bitmap opaque token baseline, bitmap height, shear, z-index, window color, bitmap presence | `CppBridgeNativeSmokeTest.nativeCueSnapshotConversionSmokeTest_returnsStructuredSummary`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `nativeAnalyticsCuesSmokeTest_reportsConcreteAnalyticsEvent` |
 | analytics aggregate | `AnalyticsSnapshot` | Done | bitrate estimate, dropped frames, load started/completed counts, derived load delta, last audio/video mime, multi-update last-value overwrite semantics | `nativeAnalyticsSmokeTest_returnsAnalyticsSummary`; `nativeAnalyticsCallbackSmokeTest_reportsListenerDelivery`; `nativeAnalyticsListenerRegistrationSmokeTest_addsAndRemovesAnalyticsOnlyListener` |
 | analytics audio underrun event | `AudioUnderrunEvent` | Done | buffer size, buffer size ms, elapsed since last feed ms, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsAudioUnderrunSmokeTest_reportsConcreteAnalyticsEvent` |
@@ -437,14 +437,21 @@ Directly observed by smoke:
 
 - `title`
 - `title_token`
+- `title_value`
 - `artist`
 - `artist_token`
+- `artist_value`
 - `album_title`
+- `album_title_value`
 - `album_artist`
+- `album_artist_value`
 - `display_title`
 - `display_title_token`
+- `display_title_value`
 - `subtitle`
+- `subtitle_value`
 - `description`
+- `description_value`
 - `artwork_uri`
 - `artwork_data.size()`
 - `artwork_data_type`
@@ -461,15 +468,22 @@ Directly observed by smoke:
 - `release_month`
 - `release_day`
 - `writer`
+- `writer_value`
 - `author`
+- `author_value`
 - `composer`
+- `composer_value`
 - `conductor`
+- `conductor_value`
 - `disc_number`
 - `total_disc_count`
 - `genre`
+- `genre_value`
 - `compilation`
+- `compilation_value`
 - `media_type`
 - `station`
+- `station_value`
 
 Present in bridge but not directly smoke-observed:
 
@@ -482,6 +496,7 @@ Primary smoke evidence:
 - `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`
 - `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`
 - `nativeListenerSmokeTest_reportsExtendedCallbacks`
+- `nativeMediaMetadataObjectValueConversionSmokeTest_roundTripsObjectTextFields`
 
 ### `TracksSnapshot` / `TrackGroupSnapshot` / `TrackInfo`
 

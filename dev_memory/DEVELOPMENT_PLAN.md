@@ -108,6 +108,19 @@ Current progress:
 - Coverage includes Java converter UTs for C++-to-Java scalar fallback and Java-to-C++ metadata
   extraction, a JNI media-item object-value DTO round-trip smoke, and expanded runtime assertions
   for current item, indexed item, and opaque-token media-item flows.
+- 2026-05-18: fourth Stage 3 slice adds reduced `ObjectValueInfo` metadata for representative
+  `MediaMetadata` text/`CharSequence` fields: title, artist, album title/artist, display title,
+  subtitle, description, writer, author, composer, conductor, genre, compilation, and station.
+  Java `CppMediaMetadata` now carries `CppObjectValue` fields, the C++ `MediaMetadataSnapshot`
+  mirrors them, and JNI create/parse paths round-trip the reduced class/type/scalar payload while
+  preserving token-first and string fallback behavior.
+- Coverage includes converter UTs for all metadata text object values plus scalar C++ fallback,
+  a JNI media-metadata object-value DTO round-trip smoke, expanded current-item / playlist-metadata
+  runtime assertions, and listener metadata object-value markers. Full Android 16 connected
+  validation passed with `128/128` tests.
+- Stage 3 reduced object/value-model work is complete for the planned slices. Remaining
+  `MediaItem`, `Timeline`, and `MediaMetadata` gaps are full Java object-graph parity beyond the
+  reduced descriptors and should be tracked as later-stage full-support work.
 
 ## Stage 4: Listener / Analytics Completeness
 

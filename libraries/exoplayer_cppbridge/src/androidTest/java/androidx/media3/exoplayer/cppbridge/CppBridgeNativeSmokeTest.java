@@ -76,6 +76,26 @@ public final class CppBridgeNativeSmokeTest {
   }
 
   @Test
+  public void nativeMediaMetadataObjectValueConversionSmokeTest_roundTripsObjectTextFields() {
+    String summary =
+        CppBridgeNativeSmokeTestHelper.nativeMediaMetadataObjectValueConversionSmokeTest();
+
+    assertThat(summary).contains("mediaMetadataObjectValueConversion=1");
+    assertThat(summary).contains("titleValuePresent=1");
+    assertThat(summary).contains("titleValueClass=java.lang.String");
+    assertThat(summary).contains("titleValueType=1");
+    assertThat(summary).contains("titleValueString=object-title");
+    assertThat(summary).contains("genreValuePresent=1");
+    assertThat(summary).contains("genreValueClass=java.lang.Long");
+    assertThat(summary).contains("genreValueType=2");
+    assertThat(summary).contains("genreValueLong=42");
+    assertThat(summary).contains("stationValuePresent=1");
+    assertThat(summary).contains("stationValueClass=java.lang.Boolean");
+    assertThat(summary).contains("stationValueType=4");
+    assertThat(summary).contains("stationValueBool=1");
+  }
+
+  @Test
   public void nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary() {
     String summary = CppBridgeNativeSmokeTestHelper.nativeTracksSnapshotConversionSmokeTest();
 

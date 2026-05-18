@@ -46,7 +46,7 @@ Important context:
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
 - Latest local validation passed on 2026-05-18 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`127/127`),
+  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`128/128`),
   `:demo-cppbridge:assembleDebug`, and `git diff --check`.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
@@ -99,6 +99,12 @@ Important context:
   `MediaItem.LocalConfiguration.tag` and `MediaItem.AdsConfiguration.adsId`. Coverage includes
   converter UTs, a JNI DTO round-trip smoke, and runtime current-item / indexed-item /
   opaque-token assertions for reduced class/type/scalar metadata.
+- The 2026-05-18 Stage 3 MediaMetadata object-value slice adds Java `CppObjectValue` fields and
+  C++ `ObjectValueInfo` metadata for representative `MediaMetadata` text/`CharSequence` fields:
+  title, artist, album title/artist, display title, subtitle, description, writer, author,
+  composer, conductor, genre, compilation, and station. Coverage includes converter UTs, a JNI
+  media-metadata object-value round-trip smoke, current-item / playlist-metadata runtime
+  assertions, and listener metadata object-value markers.
 - `CppBridgeConverters` now normalizes HLS MIME aliases like
   `application/vnd.apple.mpegurl` / lowercase `application/x-mpegurl`, and maps Media3
   `CONTENT_TYPE_OTHER` back to C++ `MediaSourceType::kProgressive`.
@@ -109,10 +115,10 @@ Important context:
 - Direct `Player.Listener#onIsLoadingChanged` is now bridged through
   `OnIsLoadingChanged` / `nativeOnIsLoadingChanged`, with `nativeListenerSmokeTest` checking
   `isLoadingCb=1` and `isLoading=1`.
-- The highest-value next development work is continuing Stage 3 object parity: timeline
-  window/period identity and manifest semantics, richer `MediaItem` tag/ads/request metadata
-  semantics beyond the stable extras subset, and broader `MediaMetadata` object parity. Full
-  Java/api.txt parity for non-player classes remains a later-stage concern.
+- The planned Stage 3 reduced object/value-model slices are complete. The highest-value next
+  development work is Stage 4 listener/analytics completeness or later-stage full Java object
+  parity for `MediaItem`, `Timeline`, `MediaMetadata`, `Tracks`, and `Cue` beyond the reduced
+  descriptors. Full Java/api.txt parity for non-player classes remains a later-stage concern.
 
 When you report status, separate these clearly:
 

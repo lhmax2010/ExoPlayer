@@ -32,9 +32,9 @@ Current readiness snapshot:
   `python3 scripts/cppbridge/api_parity_inventory.py --check`
 - latest local validation on 2026-05-18 passed on the Android 16 AVD
   `cppbridge_android16_api36`
-- the current connected suite contains 127 instrumentation tests after the runtime/audio/codec/
-  auxiliary-callback, TrackInfo format-payload, HTTP/HLS/DASH playback, and decoded extras
-  value-model / object-value parity addenda
+- the current connected suite contains 128 instrumentation tests after the runtime/audio/codec/
+  auxiliary-callback, TrackInfo format-payload, HTTP/HLS/DASH playback, decoded extras, and
+  Timeline / MediaItem / MediaMetadata object-value parity addenda
 
 ## 1. Validation Goals
 

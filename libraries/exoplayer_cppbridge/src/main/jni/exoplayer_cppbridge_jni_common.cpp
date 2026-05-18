@@ -3,6 +3,7 @@
 #include <android/log.h>
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <exception>
 #include <memory>
@@ -1963,31 +1964,50 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object) {
     DeleteLocalRefIfNotNull(env, clazz);
     return snapshot;
   }
+  auto read_object_value = [&](const char* field_name) {
+    jobject value = GetObjectFieldValue(
+        env,
+        object,
+        clazz,
+        "CppMediaMetadata",
+        field_name,
+        "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;");
+    ObjectValueInfo info = FromJavaObjectValueInfo(env, value);
+    DeleteLocalRefIfNotNull(env, value);
+    return info;
+  };
   snapshot.title = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "title");
   snapshot.title_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "titleToken");
+  snapshot.title_value = read_object_value("titleValue");
   snapshot.artist = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "artist");
   snapshot.artist_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "artistToken");
+  snapshot.artist_value = read_object_value("artistValue");
   snapshot.album_title =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumTitle");
   snapshot.album_title_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumTitleToken");
+  snapshot.album_title_value = read_object_value("albumTitleValue");
   snapshot.album_artist =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumArtist");
   snapshot.album_artist_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumArtistToken");
+  snapshot.album_artist_value = read_object_value("albumArtistValue");
   snapshot.display_title =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "displayTitle");
   snapshot.display_title_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "displayTitleToken");
+  snapshot.display_title_value = read_object_value("displayTitleValue");
   snapshot.subtitle = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "subtitle");
   snapshot.subtitle_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "subtitleToken");
+  snapshot.subtitle_value = read_object_value("subtitleValue");
   snapshot.description =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "description");
   snapshot.description_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "descriptionToken");
+  snapshot.description_value = read_object_value("descriptionValue");
   snapshot.artwork_uri =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "artworkUri");
   jbyteArray artwork_data = static_cast<jbyteArray>(
@@ -2021,16 +2041,20 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object) {
   snapshot.writer = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "writer");
   snapshot.writer_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "writerToken");
+  snapshot.writer_value = read_object_value("writerValue");
   snapshot.author = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "author");
   snapshot.author_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "authorToken");
+  snapshot.author_value = read_object_value("authorValue");
   snapshot.composer = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "composer");
   snapshot.composer_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "composerToken");
+  snapshot.composer_value = read_object_value("composerValue");
   snapshot.conductor =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "conductor");
   snapshot.conductor_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "conductorToken");
+  snapshot.conductor_value = read_object_value("conductorValue");
   snapshot.disc_number =
       GetIntFieldValue(env, object, clazz, "CppMediaMetadata", "discNumber");
   snapshot.total_disc_count =
@@ -2038,14 +2062,17 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object) {
   snapshot.genre = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "genre");
   snapshot.genre_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "genreToken");
+  snapshot.genre_value = read_object_value("genreValue");
   snapshot.compilation =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "compilation");
   snapshot.compilation_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "compilationToken");
+  snapshot.compilation_value = read_object_value("compilationValue");
   snapshot.media_type = GetIntFieldValue(env, object, clazz, "CppMediaMetadata", "mediaType");
   snapshot.station = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "station");
   snapshot.station_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "stationToken");
+  snapshot.station_value = read_object_value("stationValue");
   snapshot.extras_present =
       GetBooleanFieldValue(env, object, clazz, "CppMediaMetadata", "extrasPresent");
   snapshot.extras_key_count =
@@ -3033,7 +3060,27 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       metadata_class,
       "CppMediaMetadata",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[BIJIIIIIIIIIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;ZILjava/lang/String;[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;)V");
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[BI"
+      "JIIIIIIIIIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;"
+      "ZILjava/lang/String;[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;)V");
   if (metadata_class == nullptr || ctor == nullptr) {
     DeleteLocalRefIfNotNull(env, metadata_class);
     return nullptr;
@@ -3154,7 +3201,40 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
           ? nullptr
           : NewStringUtfChecked(env, metadata.extras_token, "CppMediaMetadata.extrasToken");
   jobjectArray extras_values = CreateJavaBundleValueArray(env, metadata.extras_values);
-  if (extras_values == nullptr) {
+  const std::array<const ObjectValueInfo*, 14> object_value_infos = {
+      &metadata.title_value,
+      &metadata.artist_value,
+      &metadata.album_title_value,
+      &metadata.album_artist_value,
+      &metadata.display_title_value,
+      &metadata.subtitle_value,
+      &metadata.description_value,
+      &metadata.writer_value,
+      &metadata.author_value,
+      &metadata.composer_value,
+      &metadata.conductor_value,
+      &metadata.genre_value,
+      &metadata.compilation_value,
+      &metadata.station_value,
+  };
+  std::array<jobject, 14> object_values = {};
+  bool object_values_failed = false;
+  for (size_t i = 0; i < object_value_infos.size(); ++i) {
+    if (!object_value_infos[i]->present) {
+      continue;
+    }
+    object_values[i] = CreateJavaObjectValueInfo(env, *object_value_infos[i]);
+    if (object_values[i] == nullptr) {
+      object_values_failed = true;
+      break;
+    }
+  }
+  auto delete_object_values = [&]() {
+    for (jobject value : object_values) {
+      DeleteLocalRefIfNotNull(env, value);
+    }
+  };
+  if (extras_values == nullptr || object_values_failed) {
     DeleteLocalRefIfNotNull(env, title);
     DeleteLocalRefIfNotNull(env, title_token);
     DeleteLocalRefIfNotNull(env, artist);
@@ -3186,6 +3266,8 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
     DeleteLocalRefIfNotNull(env, station);
     DeleteLocalRefIfNotNull(env, station_token);
     DeleteLocalRefIfNotNull(env, extras_token);
+    DeleteLocalRefIfNotNull(env, extras_values);
+    delete_object_values();
     DeleteLocalRefIfNotNull(env, metadata_class);
     return nullptr;
   }
@@ -3247,7 +3329,21 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       static_cast<jboolean>(metadata.extras_present || !metadata.extras_values.empty()),
       static_cast<jint>(extras_key_count),
       extras_token,
-      extras_values);
+      extras_values,
+      object_values[0],
+      object_values[1],
+      object_values[2],
+      object_values[3],
+      object_values[4],
+      object_values[5],
+      object_values[6],
+      object_values[7],
+      object_values[8],
+      object_values[9],
+      object_values[10],
+      object_values[11],
+      object_values[12],
+      object_values[13]);
   DeleteLocalRefIfNotNull(env, title);
   DeleteLocalRefIfNotNull(env, title_token);
   DeleteLocalRefIfNotNull(env, artist);
@@ -3280,6 +3376,7 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
   DeleteLocalRefIfNotNull(env, station_token);
   DeleteLocalRefIfNotNull(env, extras_token);
   DeleteLocalRefIfNotNull(env, extras_values);
+  delete_object_values();
   env->DeleteLocalRef(metadata_class);
   return object;
 }

@@ -46,8 +46,9 @@ Special current exception:
   `CreateJavaBundleValueArray` / `FromJavaBundleValueArray` in
   `exoplayer_cppbridge_jni_common.cpp`.
 - `CppObjectValue.java` is the reusable Java DTO for reduced Java `Object` metadata when an object
-  travels through a DTO path. Its C++ partner is `ObjectValueInfo`, and the JNI helpers are
-  `CreateJavaObjectValueInfo` / `FromJavaObjectValueInfo` in
+  travels through a DTO path. It is currently used by `MediaItem` tag/adsId and representative
+  `MediaMetadata` text/`CharSequence` fields. Its C++ partner is `ObjectValueInfo`, and the JNI
+  helpers are `CreateJavaObjectValueInfo` / `FromJavaObjectValueInfo` in
   `exoplayer_cppbridge_jni_common.cpp`.
 - Timeline window/period Java object identity fields use row-string transport rather than a Java
   DTO. Their C++ partner is `ObjectValueInfo`, parsed by `ParseObjectValueInfo` in

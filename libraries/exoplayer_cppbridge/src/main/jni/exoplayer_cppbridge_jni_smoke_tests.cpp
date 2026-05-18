@@ -397,6 +397,39 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeMe
 }
 
 JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeMediaMetadataObjectValueConversionSmokeTest(
+    JNIEnv* env,
+    jclass) {
+  MediaMetadataSnapshot metadata;
+  metadata.title_value.present = true;
+  metadata.title_value.class_name = "java.lang.String";
+  metadata.title_value.value_type = ObjectValueInfo::kString;
+  metadata.title_value.string_value = "object-title";
+  metadata.genre_value.present = true;
+  metadata.genre_value.class_name = "java.lang.Long";
+  metadata.genre_value.value_type = ObjectValueInfo::kLong;
+  metadata.genre_value.long_value = 42;
+  metadata.station_value.present = true;
+  metadata.station_value.class_name = "java.lang.Boolean";
+  metadata.station_value.value_type = ObjectValueInfo::kBoolean;
+  metadata.station_value.boolean_value = true;
+
+  jobject java_metadata = CreateJavaMediaMetadata(env, metadata);
+  if (java_metadata == nullptr) {
+    return nullptr;
+  }
+  MediaMetadataSnapshot round_trip = FromJavaMediaMetadata(env, java_metadata);
+  DeleteLocalRefIfNotNull(env, java_metadata);
+
+  std::string summary = "mediaMetadataObjectValueConversion=1";
+  AppendObjectValueSummary(&summary, "titleValue", round_trip.title_value);
+  AppendObjectValueSummary(&summary, "genreValue", round_trip.genre_value);
+  AppendObjectValueSummary(&summary, "stationValue", round_trip.station_value);
+  return NewStringUtfChecked(
+      env, summary, "nativeMediaMetadataObjectValueConversionSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTracksSnapshotConversionSmokeTest(
     JNIEnv* env,
     jclass) {
