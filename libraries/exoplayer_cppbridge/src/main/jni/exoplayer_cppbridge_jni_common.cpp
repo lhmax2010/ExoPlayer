@@ -420,6 +420,26 @@ std::vector<uint8_t> JByteArrayToVector(JNIEnv* env, jbyteArray values) {
   return result;
 }
 
+std::vector<std::vector<uint8_t>> JByteArrayArrayToVector(JNIEnv* env, jobjectArray values) {
+  std::vector<std::vector<uint8_t>> result;
+  if (values == nullptr) {
+    return result;
+  }
+  jsize length = env->GetArrayLength(values);
+  result.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    jbyteArray value = static_cast<jbyteArray>(env->GetObjectArrayElement(values, i));
+    if (ClearJniExceptionIfPresent(env, "GetObjectArrayElement(byte[])") || value == nullptr) {
+      DeleteLocalRefIfNotNull(env, value);
+      result.emplace_back();
+      continue;
+    }
+    result.push_back(JByteArrayToVector(env, value));
+    env->DeleteLocalRef(value);
+  }
+  return result;
+}
+
 std::vector<float> JFloatArrayToVector(JNIEnv* env, jfloatArray values) {
   std::vector<float> result;
   if (values == nullptr) {
@@ -603,6 +623,40 @@ jbyteArray CreateJavaByteArray(JNIEnv* env, const std::vector<uint8_t>& values) 
       return nullptr;
     }
   }
+  return array;
+}
+
+jobjectArray CreateJavaByteArrayArray(
+    JNIEnv* env,
+    const std::vector<std::vector<uint8_t>>& values) {
+  jclass byte_array_class = FindClassChecked(env, "[B");
+  if (byte_array_class == nullptr) {
+    return nullptr;
+  }
+  jobjectArray array =
+      env->NewObjectArray(static_cast<jsize>(values.size()), byte_array_class, nullptr);
+  if (ClearJniExceptionIfPresent(env, "NewObjectArray(byte[][])") || array == nullptr) {
+    env->DeleteLocalRef(byte_array_class);
+    DeleteLocalRefIfNotNull(env, array);
+    return nullptr;
+  }
+  for (size_t i = 0; i < values.size(); ++i) {
+    jbyteArray value = CreateJavaByteArray(env, values[i]);
+    if (value == nullptr) {
+      env->DeleteLocalRef(byte_array_class);
+      DeleteLocalRefIfNotNull(env, array);
+      return nullptr;
+    }
+    env->SetObjectArrayElement(array, static_cast<jsize>(i), value);
+    if (ClearJniExceptionIfPresent(env, "SetObjectArrayElement(byte[][] item)")) {
+      env->DeleteLocalRef(value);
+      env->DeleteLocalRef(byte_array_class);
+      DeleteLocalRefIfNotNull(env, array);
+      return nullptr;
+    }
+    env->DeleteLocalRef(value);
+  }
+  env->DeleteLocalRef(byte_array_class);
   return array;
 }
 
@@ -1770,6 +1824,130 @@ ApplicationLooperDescriptor FromJavaApplicationLooper(JNIEnv* env, jobject objec
   return descriptor;
 }
 
+int TotalByteArrayBytes(const std::vector<std::vector<uint8_t>>& values) {
+  int total_bytes = 0;
+  for (const auto& value : values) {
+    total_bytes += static_cast<int>(value.size());
+  }
+  return total_bytes;
+}
+
+std::vector<std::string> TrackLabelLanguages(const std::vector<FormatLabelInfo>& labels) {
+  std::vector<std::string> languages;
+  languages.reserve(labels.size());
+  for (const FormatLabelInfo& label : labels) {
+    languages.push_back(label.language);
+  }
+  return languages;
+}
+
+std::vector<std::string> TrackLabelValues(const std::vector<FormatLabelInfo>& labels) {
+  std::vector<std::string> values;
+  values.reserve(labels.size());
+  for (const FormatLabelInfo& label : labels) {
+    values.push_back(label.value);
+  }
+  return values;
+}
+
+std::vector<std::string> DrmSchemeUuids(const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::string> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.uuid);
+  }
+  return values;
+}
+
+std::vector<std::string> DrmSchemeLicenseServerUrls(
+    const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::string> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.license_server_url);
+  }
+  return values;
+}
+
+std::vector<std::string> DrmSchemeMimeTypes(const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::string> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.mime_type);
+  }
+  return values;
+}
+
+std::vector<std::vector<uint8_t>> DrmSchemeDataBytes(
+    const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::vector<uint8_t>> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.data);
+  }
+  return values;
+}
+
+std::vector<int> DrmSchemeDataHasData(const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<int> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.has_data || !data.data.empty() ? 1 : 0);
+  }
+  return values;
+}
+
+void PopulateLabelsFromArrays(
+    TrackInfo* track,
+    const std::vector<std::string>& languages,
+    const std::vector<std::string>& values) {
+  if (track == nullptr) {
+    return;
+  }
+  const size_t count = std::min(languages.size(), values.size());
+  track->labels.reserve(count);
+  for (size_t i = 0; i < count; ++i) {
+    track->labels.push_back({languages[i], values[i]});
+  }
+}
+
+void PopulateDrmSchemeDataFromArrays(
+    TrackInfo* track,
+    const std::vector<std::string>& uuids,
+    const std::vector<std::string>& license_server_urls,
+    const std::vector<std::string>& mime_types,
+    const std::vector<std::vector<uint8_t>>& data_values,
+    const std::vector<int>& has_data_values) {
+  if (track == nullptr) {
+    return;
+  }
+  size_t count = std::max({
+      uuids.size(),
+      license_server_urls.size(),
+      mime_types.size(),
+      data_values.size(),
+      has_data_values.size(),
+  });
+  track->drm_scheme_data.reserve(count);
+  for (size_t i = 0; i < count; ++i) {
+    DrmSchemeDataInfo data;
+    if (i < uuids.size()) {
+      data.uuid = uuids[i];
+    }
+    if (i < license_server_urls.size()) {
+      data.license_server_url = license_server_urls[i];
+    }
+    if (i < mime_types.size()) {
+      data.mime_type = mime_types[i];
+    }
+    if (i < data_values.size()) {
+      data.data = data_values[i];
+    }
+    data.has_data = i < has_data_values.size() ? has_data_values[i] != 0 : !data.data.empty();
+    track->drm_scheme_data.push_back(std::move(data));
+  }
+}
+
 jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
   jclass track_info_class =
       FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppTrackInfo");
@@ -1789,7 +1967,9 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
       "Ljava/lang/String;IIIIIIIIIJZIIIIFIF"
-      "IIIIIIIIIIIIIIIIIIIZZZ)V");
+      "IIIIIIIIIIIIIIIIIIIZZZLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "Ljava/lang/String;[[BLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "[Ljava/lang/String;[[B[BII[BI[I)V");
   jmethodID track_group_ctor = GetMethodChecked(
       env,
       track_group_class,
@@ -1850,6 +2030,87 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           : NewStringUtfChecked(env, track.container_mime_type, "CppTrackInfo.containerMimeType");
       jstring codecs =
           track.codecs.empty() ? nullptr : NewStringUtfChecked(env, track.codecs, "CppTrackInfo.codecs");
+      jstring metadata_token = track.metadata_token.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, track.metadata_token, "CppTrackInfo.metadataToken");
+      jobjectArray label_languages = CreateJavaStringArray(env, TrackLabelLanguages(track.labels));
+      jobjectArray label_values = CreateJavaStringArray(env, TrackLabelValues(track.labels));
+      jstring custom_data_token = track.custom_data_token.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, track.custom_data_token, "CppTrackInfo.customDataToken");
+      jobjectArray initialization_data =
+          CreateJavaByteArrayArray(env, track.initialization_data);
+      jstring drm_scheme_type = track.drm_scheme_type.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, track.drm_scheme_type, "CppTrackInfo.drmSchemeType");
+      jobjectArray drm_scheme_uuids =
+          CreateJavaStringArray(env, DrmSchemeUuids(track.drm_scheme_data));
+      jobjectArray drm_scheme_license_server_urls =
+          CreateJavaStringArray(env, DrmSchemeLicenseServerUrls(track.drm_scheme_data));
+      jobjectArray drm_scheme_mime_types =
+          CreateJavaStringArray(env, DrmSchemeMimeTypes(track.drm_scheme_data));
+      jobjectArray drm_scheme_data =
+          CreateJavaByteArrayArray(env, DrmSchemeDataBytes(track.drm_scheme_data));
+      jintArray drm_scheme_data_has_data =
+          CreateJavaIntArray(env, DrmSchemeDataHasData(track.drm_scheme_data));
+      jbyteArray color_hdr_static_info = track.color_hdr_static_info.empty()
+          ? nullptr
+          : CreateJavaByteArray(env, track.color_hdr_static_info);
+      jbyteArray projection_data = track.projection_data.empty()
+          ? nullptr
+          : CreateJavaByteArray(env, track.projection_data);
+      if (label_languages == nullptr || label_values == nullptr || initialization_data == nullptr ||
+          drm_scheme_uuids == nullptr || drm_scheme_license_server_urls == nullptr ||
+          drm_scheme_mime_types == nullptr || drm_scheme_data == nullptr ||
+          drm_scheme_data_has_data == nullptr ||
+          (!track.metadata_token.empty() && metadata_token == nullptr) ||
+          (!track.custom_data_token.empty() && custom_data_token == nullptr) ||
+          (!track.drm_scheme_type.empty() && drm_scheme_type == nullptr) ||
+          (!track.color_hdr_static_info.empty() && color_hdr_static_info == nullptr) ||
+          (!track.projection_data.empty() && projection_data == nullptr)) {
+        DeleteLocalRefIfNotNull(env, id);
+        DeleteLocalRefIfNotNull(env, language);
+        DeleteLocalRefIfNotNull(env, label);
+        DeleteLocalRefIfNotNull(env, label_token);
+        DeleteLocalRefIfNotNull(env, mime_type);
+        DeleteLocalRefIfNotNull(env, container_mime_type);
+        DeleteLocalRefIfNotNull(env, codecs);
+        DeleteLocalRefIfNotNull(env, metadata_token);
+        DeleteLocalRefIfNotNull(env, label_languages);
+        DeleteLocalRefIfNotNull(env, label_values);
+        DeleteLocalRefIfNotNull(env, custom_data_token);
+        DeleteLocalRefIfNotNull(env, initialization_data);
+        DeleteLocalRefIfNotNull(env, drm_scheme_type);
+        DeleteLocalRefIfNotNull(env, drm_scheme_uuids);
+        DeleteLocalRefIfNotNull(env, drm_scheme_license_server_urls);
+        DeleteLocalRefIfNotNull(env, drm_scheme_mime_types);
+        DeleteLocalRefIfNotNull(env, drm_scheme_data);
+        DeleteLocalRefIfNotNull(env, drm_scheme_data_has_data);
+        DeleteLocalRefIfNotNull(env, color_hdr_static_info);
+        DeleteLocalRefIfNotNull(env, projection_data);
+        DeleteLocalRefIfNotNull(env, track_array);
+        DeleteLocalRefIfNotNull(env, groups);
+        DeleteLocalRefIfNotNull(env, track_info_class);
+        DeleteLocalRefIfNotNull(env, track_group_class);
+        DeleteLocalRefIfNotNull(env, tracks_class);
+        return nullptr;
+      }
+      const int initialization_data_count =
+          track.initialization_data.empty()
+              ? track.initialization_data_count
+              : static_cast<int>(track.initialization_data.size());
+      const int initialization_data_total_bytes =
+          track.initialization_data.empty()
+              ? track.initialization_data_total_bytes
+              : TotalByteArrayBytes(track.initialization_data);
+      const int drm_scheme_data_count =
+          track.drm_scheme_data.empty()
+              ? track.drm_scheme_data_count
+              : static_cast<int>(track.drm_scheme_data.size());
+      const int projection_data_length =
+          track.projection_data.empty()
+              ? track.projection_data_length
+              : static_cast<int>(track.projection_data.size());
       jobject track_object = NewObjectChecked(
           env,
           track_info_class,
@@ -1868,9 +2129,9 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           static_cast<jint>(track.metadata_entry_count),
           static_cast<jint>(track.max_input_size),
           static_cast<jint>(track.max_num_reorder_samples),
-          static_cast<jint>(track.initialization_data_count),
-          static_cast<jint>(track.initialization_data_total_bytes),
-          static_cast<jint>(track.drm_scheme_data_count),
+          static_cast<jint>(initialization_data_count),
+          static_cast<jint>(initialization_data_total_bytes),
+          static_cast<jint>(drm_scheme_data_count),
           static_cast<jlong>(track.subsample_offset_us),
           static_cast<jboolean>(track.has_preroll_samples),
           static_cast<jint>(track.width),
@@ -1880,7 +2141,7 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           static_cast<jfloat>(track.frame_rate),
           static_cast<jint>(track.rotation_degrees),
           static_cast<jfloat>(track.pixel_width_height_ratio),
-          static_cast<jint>(track.projection_data_length),
+          static_cast<jint>(projection_data_length),
           static_cast<jint>(track.stereo_mode),
           static_cast<jint>(track.color_standard),
           static_cast<jint>(track.color_range),
@@ -1901,7 +2162,23 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           static_cast<jint>(track.format_support),
           static_cast<jboolean>(track.selected),
           static_cast<jboolean>(track.supported),
-          static_cast<jboolean>(track.supported_within_capabilities));
+          static_cast<jboolean>(track.supported_within_capabilities),
+          metadata_token,
+          label_languages,
+          label_values,
+          custom_data_token,
+          initialization_data,
+          drm_scheme_type,
+          drm_scheme_uuids,
+          drm_scheme_license_server_urls,
+          drm_scheme_mime_types,
+          drm_scheme_data,
+          color_hdr_static_info,
+          static_cast<jint>(track.color_luma_bitdepth),
+          static_cast<jint>(track.color_chroma_bitdepth),
+          projection_data,
+          static_cast<jint>(track.auxiliary_track_type),
+          drm_scheme_data_has_data);
       DeleteLocalRefIfNotNull(env, id);
       DeleteLocalRefIfNotNull(env, language);
       DeleteLocalRefIfNotNull(env, label);
@@ -1909,6 +2186,19 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
       DeleteLocalRefIfNotNull(env, mime_type);
       DeleteLocalRefIfNotNull(env, container_mime_type);
       DeleteLocalRefIfNotNull(env, codecs);
+      DeleteLocalRefIfNotNull(env, metadata_token);
+      DeleteLocalRefIfNotNull(env, label_languages);
+      DeleteLocalRefIfNotNull(env, label_values);
+      DeleteLocalRefIfNotNull(env, custom_data_token);
+      DeleteLocalRefIfNotNull(env, initialization_data);
+      DeleteLocalRefIfNotNull(env, drm_scheme_type);
+      DeleteLocalRefIfNotNull(env, drm_scheme_uuids);
+      DeleteLocalRefIfNotNull(env, drm_scheme_license_server_urls);
+      DeleteLocalRefIfNotNull(env, drm_scheme_mime_types);
+      DeleteLocalRefIfNotNull(env, drm_scheme_data);
+      DeleteLocalRefIfNotNull(env, drm_scheme_data_has_data);
+      DeleteLocalRefIfNotNull(env, color_hdr_static_info);
+      DeleteLocalRefIfNotNull(env, projection_data);
       if (track_object == nullptr) {
         DeleteLocalRefIfNotNull(env, track_array);
         DeleteLocalRefIfNotNull(env, groups);
@@ -2090,6 +2380,20 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "peakBitrate");
           track_info.metadata_entry_count =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "metadataEntryCount");
+          track_info.metadata_token =
+              GetStringFieldValue(env, track, track_class, "CppTrackInfo", "metadataToken");
+          jobjectArray label_languages = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "labelLanguages", "[Ljava/lang/String;"));
+          jobjectArray label_values = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "labelValues", "[Ljava/lang/String;"));
+          PopulateLabelsFromArrays(
+              &track_info,
+              JStringArrayToVector(env, label_languages),
+              JStringArrayToVector(env, label_values));
+          DeleteLocalRefIfNotNull(env, label_languages);
+          DeleteLocalRefIfNotNull(env, label_values);
+          track_info.custom_data_token =
+              GetStringFieldValue(env, track, track_class, "CppTrackInfo", "customDataToken");
           track_info.max_input_size =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxInputSize");
           track_info.max_num_reorder_samples =
@@ -2098,8 +2402,57 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "initializationDataCount");
           track_info.initialization_data_total_bytes = GetIntFieldValue(
               env, track, track_class, "CppTrackInfo", "initializationDataTotalBytes");
+          jobjectArray initialization_data = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "initializationData", "[[B"));
+          track_info.initialization_data = JByteArrayArrayToVector(env, initialization_data);
+          DeleteLocalRefIfNotNull(env, initialization_data);
+          if (!track_info.initialization_data.empty()) {
+            track_info.initialization_data_count =
+                static_cast<int>(track_info.initialization_data.size());
+            track_info.initialization_data_total_bytes =
+                TotalByteArrayBytes(track_info.initialization_data);
+          }
+          track_info.drm_scheme_type =
+              GetStringFieldValue(env, track, track_class, "CppTrackInfo", "drmSchemeType");
           track_info.drm_scheme_data_count =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "drmSchemeDataCount");
+          jobjectArray drm_scheme_uuids = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "drmSchemeUuids", "[Ljava/lang/String;"));
+          jobjectArray drm_scheme_license_server_urls =
+              static_cast<jobjectArray>(GetObjectFieldValue(
+                  env,
+                  track,
+                  track_class,
+                  "CppTrackInfo",
+                  "drmSchemeLicenseServerUrls",
+                  "[Ljava/lang/String;"));
+          jobjectArray drm_scheme_mime_types =
+              static_cast<jobjectArray>(GetObjectFieldValue(
+                  env,
+                  track,
+                  track_class,
+                  "CppTrackInfo",
+                  "drmSchemeMimeTypes",
+                  "[Ljava/lang/String;"));
+          jobjectArray drm_scheme_data = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "drmSchemeData", "[[B"));
+          jintArray drm_scheme_data_has_data = static_cast<jintArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "drmSchemeDataHasData", "[I"));
+          PopulateDrmSchemeDataFromArrays(
+              &track_info,
+              JStringArrayToVector(env, drm_scheme_uuids),
+              JStringArrayToVector(env, drm_scheme_license_server_urls),
+              JStringArrayToVector(env, drm_scheme_mime_types),
+              JByteArrayArrayToVector(env, drm_scheme_data),
+              JIntArrayToVector(env, drm_scheme_data_has_data));
+          DeleteLocalRefIfNotNull(env, drm_scheme_uuids);
+          DeleteLocalRefIfNotNull(env, drm_scheme_license_server_urls);
+          DeleteLocalRefIfNotNull(env, drm_scheme_mime_types);
+          DeleteLocalRefIfNotNull(env, drm_scheme_data);
+          DeleteLocalRefIfNotNull(env, drm_scheme_data_has_data);
+          if (!track_info.drm_scheme_data.empty()) {
+            track_info.drm_scheme_data_count = static_cast<int>(track_info.drm_scheme_data.size());
+          }
           track_info.subsample_offset_us =
               GetLongFieldValue(env, track, track_class, "CppTrackInfo", "subsampleOffsetUs");
           track_info.has_preroll_samples =
@@ -2119,6 +2472,13 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               env, track, track_class, "CppTrackInfo", "pixelWidthHeightRatio");
           track_info.projection_data_length =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "projectionDataLength");
+          jbyteArray projection_data = static_cast<jbyteArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "projectionData", "[B"));
+          track_info.projection_data = JByteArrayToVector(env, projection_data);
+          DeleteLocalRefIfNotNull(env, projection_data);
+          if (!track_info.projection_data.empty()) {
+            track_info.projection_data_length = static_cast<int>(track_info.projection_data.size());
+          }
           track_info.stereo_mode =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "stereoMode");
           track_info.color_standard =
@@ -2127,6 +2487,14 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorRange");
           track_info.color_transfer =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorTransfer");
+          jbyteArray color_hdr_static_info = static_cast<jbyteArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "colorHdrStaticInfo", "[B"));
+          track_info.color_hdr_static_info = JByteArrayToVector(env, color_hdr_static_info);
+          DeleteLocalRefIfNotNull(env, color_hdr_static_info);
+          track_info.color_luma_bitdepth =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorLumaBitdepth");
+          track_info.color_chroma_bitdepth =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorChromaBitdepth");
           track_info.max_sub_layers =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxSubLayers");
           track_info.sample_rate =
@@ -2153,6 +2521,8 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "roleFlags");
           track_info.selection_flags =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "selectionFlags");
+          track_info.auxiliary_track_type =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "auxiliaryTrackType");
           track_info.format_support =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "formatSupport");
           track_info.selected =

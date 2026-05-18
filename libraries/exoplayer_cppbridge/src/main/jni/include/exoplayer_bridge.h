@@ -341,6 +341,19 @@ struct TrackSelectionParametersDescriptor {
   int OverrideCount() const { return static_cast<int>(overrides.size()); }
 };
 
+struct FormatLabelInfo {
+  std::string language;
+  std::string value;
+};
+
+struct DrmSchemeDataInfo {
+  std::string uuid;
+  std::string license_server_url;
+  std::string mime_type;
+  std::vector<uint8_t> data;
+  bool has_data = false;
+};
+
 struct TrackInfo {
   std::string id;
   std::string language;
@@ -353,11 +366,18 @@ struct TrackInfo {
   int average_bitrate = -1;
   int peak_bitrate = -1;
   int metadata_entry_count = 0;
+  std::string metadata_token;
+  std::vector<FormatLabelInfo> labels;
+  std::string custom_data_token;
+  int auxiliary_track_type = 0;
   int max_input_size = -1;
   int max_num_reorder_samples = -1;
   int initialization_data_count = 0;
   int initialization_data_total_bytes = 0;
+  std::vector<std::vector<uint8_t>> initialization_data;
+  std::string drm_scheme_type;
   int drm_scheme_data_count = 0;
+  std::vector<DrmSchemeDataInfo> drm_scheme_data;
   int64_t subsample_offset_us = 9223372036854775807LL;
   bool has_preroll_samples = false;
   int width = -1;
@@ -368,10 +388,14 @@ struct TrackInfo {
   int rotation_degrees = 0;
   float pixel_width_height_ratio = 1.0f;
   int projection_data_length = 0;
+  std::vector<uint8_t> projection_data;
   int stereo_mode = -1;
   int color_standard = -1;
   int color_range = -1;
   int color_transfer = -1;
+  std::vector<uint8_t> color_hdr_static_info;
+  int color_luma_bitdepth = -1;
+  int color_chroma_bitdepth = -1;
   int max_sub_layers = -1;
   int sample_rate = -1;
   int channel_count = -1;
@@ -647,6 +671,8 @@ inline void AppendOpaqueObjectTokens(
     const TrackInfo& track,
     std::vector<std::string>* tokens) {
   AddOpaqueObjectToken(tokens, track.label_token);
+  AddOpaqueObjectToken(tokens, track.metadata_token);
+  AddOpaqueObjectToken(tokens, track.custom_data_token);
 }
 
 inline void AppendOpaqueObjectTokens(

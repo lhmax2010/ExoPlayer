@@ -2692,6 +2692,8 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       return;
     }
     addOpaqueToken(tokens, trackInfo.labelToken);
+    addOpaqueToken(tokens, trackInfo.metadataToken);
+    addOpaqueToken(tokens, trackInfo.customDataToken);
   }
 
   private static void collectOpaqueTokens(

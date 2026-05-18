@@ -9,6 +9,7 @@ import androidx.media3.common.C;
 import androidx.media3.common.ColorInfo;
 import androidx.media3.common.DrmInitData;
 import androidx.media3.common.Effect;
+import androidx.media3.common.Label;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.Metadata;
@@ -294,17 +295,25 @@ public final class CppBridgeConvertersTest {
             "group-1",
             new Format.Builder()
                 .setId("video-1")
+                .setLabel("Main Video")
+                .setLabels(
+                    Arrays.asList(new Label("en", "Main Video"), new Label("es", "Video principal")))
                 .setSampleMimeType("video/avc")
                 .setContainerMimeType("video/mp4")
                 .setCodecs("avc1.640028")
                 .setMetadata(new Metadata(new Metadata.Entry() {}, new Metadata.Entry() {}))
+                .setCustomData("custom-format-payload")
                 .setMaxInputSize(4096)
                 .setMaxNumReorderSamples(3)
                 .setInitializationData(Arrays.asList(new byte[] {1, 2, 3}, new byte[] {4, 5, 6, 7}))
                 .setDrmInitData(
                     new DrmInitData(
+                        "cenc",
                         new DrmInitData.SchemeData(
-                            C.WIDEVINE_UUID, "video/mp4", new byte[] {8, 9})))
+                            C.WIDEVINE_UUID,
+                            "https://license.example/video",
+                            "video/mp4",
+                            new byte[] {8, 9})))
                 .setSubsampleOffsetUs(987_654)
                 .setHasPrerollSamples(true)
                 .setWidth(1920)
@@ -323,6 +332,9 @@ public final class CppBridgeConvertersTest {
                         .setColorSpace(C.COLOR_SPACE_BT709)
                         .setColorRange(C.COLOR_RANGE_LIMITED)
                         .setColorTransfer(C.COLOR_TRANSFER_SDR)
+                        .setHdrStaticInfo(new byte[] {10, 11, 12})
+                        .setLumaBitdepth(10)
+                        .setChromaBitdepth(10)
                         .build())
                 .setMaxSubLayers(4)
                 .setPcmEncoding(C.ENCODING_PCM_16BIT)
@@ -332,7 +344,8 @@ public final class CppBridgeConvertersTest {
                 .setTileCountHorizontal(5)
                 .setTileCountVertical(6)
                 .setCryptoType(C.CRYPTO_TYPE_FRAMEWORK)
-                .setRoleFlags(C.ROLE_FLAG_MAIN)
+                .setRoleFlags(C.ROLE_FLAG_MAIN | C.ROLE_FLAG_AUXILIARY)
+                .setAuxiliaryTrackType(C.AUXILIARY_TRACK_TYPE_DEPTH_LINEAR)
                 .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                 .build(),
             new Format.Builder()
@@ -399,11 +412,31 @@ public final class CppBridgeConvertersTest {
     assertThat(groups[0].tracks[0].averageBitrate).isEqualTo(4_000_000);
     assertThat(groups[0].tracks[0].peakBitrate).isEqualTo(5_000_000);
     assertThat(groups[0].tracks[0].metadataEntryCount).isEqualTo(2);
+    assertThat(groups[0].tracks[0].metadataToken).isNotNull();
+    assertThat(groups[0].tracks[0].labelLanguages).asList().containsExactly("en", "es");
+    assertThat(groups[0].tracks[0].labelValues)
+        .asList()
+        .containsExactly("Main Video", "Video principal");
+    assertThat(groups[0].tracks[0].customDataToken).isNotNull();
     assertThat(groups[0].tracks[0].maxInputSize).isEqualTo(4096);
     assertThat(groups[0].tracks[0].maxNumReorderSamples).isEqualTo(3);
     assertThat(groups[0].tracks[0].initializationDataCount).isEqualTo(2);
     assertThat(groups[0].tracks[0].initializationDataTotalBytes).isEqualTo(7);
+    assertThat(groups[0].tracks[0].initializationData).hasLength(2);
+    assertThat(groups[0].tracks[0].initializationData[0]).isEqualTo(new byte[] {1, 2, 3});
+    assertThat(groups[0].tracks[0].initializationData[1]).isEqualTo(new byte[] {4, 5, 6, 7});
+    assertThat(groups[0].tracks[0].drmSchemeType).isEqualTo("cenc");
     assertThat(groups[0].tracks[0].drmSchemeDataCount).isEqualTo(1);
+    assertThat(groups[0].tracks[0].drmSchemeUuids)
+        .asList()
+        .containsExactly(C.WIDEVINE_UUID.toString());
+    assertThat(groups[0].tracks[0].drmSchemeLicenseServerUrls)
+        .asList()
+        .containsExactly("https://license.example/video");
+    assertThat(groups[0].tracks[0].drmSchemeMimeTypes).asList().containsExactly("video/mp4");
+    assertThat(groups[0].tracks[0].drmSchemeData).hasLength(1);
+    assertThat(groups[0].tracks[0].drmSchemeData[0]).isEqualTo(new byte[] {8, 9});
+    assertThat(groups[0].tracks[0].drmSchemeDataHasData).asList().containsExactly(1);
     assertThat(groups[0].tracks[0].subsampleOffsetUs).isEqualTo(987_654);
     assertThat(groups[0].tracks[0].hasPrerollSamples).isTrue();
     assertThat(groups[0].tracks[0].decodedWidth).isEqualTo(1936);
@@ -412,10 +445,14 @@ public final class CppBridgeConvertersTest {
     assertThat(groups[0].tracks[0].rotationDegrees).isEqualTo(90);
     assertThat(groups[0].tracks[0].pixelWidthHeightRatio).isEqualTo(1.25f);
     assertThat(groups[0].tracks[0].projectionDataLength).isEqualTo(4);
+    assertThat(groups[0].tracks[0].projectionData).isEqualTo(new byte[] {9, 8, 7, 6});
     assertThat(groups[0].tracks[0].stereoMode).isEqualTo(C.STEREO_MODE_LEFT_RIGHT);
     assertThat(groups[0].tracks[0].colorStandard).isEqualTo(C.COLOR_SPACE_BT709);
     assertThat(groups[0].tracks[0].colorRange).isEqualTo(C.COLOR_RANGE_LIMITED);
     assertThat(groups[0].tracks[0].colorTransfer).isEqualTo(C.COLOR_TRANSFER_SDR);
+    assertThat(groups[0].tracks[0].colorHdrStaticInfo).isEqualTo(new byte[] {10, 11, 12});
+    assertThat(groups[0].tracks[0].colorLumaBitdepth).isEqualTo(10);
+    assertThat(groups[0].tracks[0].colorChromaBitdepth).isEqualTo(10);
     assertThat(groups[0].tracks[0].maxSubLayers).isEqualTo(4);
     assertThat(groups[0].tracks[0].pcmEncoding).isEqualTo(C.ENCODING_PCM_16BIT);
     assertThat(groups[0].tracks[0].encoderDelay).isEqualTo(12);
@@ -425,7 +462,9 @@ public final class CppBridgeConvertersTest {
     assertThat(groups[0].tracks[0].tileCountHorizontal).isEqualTo(5);
     assertThat(groups[0].tracks[0].tileCountVertical).isEqualTo(6);
     assertThat(groups[0].tracks[0].cryptoType).isEqualTo(C.CRYPTO_TYPE_FRAMEWORK);
-    assertThat(groups[0].tracks[0].roleFlags).isEqualTo(C.ROLE_FLAG_MAIN);
+    assertThat(groups[0].tracks[0].roleFlags).isEqualTo(C.ROLE_FLAG_MAIN | C.ROLE_FLAG_AUXILIARY);
+    assertThat(groups[0].tracks[0].auxiliaryTrackType)
+        .isEqualTo(C.AUXILIARY_TRACK_TYPE_DEPTH_LINEAR);
     assertThat(groups[0].tracks[0].selectionFlags).isEqualTo(C.SELECTION_FLAG_DEFAULT);
     assertThat(groups[0].tracks[0].formatSupport).isEqualTo(C.FORMAT_HANDLED);
     assertThat(groups[0].tracks[0].selected).isTrue();

@@ -3020,11 +3020,24 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   video_hd.average_bitrate = 2000000;
   video_hd.peak_bitrate = 2500000;
   video_hd.metadata_entry_count = 2;
+  video_hd.metadata_token = "generated-opaque-object-token-format-metadata";
+  video_hd.labels = {{"en", "Main Video"}, {"es", "Video principal"}};
+  video_hd.custom_data_token = "generated-opaque-object-token-format-custom-data";
+  video_hd.auxiliary_track_type = 2;
   video_hd.max_input_size = 4096;
   video_hd.max_num_reorder_samples = 3;
   video_hd.initialization_data_count = 2;
   video_hd.initialization_data_total_bytes = 7;
+  video_hd.initialization_data = {{0x01, 0x02, 0x03}, {0x04, 0x05, 0x06, 0x07}};
+  video_hd.drm_scheme_type = "cenc";
   video_hd.drm_scheme_data_count = 1;
+  video_hd.drm_scheme_data = {{
+      "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed",
+      "https://license.example/video",
+      "video/mp4",
+      {0x08, 0x09},
+  }};
+  video_hd.drm_scheme_data[0].has_data = true;
   video_hd.subsample_offset_us = 987654;
   video_hd.has_preroll_samples = true;
   video_hd.width = 1920;
@@ -3035,10 +3048,14 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   video_hd.rotation_degrees = 90;
   video_hd.pixel_width_height_ratio = 1.25f;
   video_hd.projection_data_length = 4;
+  video_hd.projection_data = {0x0D, 0x0E, 0x0F, 0x10};
   video_hd.stereo_mode = 2;
   video_hd.color_standard = 1;
   video_hd.color_range = 2;
   video_hd.color_transfer = 3;
+  video_hd.color_hdr_static_info = {0x0A, 0x0B, 0x0C};
+  video_hd.color_luma_bitdepth = 10;
+  video_hd.color_chroma_bitdepth = 10;
   video_hd.max_sub_layers = 4;
   video_hd.pcm_encoding = -1;
   video_hd.encoder_delay = 0;
@@ -3146,14 +3163,37 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       summary += ",track0AverageBitrate=" + std::to_string(track.average_bitrate);
       summary += ",track0PeakBitrate=" + std::to_string(track.peak_bitrate);
       summary += ",track0MetadataEntryCount=" + std::to_string(track.metadata_entry_count);
+      summary += ",track0MetadataTokenPresent=" +
+          std::to_string(track.metadata_token.empty() ? 0 : 1);
+      summary += ",track0LabelCount=" + std::to_string(track.labels.size());
+      if (!track.labels.empty()) {
+        summary += ",track0Label0Language=" + track.labels[0].language;
+        summary += ",track0Label0Value=" + track.labels[0].value;
+      }
+      summary += ",track0CustomDataTokenPresent=" +
+          std::to_string(track.custom_data_token.empty() ? 0 : 1);
+      summary += ",track0AuxiliaryTrackType=" + std::to_string(track.auxiliary_track_type);
       summary += ",track0MaxInputSize=" + std::to_string(track.max_input_size);
       summary += ",track0MaxNumReorderSamples=" +
           std::to_string(track.max_num_reorder_samples);
       summary += ",track0InitializationData=" +
           std::to_string(track.initialization_data_count) + ":" +
           std::to_string(track.initialization_data_total_bytes);
+      summary += ",track0InitializationDataVectorCount=" +
+          std::to_string(track.initialization_data.size());
       summary += ",track0DrmSchemeDataCount=" +
           std::to_string(track.drm_scheme_data_count);
+      summary += ",track0DrmSchemeType=" + track.drm_scheme_type;
+      if (!track.drm_scheme_data.empty()) {
+        summary += ",track0DrmSchemeUuid=" + track.drm_scheme_data[0].uuid;
+        summary += ",track0DrmSchemeLicenseUrl=" +
+            track.drm_scheme_data[0].license_server_url;
+        summary += ",track0DrmSchemeMimeType=" + track.drm_scheme_data[0].mime_type;
+        summary +=
+            ",track0DrmSchemeDataLength=" + std::to_string(track.drm_scheme_data[0].data.size());
+        summary += ",track0DrmSchemeHasData=" +
+            std::to_string(track.drm_scheme_data[0].has_data ? 1 : 0);
+      }
       summary += ",track0SubsampleOffsetUs=" + std::to_string(track.subsample_offset_us);
       summary += ",track0HasPrerollSamples=" +
           std::to_string(track.has_preroll_samples ? 1 : 0);
@@ -3166,9 +3206,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
       summary += ",track0PixelRatio=" + std::to_string(track.pixel_width_height_ratio);
       summary += ",track0ProjectionDataLength=" +
           std::to_string(track.projection_data_length);
+      summary += ",track0ProjectionDataVectorLength=" +
+          std::to_string(track.projection_data.size());
       summary += ",track0StereoMode=" + std::to_string(track.stereo_mode);
       summary += ",track0Color=" + std::to_string(track.color_standard) + ":" +
           std::to_string(track.color_range) + ":" + std::to_string(track.color_transfer);
+      summary += ",track0ColorHdrStaticInfoLength=" +
+          std::to_string(track.color_hdr_static_info.size());
+      summary += ",track0ColorBitdepth=" + std::to_string(track.color_luma_bitdepth) + ":" +
+          std::to_string(track.color_chroma_bitdepth);
       summary += ",track0MaxSubLayers=" + std::to_string(track.max_sub_layers);
       summary += ",track0PcmEncoding=" + std::to_string(track.pcm_encoding);
       summary += ",track0EncoderTrim=" + std::to_string(track.encoder_delay) + ":" +

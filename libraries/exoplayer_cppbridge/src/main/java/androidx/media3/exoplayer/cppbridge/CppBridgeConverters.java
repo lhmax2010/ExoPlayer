@@ -5,8 +5,10 @@ import android.os.Bundle;
 import android.text.Layout;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
+import androidx.media3.common.DrmInitData;
 import androidx.media3.common.Effect;
 import androidx.media3.common.Format;
+import androidx.media3.common.Label;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
@@ -805,6 +807,7 @@ final class CppBridgeConverters {
       CppTrackInfo[] trackInfos = new CppTrackInfo[group.length];
       for (int j = 0; j < group.length; j++) {
         androidx.media3.common.Format format = group.getTrackFormat(j);
+        @Nullable DrmInitData drmInitData = format.drmInitData;
         trackInfos[j] =
             new CppTrackInfo(
                 format.id,
@@ -822,7 +825,7 @@ final class CppBridgeConverters {
                 format.maxNumReorderSamples,
                 format.initializationData.size(),
                 getInitializationDataTotalBytes(format.initializationData),
-                format.drmInitData != null ? format.drmInitData.schemeDataCount : 0,
+                drmInitData != null ? drmInitData.schemeDataCount : 0,
                 format.subsampleOffsetUs,
                 format.hasPrerollSamples,
                 format.width,
@@ -853,7 +856,25 @@ final class CppBridgeConverters {
                 group.getTrackSupport(j),
                 group.isTrackSelected(j),
                 group.isTrackSupported(j, true),
-                group.isTrackSupported(j));
+                group.isTrackSupported(j),
+                format.metadata != null ? CppOpaqueObjectRegistry.register(format.metadata) : null,
+                getLabelLanguages(format.labels),
+                getLabelValues(format.labels),
+                format.customData != null ? CppOpaqueObjectRegistry.register(format.customData) : null,
+                copyByteArrays(format.initializationData),
+                drmInitData != null ? drmInitData.schemeType : null,
+                getDrmSchemeUuids(drmInitData),
+                getDrmSchemeLicenseServerUrls(drmInitData),
+                getDrmSchemeMimeTypes(drmInitData),
+                getDrmSchemeData(drmInitData),
+                format.colorInfo != null && format.colorInfo.hdrStaticInfo != null
+                    ? format.colorInfo.hdrStaticInfo.clone()
+                    : null,
+                format.colorInfo != null ? format.colorInfo.lumaBitdepth : Format.NO_VALUE,
+                format.colorInfo != null ? format.colorInfo.chromaBitdepth : Format.NO_VALUE,
+                format.projectionData != null ? format.projectionData.clone() : null,
+                format.auxiliaryTrackType,
+                getDrmSchemeDataHasData(drmInitData));
       }
       result[i] =
           new CppTrackGroup(
@@ -875,6 +896,87 @@ final class CppBridgeConverters {
       totalBytes += data.length;
     }
     return totalBytes;
+  }
+
+  private static String[] getLabelLanguages(List<Label> labels) {
+    String[] languages = new String[labels.size()];
+    for (int i = 0; i < labels.size(); i++) {
+      languages[i] = labels.get(i).language != null ? labels.get(i).language : "";
+    }
+    return languages;
+  }
+
+  private static String[] getLabelValues(List<Label> labels) {
+    String[] values = new String[labels.size()];
+    for (int i = 0; i < labels.size(); i++) {
+      values[i] = labels.get(i).value;
+    }
+    return values;
+  }
+
+  private static byte[][] copyByteArrays(List<byte[]> values) {
+    byte[][] result = new byte[values.size()][];
+    for (int i = 0; i < values.size(); i++) {
+      result[i] = values.get(i).clone();
+    }
+    return result;
+  }
+
+  private static String[] getDrmSchemeUuids(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new String[0];
+    }
+    String[] uuids = new String[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      uuids[i] = drmInitData.get(i).uuid.toString();
+    }
+    return uuids;
+  }
+
+  private static String[] getDrmSchemeLicenseServerUrls(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new String[0];
+    }
+    String[] licenseServerUrls = new String[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      @Nullable String licenseServerUrl = drmInitData.get(i).licenseServerUrl;
+      licenseServerUrls[i] = licenseServerUrl != null ? licenseServerUrl : "";
+    }
+    return licenseServerUrls;
+  }
+
+  private static String[] getDrmSchemeMimeTypes(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new String[0];
+    }
+    String[] mimeTypes = new String[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      mimeTypes[i] = drmInitData.get(i).mimeType;
+    }
+    return mimeTypes;
+  }
+
+  private static byte[][] getDrmSchemeData(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new byte[0][];
+    }
+    byte[][] data = new byte[drmInitData.schemeDataCount][];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      @Nullable byte[] schemeData = drmInitData.get(i).data;
+      data[i] = schemeData != null ? schemeData.clone() : new byte[0];
+    }
+    return data;
+  }
+
+  private static int[] getDrmSchemeDataHasData(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new int[0];
+    }
+    int[] hasData = new int[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      hasData[i] = drmInitData.get(i).hasData() ? 1 : 0;
+    }
+    return hasData;
   }
 
   static CppTracks toCppTracks(Tracks tracks) {

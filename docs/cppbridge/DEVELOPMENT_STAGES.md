@@ -372,11 +372,16 @@ Already in place:
 - reduced `TracksSnapshot`, `TrackGroupSnapshot`, and representative `TrackInfo`
 - group token and label token baselines
 - first-group deep smoke coverage and growing second-group listener coverage
+- 2026-05-18 TrackInfo full-payload pass for label language/value arrays,
+  metadata/custom-data tokens, initialization byte arrays, DRM scheme data, projection bytes, HDR
+  static info, color bitdepth, and auxiliary track type
 
 Still required for true full support:
 
-- finish pulling second-group fields up to first-group depth
-- decide how much full `Format` parity is required
+- decide whether full Java `Tracks.Group` object semantics are required beyond the current reduced
+  snapshot shape
+- decide whether arbitrary `Metadata.Entry` / `customData` decoding is required beyond opaque-token
+  preservation
 - add tests that prove group/track parity beyond representative video/audio rows
 - validate selection/support semantics under real runtime track changes
 

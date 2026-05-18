@@ -44,6 +44,11 @@ Notable current dirty areas:
   counts, subsample/preroll, decoded/projection/stereo/color, max sublayers, PCM/encoder, tile, and
   crypto fields through Java DTO, JNI create/parse, converter unit tests, and native current-tracks
   smokes
+- Stage 2 TrackInfo full-payload slice: `TrackInfo` now also carries label language/value arrays,
+  metadata/custom opaque tokens, initialization byte arrays, DRM scheme type plus
+  uuid/license/mime/data/has-data, projection bytes, HDR static info, color bitdepth, and auxiliary
+  track type through Java DTO, JNI create/parse, converter unit tests, and native round-trip/current
+  tracks smoke coverage
 - Stage 1 full API inventory added `dev_memory/DEVELOPMENT_PLAN.md`,
   `scripts/cppbridge/api_parity_inventory.py`, parser unit tests, and
   `docs/cppbridge/API_PARITY_GAP_REPORT.md`; it also closed direct
@@ -105,7 +110,7 @@ Passed commands:
 
 - `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`124/124`)
+- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`125/125`)
 - `./gradlew :demo-cppbridge:assembleDebug`
 - `git diff --check`
 

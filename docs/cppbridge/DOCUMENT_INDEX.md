@@ -67,6 +67,9 @@ Recent test-facing additions:
 - controllable native packaging switch via `-PcppbridgeIncludeTestEntrypoints=OFF`
 - `nativeListenerSmokeTest_reportsExtendedCallbacks` now covers direct
   `Player.Listener#onIsLoadingChanged` via `isLoadingCb=1` / `isLoading=1`
+- `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload` now covers richer
+  `TrackInfo` / `Format` payload round-trip fields, including initialization bytes, DRM
+  scheme-data shape, metadata/custom tokens, projection bytes, and HDR fields
 
 Recent dev-facing additions:
 

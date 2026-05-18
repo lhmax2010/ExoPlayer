@@ -208,6 +208,8 @@ Important negative smoke in this class now includes:
 
 - double-release idempotence
 - listener lifecycle mutation safety
+- full `TrackInfo` payload round-trip via
+  `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload`
 - repeated/null analytics listener removal
 - explicit opaque-token batch release through the native SDK wrapper
 
@@ -290,6 +292,13 @@ Markers that should appear:
 - `cue1Text=Listener Cue 2`
 - `isLoadingCb=1`
 - `isLoading=1`
+- `metadataTokenPresent=1`
+- `customDataTokenPresent=1`
+- `initializationData=2:7:28`
+- `drmSchemeType=cenc`
+- `drmHasData=1`
+- `projectionData=3:66`
+- `colorBitdepth=10:10`
 - `oldTagTokenPresent=1`
 - `newTagTokenPresent=1`
 - `mediaTitle=Video Metadata Title`

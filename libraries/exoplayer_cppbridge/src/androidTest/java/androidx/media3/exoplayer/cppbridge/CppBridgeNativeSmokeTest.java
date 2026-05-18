@@ -119,6 +119,33 @@ public final class CppBridgeNativeSmokeTest {
   }
 
   @Test
+  public void nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload() {
+    String summary = CppBridgeNativeSmokeTestHelper.nativeTracksFullPayloadConversionSmokeTest();
+
+    assertThat(summary).contains("groupCount=1");
+    assertThat(summary).contains("trackId=full-format-video");
+    assertThat(summary).contains("metadataTokenPresent=1");
+    assertThat(summary).contains("labelCount=2");
+    assertThat(summary).contains("label0Language=en");
+    assertThat(summary).contains("label0Value=Full Format Video");
+    assertThat(summary).contains("label1Language=es");
+    assertThat(summary).contains("label1Value=Video completo");
+    assertThat(summary).contains("customDataTokenPresent=1");
+    assertThat(summary).contains("auxiliaryTrackType=2");
+    assertThat(summary).contains("initializationData=2:7:28");
+    assertThat(summary).contains("drmSchemeType=cenc");
+    assertThat(summary).contains("drmSchemeDataCount=1");
+    assertThat(summary).contains("drmUuid=edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+    assertThat(summary).contains("drmLicenseUrl=https://license.example/widevine");
+    assertThat(summary).contains("drmMimeType=video/mp4");
+    assertThat(summary).contains("drmDataChecksum=27");
+    assertThat(summary).contains("drmHasData=1");
+    assertThat(summary).contains("projectionData=3:66");
+    assertThat(summary).contains("colorHdrStaticInfo=4:50");
+    assertThat(summary).contains("colorBitdepth=10:10");
+  }
+
+  @Test
   public void nativeCueSnapshotConversionSmokeTest_returnsStructuredSummary() {
     String summary = CppBridgeNativeSmokeTestHelper.nativeCueSnapshotConversionSmokeTest();
 

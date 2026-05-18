@@ -16,11 +16,22 @@ public final class CppTrackInfo {
   public final int averageBitrate;
   public final int peakBitrate;
   public final int metadataEntryCount;
+  @Nullable public final String metadataToken;
+  public final String[] labelLanguages;
+  public final String[] labelValues;
+  @Nullable public final String customDataToken;
   public final int maxInputSize;
   public final int maxNumReorderSamples;
   public final int initializationDataCount;
   public final int initializationDataTotalBytes;
+  public final byte[][] initializationData;
+  @Nullable public final String drmSchemeType;
   public final int drmSchemeDataCount;
+  public final String[] drmSchemeUuids;
+  public final String[] drmSchemeLicenseServerUrls;
+  public final String[] drmSchemeMimeTypes;
+  public final byte[][] drmSchemeData;
+  public final int[] drmSchemeDataHasData;
   public final long subsampleOffsetUs;
   public final boolean hasPrerollSamples;
   public final int width;
@@ -31,10 +42,14 @@ public final class CppTrackInfo {
   public final int rotationDegrees;
   public final float pixelWidthHeightRatio;
   public final int projectionDataLength;
+  @Nullable public final byte[] projectionData;
   public final int stereoMode;
   public final int colorStandard;
   public final int colorRange;
   public final int colorTransfer;
+  @Nullable public final byte[] colorHdrStaticInfo;
+  public final int colorLumaBitdepth;
+  public final int colorChromaBitdepth;
   public final int maxSubLayers;
   public final int sampleRate;
   public final int channelCount;
@@ -48,6 +63,7 @@ public final class CppTrackInfo {
   public final int cryptoType;
   public final int roleFlags;
   public final int selectionFlags;
+  public final int auxiliaryTrackType;
   public final int formatSupport;
   public final boolean selected;
   public final boolean supported;
@@ -100,7 +116,23 @@ public final class CppTrackInfo {
       int formatSupport,
       boolean selected,
       boolean supported,
-      boolean supportedWithinCapabilities) {
+      boolean supportedWithinCapabilities,
+      @Nullable String metadataToken,
+      @Nullable String[] labelLanguages,
+      @Nullable String[] labelValues,
+      @Nullable String customDataToken,
+      @Nullable byte[][] initializationData,
+      @Nullable String drmSchemeType,
+      @Nullable String[] drmSchemeUuids,
+      @Nullable String[] drmSchemeLicenseServerUrls,
+      @Nullable String[] drmSchemeMimeTypes,
+      @Nullable byte[][] drmSchemeData,
+      @Nullable byte[] colorHdrStaticInfo,
+      int colorLumaBitdepth,
+      int colorChromaBitdepth,
+      @Nullable byte[] projectionData,
+      int auxiliaryTrackType,
+      @Nullable int[] drmSchemeDataHasData) {
     this.id = id;
     this.language = language;
     this.label = label;
@@ -112,11 +144,23 @@ public final class CppTrackInfo {
     this.averageBitrate = averageBitrate;
     this.peakBitrate = peakBitrate;
     this.metadataEntryCount = metadataEntryCount;
+    this.metadataToken = metadataToken;
+    this.labelLanguages = labelLanguages != null ? labelLanguages : new String[0];
+    this.labelValues = labelValues != null ? labelValues : new String[0];
+    this.customDataToken = customDataToken;
     this.maxInputSize = maxInputSize;
     this.maxNumReorderSamples = maxNumReorderSamples;
     this.initializationDataCount = initializationDataCount;
     this.initializationDataTotalBytes = initializationDataTotalBytes;
+    this.initializationData = initializationData != null ? initializationData : new byte[0][];
+    this.drmSchemeType = drmSchemeType;
     this.drmSchemeDataCount = drmSchemeDataCount;
+    this.drmSchemeUuids = drmSchemeUuids != null ? drmSchemeUuids : new String[0];
+    this.drmSchemeLicenseServerUrls =
+        drmSchemeLicenseServerUrls != null ? drmSchemeLicenseServerUrls : new String[0];
+    this.drmSchemeMimeTypes = drmSchemeMimeTypes != null ? drmSchemeMimeTypes : new String[0];
+    this.drmSchemeData = drmSchemeData != null ? drmSchemeData : new byte[0][];
+    this.drmSchemeDataHasData = drmSchemeDataHasData != null ? drmSchemeDataHasData : new int[0];
     this.subsampleOffsetUs = subsampleOffsetUs;
     this.hasPrerollSamples = hasPrerollSamples;
     this.width = width;
@@ -127,10 +171,14 @@ public final class CppTrackInfo {
     this.rotationDegrees = rotationDegrees;
     this.pixelWidthHeightRatio = pixelWidthHeightRatio;
     this.projectionDataLength = projectionDataLength;
+    this.projectionData = projectionData;
     this.stereoMode = stereoMode;
     this.colorStandard = colorStandard;
     this.colorRange = colorRange;
     this.colorTransfer = colorTransfer;
+    this.colorHdrStaticInfo = colorHdrStaticInfo;
+    this.colorLumaBitdepth = colorLumaBitdepth;
+    this.colorChromaBitdepth = colorChromaBitdepth;
     this.maxSubLayers = maxSubLayers;
     this.sampleRate = sampleRate;
     this.channelCount = channelCount;
@@ -144,6 +192,7 @@ public final class CppTrackInfo {
     this.cryptoType = cryptoType;
     this.roleFlags = roleFlags;
     this.selectionFlags = selectionFlags;
+    this.auxiliaryTrackType = auxiliaryTrackType;
     this.formatSupport = formatSupport;
     this.selected = selected;
     this.supported = supported;

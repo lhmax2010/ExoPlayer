@@ -43,6 +43,8 @@ Exit criteria:
 
 ## Stage 2: Format / Tracks Full-Object Payload
 
+Status: completed on 2026-05-18.
+
 Objective:
 
 - Move beyond scalar `TrackInfo` summaries into richer `Format` payload transfer.
@@ -54,6 +56,19 @@ Exit criteria:
 - Java converter, JNI create/parse, C++ structs, and native smokes prove round-trip behavior.
 - Docs clearly distinguish transferred value fields from token-only or intentionally omitted
   object semantics.
+
+Completed outputs:
+
+- `CppTrackInfo` / `TrackInfo` now preserve richer `Format` payloads: label arrays, metadata and
+  custom-data opaque tokens, auxiliary track type, initialization-data byte arrays, projection
+  bytes, DRM scheme type / scheme data uuid / license URL / MIME / bytes / has-data, and
+  `ColorInfo` HDR static info plus luma/chroma bitdepth.
+- `CppBridgeConvertersTest.toCppTrackGroups_mapsSelectionAndSupport` validates Java converter
+  coverage.
+- `CppBridgeNativeSmokeTest.nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload`
+  validates JNI create/parse round-trip coverage.
+- `CppBridgeNativePlayerInstrumentationTest.nativeCurrentTracksSmokeTest_returnsTracksSummary`
+  keeps query-smoke visibility for the new representative markers.
 
 ## Stage 3: MediaItem / Timeline / MediaMetadata Object Parity
 

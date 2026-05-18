@@ -14,7 +14,7 @@ status notes in:
 | --- | --- | --- | --- | --- |
 | Build / native link | Pass | `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`; `:lib-exoplayer-cppbridge:testDebugUnitTest`; `:demo-cppbridge:assembleDebug` | Codex | Native testhooks and demo build linked successfully. |
 | JNI/value smoke | Pass | included in full `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` | Codex | Full Android 16 connected suite passed. |
-| Player/runtime smoke | Pass | `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` reported `124/124` tests passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track payload parity, and HTTP/HLS/DASH C++ playback smoke. |
+| Player/runtime smoke | Pass | `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` reported `125/125` tests passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track full-payload parity, and HTTP/HLS/DASH C++ playback smoke. |
 | API parity inventory | Pass | `python3 scripts/cppbridge/api_parity_inventory.py --check` | Codex | Generated report is current; exact `Player`/`ExoPlayer` and direct `Player.Listener` gaps are now `0`, with one remaining builder gap: `setAudioOutputProvider`. |
 | Demo manual validation | Pass with notes | `:demo-cppbridge:assembleDebug` | Codex | Demo compiled; manual UI playback was not separately exercised in this pass. |
 | Logcat review | Pass with notes | no test failure or JNI exception surfaced during Gradle instrumentation | Codex | Dedicated logcat audit was not separately captured. |
@@ -47,7 +47,7 @@ Status values:
 | Suite | Result | Key evidence | Follow-up needed |
 | --- | --- | --- | --- |
 | `CppBridgeNativeSmokeTest` | Pass | covered by full `connectedDebugAndroidTest` | none for this pass |
-| `CppBridgeNativePlayerInstrumentationTest` | Pass | covered by full `connectedDebugAndroidTest`; total connected suite `124/124` passed | none for this pass |
+| `CppBridgeNativePlayerInstrumentationTest` | Pass | covered by full `connectedDebugAndroidTest`; total connected suite `125/125` passed | none for this pass |
 | `run_validation.sh` aggregate result | Pass with notes | equivalent manual Gradle commands were run directly instead of the wrapper | run wrapper later if a single archived transcript is needed |
 
 ## 3A. 2026-05-15 through 2026-05-18 Parity Addendum
@@ -59,7 +59,7 @@ Status values:
 | Codec parameters | `nativeCodecParametersParitySmokeTest_setsAudioAndVideoCodecParameters` | Pass | Covers typed audio/video codec parameter entries through `CppCodecParameter`. |
 | Auxiliary callbacks | `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` | Pass | Covers reduced codec-parameter change callbacks, video frame metadata, representative `Format` label/language/container MIME/bitrate/rotation/pixel-ratio/color/audio-shape/flags fields, richer `MediaFormat` mime/size/frame-rate/rotation/color payload fields, camera motion, camera reset, and remove-listener stop behavior. |
 | Video-frame metadata fallback/sentinels | `nativeVideoFrameMetadataSimulationFallbackSmokeTest_preservesFallbackFields` | Pass | Covers C++ `format_bitrate` fallback into Java `Format.averageBitrate` when average/peak are unset, plus `Format.NO_VALUE` preservation for absent color/audio-shape fields. |
-| Track format payload expansion | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeConvertersTest.toCppTrackGroups_mapsSelectionAndSupport` | Pass | Covers `TrackInfo` average/peak bitrate, initialization/DRM counts, subsample/preroll, decoded/projection/stereo/color, max sublayers, PCM/encoder, tile, and crypto fields through Java converter, JNI create/parse, and native current-tracks smoke paths. |
+| Track format full-payload expansion | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload`; `CppBridgeConvertersTest.toCppTrackGroups_mapsSelectionAndSupport` | Pass | Covers `TrackInfo` labels, metadata/custom tokens, auxiliary track type, initialization byte arrays, DRM scheme type/uuid/license/mime/data/has-data, projection bytes, HDR static info and bitdepth, plus existing technical fields through Java converter, JNI create/parse, and native current-tracks smoke paths. |
 | Direct listener is-loading callback | `nativeListenerSmokeTest_reportsExtendedCallbacks` | Pass | Covers `Player.Listener#onIsLoadingChanged` through `OnIsLoadingChanged` / `nativeOnIsLoadingChanged` with `isLoadingCb=1` and `isLoading=1` markers. |
 | Codec-parameter multi-listener callbacks | `nativeCodecParametersMultiListenerParitySmokeTest_routesImmediateCallbacks` | Pass | Covers Java-style immediate delivery only to the newly added listener and suppresses synthetic callbacks on internal re-registration after removal. |
 | Renderer/device-state getters | `nativeRendererAndDeviceStateGetterSmokeTest_readsRendererAndDeviceState` | Pass | Covers renderer count/type, offload sleeping, tunneling enabled, and released state. |

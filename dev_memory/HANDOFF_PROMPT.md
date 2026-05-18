@@ -46,7 +46,7 @@ Important context:
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
 - Latest local validation passed on 2026-05-18 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`124/124`),
+  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`125/125`),
   `:demo-cppbridge:assembleDebug`, and `git diff --check`.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
@@ -76,6 +76,12 @@ Important context:
   PCM/encoder, tile, and crypto fields, covered by `CppBridgeConvertersTest`,
   `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`, and
   `nativeCurrentTracksSmokeTest_returnsTracksSummary`.
+- The 2026-05-18 Stage 2 TrackInfo full-payload pass then deepens that route with label arrays,
+  metadata/custom opaque tokens, initialization byte arrays, DRM scheme type plus
+  uuid/license/mime/data/has-data, projection bytes, HDR static info, color bitdepth, and
+  auxiliary track type. Coverage now includes
+  `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload` plus the converter and
+  current-tracks smoke assertions.
 - `CppBridgeConverters` now normalizes HLS MIME aliases like
   `application/vnd.apple.mpegurl` / lowercase `application/x-mpegurl`, and maps Media3
   `CONTENT_TYPE_OTHER` back to C++ `MediaSourceType::kProgressive`.
@@ -86,8 +92,9 @@ Important context:
 - Direct `Player.Listener#onIsLoadingChanged` is now bridged through
   `OnIsLoadingChanged` / `nativeOnIsLoadingChanged`, with `nativeListenerSmokeTest` checking
   `isLoadingCb=1` and `isLoading=1`.
-- The highest-value next development work is deeper full-object parity and richer payload handling
-  beyond the reduced callback descriptors, plus broader full Java/api.txt parity.
+- The highest-value next development work is full Java `Tracks.Group` / `Format` object semantic
+  parity beyond the current reduced DTO shape, plus broader Java/api.txt parity where the inventory
+  still marks non-player classes for later stages.
 
 When you report status, separate these clearly:
 

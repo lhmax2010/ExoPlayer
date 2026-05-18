@@ -123,7 +123,7 @@ If you need JNI implementation:
 
 | File | Responsibility | How to read it |
 | --- | --- | --- |
-| `libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativeSmokeTest.java` | asserts JNI/value smoke outputs | read for low-level bridge expectations |
+| `libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativeSmokeTest.java` | asserts JNI/value smoke outputs, including full `TrackInfo` payload round-trip markers | read for low-level bridge expectations |
 | `libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativePlayerInstrumentationTest.java` | asserts player/runtime smoke outputs | read for functional bridge expectations |
 | `demos/cppbridge/src/main/java/androidx/media3/demo/cppbridge/MainActivity.java` | manual end-to-end demo using C++ bridge APIs | read for demo workflow and manual QA |
 | `scripts/cppbridge/run_validation.sh` | one-command Linux validation runner | use first on a healthy machine |

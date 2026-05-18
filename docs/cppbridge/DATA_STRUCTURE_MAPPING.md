@@ -141,7 +141,7 @@ Field observability conventions:
 | `TrackSelectionParameters` | `TrackSelectionParametersDescriptor` | Done | preferred audio/text language, arrays, role flags, viewport, max bitrate/size, text defaults, undetermined text, disabled track types, overrides | `nativeTrackSelectionRoundTripForTest_returnsUpdatedParameters` |
 | `Tracks` | `TracksSnapshot` | Done | group array plus contains/selected/supported summary by type | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary` |
 | `Tracks.Group` | `TrackGroupSnapshot` | Done | group id plus opaque token baseline, type, adaptive support, selected, supported, tracks | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
-| representative `Format` fields | `TrackInfo` | Done | id, language, label plus opaque token baseline, mime/container mime, codecs, bitrate/average bitrate/peak bitrate, metadata entry count, max input/reorder size, initialization-data count/bytes, DRM scheme-data count, subsample offset, preroll flag, width/height, decoded width/height, frame rate, rotation, pixel width-height ratio, projection length, stereo mode, color info, max sublayers, sample rate, channel count, PCM encoding, encoder delay/padding, accessibility/cue/tile/crypto fields, flags, support, selected | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
+| representative `Format` fields | `TrackInfo` | Done | id, language, label plus opaque token baseline, label list language/value arrays, mime/container mime, codecs, bitrate/average bitrate/peak bitrate, metadata entry count plus metadata token, custom-data token, auxiliary track type, max input/reorder size, initialization-data count/total plus byte arrays, DRM scheme type plus scheme-data uuid/license/mime/bytes/has-data, subsample offset, preroll flag, width/height, decoded width/height, frame rate, rotation, pixel width-height ratio, projection length plus bytes, stereo mode, color info plus HDR static info and luma/chroma bitdepth, max sublayers, sample rate, channel count, PCM encoding, encoder delay/padding, accessibility/cue/tile/crypto fields, flags, support, selected | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeNativeSmokeTest.nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
 
 ## 5. Timeline Objects
 
@@ -459,12 +459,19 @@ Directly observed by smoke:
 - first track `language`
 - first track `label`
 - first track `label_token`
+- first track label list language/value payload
+- first track metadata/custom-data opaque tokens
+- first track `auxiliary_track_type`
 - group-level `group_token`
 - first track `mime_type`
 - first track `container_mime_type`
 - first track `codecs`
 - first track `bitrate`
 - first track width/height/frame rate in value smoke
+- first track initialization-data byte vectors
+- first track DRM scheme type, scheme-data uuid/license/mime/bytes/has-data
+- first track projection byte vector
+- first track `ColorInfo` HDR static info length and luma/chroma bitdepth
 - first track `accessibility_channel`
 - first track `role_flags`
 - first track `selection_flags`
@@ -482,6 +489,7 @@ Primary smoke evidence:
 
 - `nativeCurrentTracksSmokeTest_returnsTracksSummary`
 - `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`
+- `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload`
 - `nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary`
 - `nativeListenerSmokeTest_reportsExtendedCallbacks`
 

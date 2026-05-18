@@ -70,6 +70,9 @@ class ScopedEnv {
 
 jintArray CreateJavaIntArray(JNIEnv* env, const std::vector<int>& values);
 jbyteArray CreateJavaByteArray(JNIEnv* env, const std::vector<uint8_t>& values);
+jobjectArray CreateJavaByteArrayArray(
+    JNIEnv* env,
+    const std::vector<std::vector<uint8_t>>& values);
 jfloatArray CreateJavaFloatArray(JNIEnv* env, const std::vector<float>& values);
 jobjectArray CreateJavaStringArray(JNIEnv* env, const std::vector<std::string>& values);
 jobjectArray CreateJavaVideoEffectArray(
@@ -84,6 +87,7 @@ jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues);
 jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks);
 std::vector<std::string> JStringArrayToVector(JNIEnv* env, jobjectArray values);
 std::vector<uint8_t> JByteArrayToVector(JNIEnv* env, jbyteArray values);
+std::vector<std::vector<uint8_t>> JByteArrayArrayToVector(JNIEnv* env, jobjectArray values);
 std::vector<float> JFloatArrayToVector(JNIEnv* env, jfloatArray values);
 std::vector<MediaItemDescriptor> JStringArrayToMediaItems(JNIEnv* env, jobjectArray urls);
 AudioAttributesDescriptor FromJavaAudioAttributes(JNIEnv* env, jintArray values);
