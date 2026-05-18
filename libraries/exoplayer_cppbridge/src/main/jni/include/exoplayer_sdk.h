@@ -266,6 +266,8 @@ class ExoPlayerSdkPlayer {
       const VolumeChangedEvent& volume_changed) = 0;
   virtual void SimulateAudioSessionIdChangedForTest(
       const AudioSessionIdChangedEvent& audio_session_id_changed) = 0;
+  virtual void SimulateAnalyticsAudioAttributesChangedForTest(
+      const AudioAttributesDescriptor& attributes) = 0;
   virtual void SimulateAnalyticsSkipSilenceEnabledChangedForTest(
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) = 0;
   virtual void SimulateAnalyticsDeviceVolumeChangedForTest(

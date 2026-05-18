@@ -829,6 +829,20 @@ class ForwardingPlayerListener : public PlayerListener {
     }
   }
 
+  void OnAnalyticsAudioAttributesChanged(
+      const PlaybackSnapshot& snapshot,
+      const AudioAttributesDescriptor& attributes) override {
+    auto listeners = SnapshotListeners();
+    if (listeners.delegate != nullptr) {
+      listeners.delegate->OnAnalyticsAudioAttributesChanged(snapshot, attributes);
+    }
+    for (PlayerListener* analytics_delegate : listeners.analytics_delegates) {
+      if (analytics_delegate != nullptr && analytics_delegate != listeners.delegate) {
+        analytics_delegate->OnAnalyticsAudioAttributesChanged(snapshot, attributes);
+      }
+    }
+  }
+
   void OnAnalyticsSkipSilenceEnabledChanged(
       const PlaybackSnapshot& snapshot,
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) override {
@@ -2684,6 +2698,13 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
       const AudioSessionIdChangedEvent& audio_session_id_changed) override {
     WithEnv([&](JNIEnv* env) {
       bridge_->SimulateAudioSessionIdChangedForTest(env, audio_session_id_changed);
+    });
+  }
+
+  void SimulateAnalyticsAudioAttributesChangedForTest(
+      const AudioAttributesDescriptor& attributes) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SimulateAnalyticsAudioAttributesChangedForTest(env, attributes);
     });
   }
 

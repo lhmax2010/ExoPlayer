@@ -25,7 +25,7 @@ Current checkpoint:
 
 - `PlaybackParameters`, `DeviceInfo`, and `VideoSize` are now promoted to `Done`
 - reduced `Player.Commands` and `Player.Events` snapshots and callbacks are now promoted to `Done`
-- the forty-five currently exposed reduced concrete `AnalyticsListener` event families are now promoted to `Done`
+- the forty-six currently exposed reduced concrete `AnalyticsListener` event families are now promoted to `Done`
 - there are no remaining row-level `Partial` items in the current reduced endpoint tracker
 - remaining work is now concentrated in the true next-phase capability gaps: full Java parity, richer image/video capability, broader preload, and broader arbitrary factory injection
 
@@ -292,11 +292,15 @@ Medium priority:
 Next-phase capability work after second-batch closeout:
 
 - full `AnalyticsListener` parity
-  Current reduced event coverage already includes aggregate delivery plus forty-five concrete event
+  Current reduced event coverage already includes aggregate delivery plus forty-six concrete event
   paths: audio underrun, dropped video frames, bandwidth estimate, load started, load completed,
   audio input format changed, audio decoder initialized, video decoder initialized, audio decoder released, video decoder released, analytics rendered first frame, analytics video size changed, analytics audio position advancing, analytics video frame processing offset, analytics volume changed, analytics audio session id changed, analytics skip silence enabled changed, analytics device volume changed, analytics playback state changed, analytics is playing changed, analytics play when ready changed, analytics playback suppression reason changed, analytics is loading changed, analytics repeat mode changed, analytics shuffle mode changed, and video input format changed.
+  Stage 4 starts by adding analytics audio attributes changed as an independently routed C++
+  callback with content type, usage, flags, allowed-capture policy, spatialization behavior, and
+  remove-listener lifecycle smoke coverage.
   The newest concrete reduced events are playback parameters changed, available commands changed,
-  analytics events batch delivery, device info changed, media metadata changed, and playlist metadata changed.
+  analytics events batch delivery, device info changed, media metadata changed, playlist metadata
+  changed, and analytics audio attributes changed.
 - broader preload ecosystem parity
 - richer image output parity beyond reduced frame metadata, bitmap-layout metadata, and callback behavior
 - richer video effects parity beyond the current reduced effect set and boundary/default-value coverage

@@ -111,6 +111,8 @@ public final class CppBridgeNativePlayerTestHelper {
 
   public static native String nativeAnalyticsAudioSessionIdChangedSmokeTest(Context context);
 
+  public static native String nativeAnalyticsAudioAttributesChangedSmokeTest(Context context);
+
   public static native String nativeAnalyticsSkipSilenceEnabledChangedSmokeTest(Context context);
 
   public static native String nativeAnalyticsDeviceVolumeChangedSmokeTest(Context context);

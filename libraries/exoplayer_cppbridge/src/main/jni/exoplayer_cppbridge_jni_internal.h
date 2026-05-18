@@ -240,6 +240,13 @@ void BridgeOnVolumeChanged(
 void BridgeOnAudioSessionIdChanged(
     jlong native_handle,
     int audio_session_id);
+void BridgeOnAnalyticsAudioAttributesChanged(
+    jlong native_handle,
+    int content_type,
+    int usage,
+    int flags,
+    int allowed_capture_policy,
+    int spatialization_behavior);
 void BridgeOnAnalyticsSkipSilenceEnabledChanged(
     jlong native_handle,
     bool skip_silence_enabled);

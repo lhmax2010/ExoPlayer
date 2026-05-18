@@ -64,6 +64,10 @@ Notable current dirty areas:
   carry reduced `ObjectValueInfo` descriptors for representative text/`CharSequence` fields
   (`title`, `artist`, album/display/subtitle/description, credits, `genre`, `compilation`, and
   `station`) while preserving token-first and string fallback behavior
+- Stage 4 analytics callback slice: `AnalyticsListener#onAudioAttributesChanged` now has a
+  distinct C++ callback (`OnAnalyticsAudioAttributesChanged`) and simulation path carrying
+  `AudioAttributesDescriptor` content type, usage, flags, allowed-capture policy, and
+  spatialization behavior
 - Stage 1 full API inventory added `dev_memory/DEVELOPMENT_PLAN.md`,
   `scripts/cppbridge/api_parity_inventory.py`, parser unit tests, and
   `docs/cppbridge/API_PARITY_GAP_REPORT.md`; it also closed direct
@@ -125,7 +129,7 @@ Passed commands:
 
 - `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`128/128`)
+- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`129/129`)
 - `./gradlew :demo-cppbridge:assembleDebug`
 - `git diff --check`
 

@@ -1867,6 +1867,20 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         static_cast<jint>(audio_session_id_changed.audio_session_id));
   }
 
+  void SimulateAnalyticsAudioAttributesChangedForTest(
+      JNIEnv* env,
+      const AudioAttributesDescriptor& attributes) override {
+    CallBridgeVoid(
+        env,
+        "simulateAnalyticsAudioAttributesChangedForTest",
+        "(IIIII)V",
+        static_cast<jint>(attributes.content_type),
+        static_cast<jint>(attributes.usage),
+        static_cast<jint>(attributes.flags),
+        static_cast<jint>(attributes.allowed_capture_policy),
+        static_cast<jint>(attributes.spatialization_behavior));
+  }
+
   void SimulateAnalyticsSkipSilenceEnabledChangedForTest(
       JNIEnv* env,
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) override {
@@ -3245,6 +3259,12 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     });
   }
 
+  void OnAnalyticsAudioAttributesChanged(const AudioAttributesDescriptor& attributes) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsAudioAttributesChanged(GetSnapshot(env), attributes);
+    });
+  }
+
   void OnAnalyticsSkipSilenceEnabledChanged(bool skip_silence_enabled) {
     WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
       AnalyticsSkipSilenceEnabledChangedEvent skip_silence_enabled_changed;
@@ -4566,6 +4586,24 @@ void BridgeOnAudioSessionIdChanged(
     int audio_session_id) {
   WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
     bridge.OnAudioSessionIdChanged(audio_session_id);
+  });
+}
+
+void BridgeOnAnalyticsAudioAttributesChanged(
+    jlong native_handle,
+    int content_type,
+    int usage,
+    int flags,
+    int allowed_capture_policy,
+    int spatialization_behavior) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    AudioAttributesDescriptor attributes;
+    attributes.content_type = content_type;
+    attributes.usage = usage;
+    attributes.flags = flags;
+    attributes.allowed_capture_policy = allowed_capture_policy;
+    attributes.spatialization_behavior = spatialization_behavior;
+    bridge.OnAnalyticsAudioAttributesChanged(attributes);
   });
 }
 

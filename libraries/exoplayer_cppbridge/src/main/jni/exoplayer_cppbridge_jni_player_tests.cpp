@@ -567,6 +567,7 @@ class CapturingPlayerListener : public PlayerListener {
         "OnVideoFrameProcessingOffset",
         "OnVolumeChanged",
         "OnAudioSessionIdChanged",
+        "OnAnalyticsAudioAttributesChanged",
         "OnAnalyticsSkipSilenceEnabledChanged",
         "OnAnalyticsDeviceVolumeChanged",
         "OnAnalyticsPlaybackStateChanged",
@@ -1285,6 +1286,20 @@ class CapturingPlayerListener : public PlayerListener {
     analytics_audio_session_id_changed_callback_count++;
   }
 
+  void OnAnalyticsAudioAttributesChanged(
+      const PlaybackSnapshot&,
+      const AudioAttributesDescriptor& attributes) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsAudioAttributesChanged");
+    analytics_audio_attributes_content_type = attributes.content_type;
+    analytics_audio_attributes_usage = attributes.usage;
+    analytics_audio_attributes_flags = attributes.flags;
+    analytics_audio_attributes_allowed_capture_policy =
+        attributes.allowed_capture_policy;
+    analytics_audio_attributes_spatialization_behavior =
+        attributes.spatialization_behavior;
+    analytics_audio_attributes_changed_callback_count++;
+  }
+
   void OnAnalyticsSkipSilenceEnabledChanged(
       const PlaybackSnapshot&,
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) override {
@@ -1728,6 +1743,11 @@ class CapturingPlayerListener : public PlayerListener {
   int analytics_video_frame_processing_offset_frame_count = 0;
   float analytics_volume_changed_volume = 1.0f;
   int analytics_audio_session_id_changed_audio_session_id = 0;
+  int analytics_audio_attributes_content_type = 0;
+  int analytics_audio_attributes_usage = 0;
+  int analytics_audio_attributes_flags = 0;
+  int analytics_audio_attributes_allowed_capture_policy = 0;
+  int analytics_audio_attributes_spatialization_behavior = 0;
   bool analytics_skip_silence_enabled_changed_skip_silence_enabled = false;
   int analytics_device_volume_changed_volume = 0;
   bool analytics_device_volume_changed_muted = false;
@@ -1963,6 +1983,7 @@ class CapturingPlayerListener : public PlayerListener {
   int analytics_video_frame_processing_offset_callback_count = 0;
   int analytics_volume_changed_callback_count = 0;
   int analytics_audio_session_id_changed_callback_count = 0;
+  int analytics_audio_attributes_changed_callback_count = 0;
   int analytics_skip_silence_enabled_changed_callback_count = 0;
   int analytics_device_volume_changed_callback_count = 0;
   int analytics_playback_state_changed_callback_count = 0;
@@ -6130,6 +6151,62 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
       env,
       summary,
       "nativeAnalyticsAudioSessionIdChangedSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeAnalyticsAudioAttributesChangedSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player = ExoPlayerSdkPlayer::Create(env, context, config);
+  CapturingPlayerListener analytics_listener;
+  player->AddAnalyticsListener(&analytics_listener);
+  AudioAttributesDescriptor first_attributes;
+  first_attributes.content_type = 1;
+  first_attributes.usage = 2;
+  first_attributes.flags = 3;
+  first_attributes.allowed_capture_policy = 1;
+  first_attributes.spatialization_behavior = 0;
+  player->SimulateAnalyticsAudioAttributesChangedForTest(first_attributes);
+  AudioAttributesDescriptor second_attributes;
+  second_attributes.content_type = 4;
+  second_attributes.usage = 5;
+  second_attributes.flags = 6;
+  second_attributes.allowed_capture_policy = 2;
+  second_attributes.spatialization_behavior = 1;
+  player->SimulateAnalyticsAudioAttributesChangedForTest(second_attributes);
+  int callback_count_before_remove =
+      analytics_listener.analytics_audio_attributes_changed_callback_count;
+  player->RemoveAnalyticsListener(&analytics_listener);
+  AudioAttributesDescriptor ignored_attributes;
+  ignored_attributes.content_type = 7;
+  ignored_attributes.usage = 8;
+  ignored_attributes.flags = 9;
+  ignored_attributes.allowed_capture_policy = 3;
+  ignored_attributes.spatialization_behavior = 2;
+  player->SimulateAnalyticsAudioAttributesChangedForTest(ignored_attributes);
+  std::string summary = "beforeRemoveCb=" + std::to_string(callback_count_before_remove);
+  summary += ",afterRemoveCb=" +
+      std::to_string(
+          analytics_listener.analytics_audio_attributes_changed_callback_count);
+  summary += ",callbackStopped=" + std::to_string(
+      analytics_listener.analytics_audio_attributes_changed_callback_count ==
+              callback_count_before_remove
+          ? 1
+          : 0);
+  summary += ",contentType=" +
+      std::to_string(analytics_listener.analytics_audio_attributes_content_type);
+  summary += ",usage=" + std::to_string(analytics_listener.analytics_audio_attributes_usage);
+  summary += ",flags=" + std::to_string(analytics_listener.analytics_audio_attributes_flags);
+  summary += ",allowedCapturePolicy=" +
+      std::to_string(analytics_listener.analytics_audio_attributes_allowed_capture_policy);
+  summary += ",spatializationBehavior=" +
+      std::to_string(analytics_listener.analytics_audio_attributes_spatialization_behavior);
+  return NewStringUtfChecked(
+      env,
+      summary,
+      "nativeAnalyticsAudioAttributesChangedSmokeTest");
 }
 
 JNIEXPORT jstring JNICALL

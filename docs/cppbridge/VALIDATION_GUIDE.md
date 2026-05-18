@@ -333,6 +333,11 @@ Markers that should appear:
 - `frameCount=8`
 - `volume=0.750000`
 - `audioSessionId=700042`
+- `contentType=4`
+- `usage=5`
+- `flags=6`
+- `allowedCapturePolicy=2`
+- `spatializationBehavior=1`
 - `skipSilenceEnabled=1`
 - `volume=7`
 - `muted=0`

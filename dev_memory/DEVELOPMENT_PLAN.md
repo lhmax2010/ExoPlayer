@@ -136,6 +136,16 @@ Exit criteria:
 - Tests cover add/remove lifecycle, multi-listener behavior where supported, and representative
   payload fields.
 
+Current progress:
+
+- 2026-05-18: first Stage 4 slice adds an independent reduced
+  `AnalyticsListener#onAudioAttributesChanged` C++ callback:
+  `OnAnalyticsAudioAttributesChanged` carries `AudioAttributesDescriptor` content type, usage,
+  flags, allowed-capture policy, and spatialization behavior. Java dispatch, JNI entrypoint,
+  bridge forwarding, SDK forwarding, and test simulation APIs are wired end to end.
+- Coverage: `nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent`
+  validates multi-update last-value behavior plus remove-listener stop delivery on Android 16.
+
 ## Stage 5: Playback Source / Runtime Integration
 
 Objective:

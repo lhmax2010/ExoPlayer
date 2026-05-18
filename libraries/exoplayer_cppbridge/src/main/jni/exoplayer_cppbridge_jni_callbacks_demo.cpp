@@ -788,6 +788,25 @@ Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAud
 }
 
 JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioAttributesChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint content_type,
+    jint usage,
+    jint flags,
+    jint allowed_capture_policy,
+    jint spatialization_behavior) {
+  BridgeOnAnalyticsAudioAttributesChanged(
+      native_handle,
+      content_type,
+      usage,
+      flags,
+      allowed_capture_policy,
+      spatialization_behavior);
+}
+
+JNIEXPORT void JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsSkipSilenceEnabledChanged(
     JNIEnv*,
     jclass,

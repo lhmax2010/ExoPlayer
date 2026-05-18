@@ -46,7 +46,7 @@ Important context:
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
 - Latest local validation passed on 2026-05-18 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`128/128`),
+  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`129/129`),
   `:demo-cppbridge:assembleDebug`, and `git diff --check`.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
@@ -116,9 +116,14 @@ Important context:
   `OnIsLoadingChanged` / `nativeOnIsLoadingChanged`, with `nativeListenerSmokeTest` checking
   `isLoadingCb=1` and `isLoading=1`.
 - The planned Stage 3 reduced object/value-model slices are complete. The highest-value next
-  development work is Stage 4 listener/analytics completeness or later-stage full Java object
-  parity for `MediaItem`, `Timeline`, `MediaMetadata`, `Tracks`, and `Cue` beyond the reduced
-  descriptors. Full Java/api.txt parity for non-player classes remains a later-stage concern.
+  development work is continuing Stage 4 listener/analytics completeness or later-stage full Java
+  object parity for `MediaItem`, `Timeline`, `MediaMetadata`, `Tracks`, and `Cue` beyond the
+  reduced descriptors. Full Java/api.txt parity for non-player classes remains a later-stage
+  concern.
+- Stage 4 has started with an independent reduced analytics audio-attributes callback:
+  `OnAnalyticsAudioAttributesChanged` / `nativeOnAnalyticsAudioAttributesChanged` /
+  `SimulateAnalyticsAudioAttributesChangedForTest`, covered by
+  `nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent`.
 
 When you report status, separate these clearly:
 

@@ -1168,6 +1168,9 @@ class PlayerListener {
   virtual void OnAudioSessionIdChanged(
       const PlaybackSnapshot& snapshot,
       const AudioSessionIdChangedEvent& audio_session_id_changed) {}
+  virtual void OnAnalyticsAudioAttributesChanged(
+      const PlaybackSnapshot& snapshot,
+      const AudioAttributesDescriptor& attributes) {}
   virtual void OnAnalyticsSkipSilenceEnabledChanged(
       const PlaybackSnapshot& snapshot,
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) {}
@@ -1552,6 +1555,9 @@ class ExoPlayerBridge {
   virtual void SimulateAudioSessionIdChangedForTest(
       JNIEnv* env,
       const AudioSessionIdChangedEvent& audio_session_id_changed) = 0;
+  virtual void SimulateAnalyticsAudioAttributesChangedForTest(
+      JNIEnv* env,
+      const AudioAttributesDescriptor& attributes) = 0;
   virtual void SimulateAnalyticsSkipSilenceEnabledChangedForTest(
       JNIEnv* env,
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) = 0;

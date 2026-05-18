@@ -1695,6 +1695,18 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     runOnPlayerThread(() -> dispatchAudioSessionIdChanged(audioSessionId));
   }
 
+  public void simulateAnalyticsAudioAttributesChangedForTest(
+      int contentType,
+      int usage,
+      int flags,
+      int allowedCapturePolicy,
+      int spatializationBehavior) {
+    runOnPlayerThread(
+        () ->
+            dispatchAnalyticsAudioAttributesChanged(
+                contentType, usage, flags, allowedCapturePolicy, spatializationBehavior));
+  }
+
   public void simulateAnalyticsSkipSilenceEnabledChangedForTest(boolean skipSilenceEnabled) {
     runOnPlayerThread(() -> dispatchAnalyticsSkipSilenceEnabledChanged(skipSilenceEnabled));
   }
@@ -3458,6 +3470,16 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   @Override
+  public void onAudioAttributesChanged(EventTime eventTime, AudioAttributes audioAttributes) {
+    dispatchAnalyticsAudioAttributesChanged(
+        audioAttributes.contentType,
+        audioAttributes.usage,
+        audioAttributes.flags,
+        audioAttributes.allowedCapturePolicy,
+        audioAttributes.spatializationBehavior);
+  }
+
+  @Override
   public void onSkipSilenceEnabledChanged(EventTime eventTime, boolean skipSilenceEnabled) {
     dispatchAnalyticsSkipSilenceEnabledChanged(skipSilenceEnabled);
   }
@@ -3816,6 +3838,20 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       return;
     }
     nativeOnAnalyticsAudioSessionIdChanged(handle, audioSessionId);
+  }
+
+  private void dispatchAnalyticsAudioAttributesChanged(
+      int contentType,
+      int usage,
+      int flags,
+      int allowedCapturePolicy,
+      int spatializationBehavior) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioAttributesChanged(
+        handle, contentType, usage, flags, allowedCapturePolicy, spatializationBehavior);
   }
 
   private void dispatchAnalyticsSkipSilenceEnabledChanged(boolean skipSilenceEnabled) {
@@ -4255,6 +4291,14 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   private static native void nativeOnAnalyticsAudioSessionIdChanged(
       long nativeHandle, int audioSessionId);
+
+  private static native void nativeOnAnalyticsAudioAttributesChanged(
+      long nativeHandle,
+      int contentType,
+      int usage,
+      int flags,
+      int allowedCapturePolicy,
+      int spatializationBehavior);
 
   private static native void nativeOnAnalyticsSkipSilenceEnabledChanged(
       long nativeHandle, boolean skipSilenceEnabled);

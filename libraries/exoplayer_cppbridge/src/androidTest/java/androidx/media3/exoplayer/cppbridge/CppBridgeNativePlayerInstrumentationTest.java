@@ -1168,6 +1168,21 @@ public final class CppBridgeNativePlayerInstrumentationTest {
   }
 
   @Test
+  public void nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioAttributesChangedSmokeTest(context);
+
+    assertCallbackStoppedAfterRemove(summary);
+    assertThat(summary).contains("contentType=4");
+    assertThat(summary).contains("usage=5");
+    assertThat(summary).contains("flags=6");
+    assertThat(summary).contains("allowedCapturePolicy=2");
+    assertThat(summary).contains("spatializationBehavior=1");
+  }
+
+  @Test
   public void nativeAnalyticsSkipSilenceEnabledChangedSmokeTest_reportsConcreteAnalyticsEvent() {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 

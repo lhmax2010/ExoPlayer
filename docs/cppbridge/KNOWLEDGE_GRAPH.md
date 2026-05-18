@@ -84,13 +84,14 @@ loading, not for narrative reading.
 - source layout
 - JNI translation unit split
 - reduced bridge API surface
-- reduced analytics aggregate plus forty-five concrete reduced `AnalyticsListener` event paths for
+- reduced analytics aggregate plus forty-six concrete reduced `AnalyticsListener` event paths for
   `onAudioUnderrun`, `onDroppedVideoFrames`, `onBandwidthEstimate`, `onLoadStarted`,
   `onLoadCompleted`, `onAudioInputFormatChanged`, `onAudioDecoderInitialized`,
   `onVideoDecoderInitialized`, `onAudioDecoderReleased`, `onVideoDecoderReleased`,
   analytics `onRenderedFirstFrame`, analytics `onVideoSizeChanged`,
   analytics `onAudioPositionAdvancing`, analytics `onVideoFrameProcessingOffset`,
   analytics `onVolumeChanged`, analytics `onAudioSessionIdChanged`,
+  analytics `onAudioAttributesChanged`,
   analytics `onSkipSilenceEnabledChanged`, analytics `onDeviceVolumeChanged`,
   analytics `onPlaybackStateChanged`, analytics `onIsPlayingChanged`,
   analytics `onPlayWhenReadyChanged`, analytics `onPlaybackSuppressionReasonChanged`,
