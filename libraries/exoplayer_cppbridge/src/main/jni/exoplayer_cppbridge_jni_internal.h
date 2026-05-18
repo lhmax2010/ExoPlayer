@@ -116,6 +116,7 @@ void UnregisterDemoPlayer(ExoPlayerSdkPlayer* player);
 void BridgeOnPlaybackStateChanged(jlong native_handle, int playback_state);
 void BridgeOnPlayWhenReadyChanged(jlong native_handle, bool play_when_ready, int reason);
 void BridgeOnIsPlayingChanged(jlong native_handle, bool is_playing);
+void BridgeOnIsLoadingChanged(jlong native_handle, bool is_loading);
 void BridgeOnMediaItemTransition(jlong native_handle, int media_item_index, int reason);
 void BridgeOnPlayerError(JNIEnv* env, jlong native_handle, int error_code, jstring message);
 void BridgeOnPlayerErrorChanged(JNIEnv* env, jlong native_handle, int error_code, jstring message);

@@ -338,6 +338,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnIsPlayingCha
 }
 
 JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnIsLoadingChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jboolean is_loading) {
+  BridgeOnIsLoadingChanged(native_handle, JNI_FALSE != is_loading);
+}
+
+JNIEXPORT void JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnMediaItemTransition(
     JNIEnv*,
     jclass,

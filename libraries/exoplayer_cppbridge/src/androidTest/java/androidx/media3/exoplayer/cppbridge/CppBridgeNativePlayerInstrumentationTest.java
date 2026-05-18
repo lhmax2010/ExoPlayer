@@ -611,6 +611,8 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("timelineCurrentMediaItemIndex=1");
     assertThat(summary).contains("tracksChangedCb=1");
     assertThat(summary).contains("positionDiscontinuityCb=1");
+    assertThat(summary).contains("isLoadingCb=1");
+    assertThat(summary).contains("isLoading=1");
     assertThat(summary).contains("timelineWindow0MediaId=listener-item-1");
     assertThat(summary).contains("timelineWindow0TagPresent=1");
     assertThat(summary).contains("timelineWindow0TagString=listener-tag-1");

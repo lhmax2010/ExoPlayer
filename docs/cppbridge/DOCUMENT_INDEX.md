@@ -1,6 +1,6 @@
 # C++ Bridge Document Index
 
-Last updated: 2026-03-19
+Last updated: 2026-05-18
 
 This page is the handoff index for the `exoplayer_cppbridge` work. Use it to decide:
 
@@ -16,6 +16,7 @@ If you only send one file to a tester or a handoff owner, send this one first.
 | Document | Purpose | Primary audience |
 | --- | --- | --- |
 | [API_MAPPING_STATUS.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_MAPPING_STATUS.md) | top-level API-family status tracker; now separates reduced-endpoint `Done` from full-support gaps | dev lead, reviewer, test lead |
+| [API_PARITY_GAP_REPORT.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_PARITY_GAP_REPORT.md) | generated method/callback/builder/object inventory from `api.txt` versus the C++ bridge surface | dev lead, reviewer |
 | [DATA_STRUCTURE_MAPPING.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DATA_STRUCTURE_MAPPING.md) | value-object / DTO mapping status; explains what reduced snapshots preserve and what full-support still lacks | bridge developer, reviewer |
 | [DEVELOPMENT_STAGES.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DEVELOPMENT_STAGES.md) | project history, current stage, and full-support backlog for the next phase | dev lead, handoff owner |
 | [VALIDATION_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_GUIDE.md) | compile / instrumentation / demo validation guide for a new machine or server | tester, release owner |
@@ -64,9 +65,15 @@ Recent test-facing additions:
 
 - negative smoke for double release and listener lifecycle mutation
 - controllable native packaging switch via `-PcppbridgeIncludeTestEntrypoints=OFF`
+- `nativeListenerSmokeTest_reportsExtendedCallbacks` now covers direct
+  `Player.Listener#onIsLoadingChanged` via `isLoadingCb=1` / `isLoading=1`
 
 Recent dev-facing additions:
 
+- repeatable API inventory via
+  [api_parity_inventory.py](/home/linhao/Toolchain/development/ExoPlayer/scripts/cppbridge/api_parity_inventory.py)
+  and the generated
+  [API_PARITY_GAP_REPORT.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_PARITY_GAP_REPORT.md)
 - explicit opaque-token cleanup API via `ReleaseOpaqueObjectTokens(...)` /
   `releaseOpaqueObjectTokens(...)`
 - high-frequency C++ convenience wrappers in
@@ -80,6 +87,7 @@ Recent dev-facing additions:
 ### For developers continuing feature work
 
 - [API_MAPPING_STATUS.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_MAPPING_STATUS.md)
+- [API_PARITY_GAP_REPORT.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_PARITY_GAP_REPORT.md)
 - [DATA_STRUCTURE_MAPPING.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DATA_STRUCTURE_MAPPING.md)
 - [DEVELOPMENT_STAGES.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DEVELOPMENT_STAGES.md)
 - [FILE_MAP.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/FILE_MAP.md)
@@ -87,6 +95,7 @@ Recent dev-facing additions:
 ### For reviewers who need both code and test context
 
 - [DOCUMENT_INDEX.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DOCUMENT_INDEX.md)
+- [API_PARITY_GAP_REPORT.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_PARITY_GAP_REPORT.md)
 - [API_MAPPING_STATUS.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_MAPPING_STATUS.md)
 - [VALIDATION_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_GUIDE.md)
 - [FILE_MAP.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/FILE_MAP.md)
@@ -161,6 +170,7 @@ Representative structural cleanup:
 
 - [run_validation.sh](/home/linhao/Toolchain/development/ExoPlayer/scripts/cppbridge/run_validation.sh)
 - [run_validation.py](/home/linhao/Toolchain/development/ExoPlayer/scripts/cppbridge/run_validation.py)
+- [api_parity_inventory.py](/home/linhao/Toolchain/development/ExoPlayer/scripts/cppbridge/api_parity_inventory.py)
 - [launch_demo.sh](/home/linhao/Toolchain/development/ExoPlayer/scripts/cppbridge/launch_demo.sh)
 - [launch_demo.py](/home/linhao/Toolchain/development/ExoPlayer/scripts/cppbridge/launch_demo.py)
 
@@ -184,10 +194,11 @@ These are the files to use for hands-on validation on a device after compilation
 If you only have a few minutes:
 
 1. [DOCUMENT_INDEX.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DOCUMENT_INDEX.md)
-2. [API_MAPPING_STATUS.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_MAPPING_STATUS.md)
-3. [VALIDATION_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_GUIDE.md)
-4. [CppBridgeNativeSmokeTest.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativeSmokeTest.java)
-5. [CppBridgeNativePlayerInstrumentationTest.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativePlayerInstrumentationTest.java)
+2. [API_PARITY_GAP_REPORT.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_PARITY_GAP_REPORT.md)
+3. [API_MAPPING_STATUS.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/API_MAPPING_STATUS.md)
+4. [VALIDATION_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_GUIDE.md)
+5. [CppBridgeNativeSmokeTest.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativeSmokeTest.java)
+6. [CppBridgeNativePlayerInstrumentationTest.java](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativePlayerInstrumentationTest.java)
 
 If you are continuing development:
 

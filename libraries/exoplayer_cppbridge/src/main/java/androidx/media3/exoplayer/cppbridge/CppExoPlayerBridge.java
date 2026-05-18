@@ -1692,6 +1692,10 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     runOnPlayerThread(() -> dispatchAnalyticsEvents(new CppPlayerEvents(eventCodes)));
   }
 
+  public void simulateIsLoadingChangedForTest(boolean isLoading) {
+    runOnPlayerThread(() -> dispatchIsLoadingChanged(isLoading));
+  }
+
   public void simulateSeekBackIncrementChangedForTest(long seekBackIncrementMs) {
     runOnPlayerThread(() -> dispatchSeekBackIncrementChanged(seekBackIncrementMs));
   }
@@ -2951,6 +2955,15 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   @Override
+  public void onIsLoadingChanged(boolean isLoading) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnIsLoadingChanged(handle, isLoading);
+  }
+
+  @Override
   public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) {
     long handle = getNativeHandle();
     if (handle == 0L) {
@@ -3808,6 +3821,14 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     nativeOnAnalyticsEvents(handle, events);
   }
 
+  private void dispatchIsLoadingChanged(boolean isLoading) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnIsLoadingChanged(handle, isLoading);
+  }
+
   private void dispatchSeekBackIncrementChanged(long seekBackIncrementMs) {
     long handle = getNativeHandle();
     if (handle == 0L) {
@@ -3997,6 +4018,8 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       long nativeHandle, boolean playWhenReady, int reason);
 
   private static native void nativeOnIsPlayingChanged(long nativeHandle, boolean isPlaying);
+
+  private static native void nativeOnIsLoadingChanged(long nativeHandle, boolean isLoading);
 
   private static native void nativeOnMediaItemTransition(
       long nativeHandle, int mediaItemIndex, int reason);

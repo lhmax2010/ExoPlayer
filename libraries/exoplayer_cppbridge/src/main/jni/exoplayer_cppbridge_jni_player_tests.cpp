@@ -443,6 +443,7 @@ class CapturingPlayerListener : public PlayerListener {
     smoke_playlist_metadata_callback_count.store(0, std::memory_order_release);
     smoke_cue_callback_count.store(0, std::memory_order_release);
     smoke_position_discontinuity_callback_count.store(0, std::memory_order_release);
+    smoke_is_loading_callback_count.store(0, std::memory_order_release);
     smoke_timeline_window_count.store(0, std::memory_order_release);
     smoke_timeline_period_count.store(0, std::memory_order_release);
     smoke_cue_count.store(0, std::memory_order_release);
@@ -528,6 +529,12 @@ class CapturingPlayerListener : public PlayerListener {
   void OnPlaybackStateChanged(const PlaybackSnapshot&) override {}
   void OnPlayWhenReadyChanged(const PlaybackSnapshot&, int) override {}
   void OnIsPlayingChanged(const PlaybackSnapshot&) override {}
+  void OnIsLoadingChanged(const PlaybackSnapshot& snapshot) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnIsLoadingChanged");
+    is_loading = snapshot.is_loading;
+    is_loading_callback_count++;
+    smoke_is_loading_callback_count.fetch_add(1, std::memory_order_release);
+  }
   void OnMediaItemTransition(const PlaybackSnapshot&, int) override {}
   void OnPlayerError(const PlaybackSnapshot&) override {}
 
@@ -1859,6 +1866,8 @@ class CapturingPlayerListener : public PlayerListener {
   float cue1_text_size = 0.0f;
   int cue1_text_size_type = 0;
   int cue1_vertical_type = 0;
+  bool is_loading = false;
+  int is_loading_callback_count = 0;
   int analytics_callback_count = 0;
   int audio_underrun_callback_count = 0;
   int dropped_video_frames_callback_count = 0;
@@ -1922,6 +1931,7 @@ class CapturingPlayerListener : public PlayerListener {
   std::atomic<int> smoke_playlist_metadata_callback_count{0};
   std::atomic<int> smoke_cue_callback_count{0};
   std::atomic<int> smoke_position_discontinuity_callback_count{0};
+  std::atomic<int> smoke_is_loading_callback_count{0};
   std::atomic<int> smoke_timeline_window_count{0};
   std::atomic<int> smoke_timeline_period_count{0};
   std::atomic<int> smoke_cue_count{0};
@@ -1958,6 +1968,7 @@ std::string BuildListenerSmokeProgressSummary(const CapturingPlayerListener& lis
   summary += ",cueCb=" + std::to_string(listener.cue_callback_count);
   summary +=
       ",positionCb=" + std::to_string(listener.position_discontinuity_callback_count);
+  summary += ",isLoadingCb=" + std::to_string(listener.is_loading_callback_count);
   summary += ",timelineWindowCount=" + std::to_string(listener.timeline_window_count);
   summary += ",timelinePeriodCount=" + std::to_string(listener.timeline_period_count);
   summary += ",cueCount=" + std::to_string(listener.cue_count);
@@ -2004,6 +2015,8 @@ std::string BuildListenerSmokeSignalSummary(const CapturingPlayerListener& liste
   summary += ",positionCb=" +
       std::to_string(
           listener.smoke_position_discontinuity_callback_count.load(std::memory_order_acquire));
+  summary += ",isLoadingCb=" +
+      std::to_string(listener.smoke_is_loading_callback_count.load(std::memory_order_acquire));
   summary += ",timelineWindowCount=" +
       std::to_string(listener.smoke_timeline_window_count.load(std::memory_order_acquire));
   summary += ",timelinePeriodCount=" +
@@ -2145,6 +2158,8 @@ void RunListenerLocalDispatchSanityCheck(CapturingPlayerListener* listener) {
   PlayerListener* base_listener = listener;
   base_listener->OnEvents(snapshot, events);
   base_listener->OnRepeatModeChanged(snapshot);
+  snapshot.is_loading = true;
+  base_listener->OnIsLoadingChanged(snapshot);
   base_listener->OnTimelineChanged(snapshot, timeline, 2);
   base_listener->OnMediaMetadataChanged(snapshot, metadata);
   base_listener->OnCues(snapshot, cues);
@@ -2171,6 +2186,7 @@ bool HasListenerSmokeScenarioState(const CapturingPlayerListener& listener) {
       listener.smoke_playlist_metadata_callback_count.load(std::memory_order_acquire) > 0 &&
       listener.smoke_cue_callback_count.load(std::memory_order_acquire) > 0 &&
       listener.smoke_position_discontinuity_callback_count.load(std::memory_order_acquire) > 0 &&
+      listener.smoke_is_loading_callback_count.load(std::memory_order_acquire) > 0 &&
       listener.smoke_timeline_window_count.load(std::memory_order_acquire) >= 2 &&
       listener.smoke_timeline_period_count.load(std::memory_order_acquire) >= 2 &&
       listener.smoke_cue_count.load(std::memory_order_acquire) >= 2 &&
@@ -4306,6 +4322,9 @@ void PopulateListenerSmokeScenario(
   };
   LogInfo("listenerSmoke populate begin");
   run_step("SetListener", [&]() { player->SetListener(listener); });
+  run_step("SimulateIsLoadingChangedForTest", [&]() {
+    player->SimulateIsLoadingChangedForTest(true);
+  });
   MediaItemDescriptor first_item;
   first_item.uri = "https://example.com/listener.mp4";
   first_item.media_id = "listener-item-1";
@@ -4582,6 +4601,11 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeL
       "positionDiscontinuityCb",
       ObservedCallbackFlag(
           listener.smoke_position_discontinuity_callback_count.load(std::memory_order_acquire)));
+  append_int(
+      "isLoadingCb",
+      ObservedCallbackFlag(
+          listener.smoke_is_loading_callback_count.load(std::memory_order_acquire)));
+  append_bool("isLoading", listener.is_loading);
   append_string("timelineWindow0MediaId", first_media_item.media_id);
   append_bool("timelineWindow0TagPresent", first_media_item.tag_present);
   append_string("timelineWindow0TagString", first_media_item.tag_string);

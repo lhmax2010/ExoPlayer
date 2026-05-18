@@ -1,6 +1,6 @@
 # File Map
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 This is the current file-to-responsibility map for the C++ bridge work. Use it to find the right
 place to read or modify code.
@@ -50,6 +50,12 @@ If you have a callback name such as `onTracksChanged`, `onMediaMetadataChanged`,
 3. jump to the matching JNI callback entry in
    `exoplayer_cppbridge_jni_bridge.cpp`
 4. if needed, continue into listener forwarding in `exoplayer_sdk.cpp`
+
+If you are checking full Java API parity:
+
+1. read `docs/cppbridge/API_PARITY_GAP_REPORT.md`
+2. regenerate it with `python3 scripts/cppbridge/api_parity_inventory.py --write`
+3. verify it is current with `python3 scripts/cppbridge/api_parity_inventory.py --check`
 
 ### Common Search Patterns
 
@@ -122,8 +128,10 @@ If you need JNI implementation:
 | `demos/cppbridge/src/main/java/androidx/media3/demo/cppbridge/MainActivity.java` | manual end-to-end demo using C++ bridge APIs | read for demo workflow and manual QA |
 | `scripts/cppbridge/run_validation.sh` | one-command Linux validation runner | use first on a healthy machine |
 | `scripts/cppbridge/run_validation.py` | Python validation runner for Linux environments | use when Python entrypoint is preferred |
+| `scripts/cppbridge/api_parity_inventory.py` | deterministic API parity inventory and report generator | run after changing public Java/C++ bridge surfaces |
 | `scripts/cppbridge/launch_demo.sh` | Linux demo install/launch helper | use for manual demo QA |
 | `scripts/cppbridge/launch_demo.py` | Python demo install/launch helper | use when Python entrypoint is preferred |
+| `docs/cppbridge/API_PARITY_GAP_REPORT.md` | generated method/callback/builder/object parity report | read before choosing the next full-parity slice |
 | `docs/cppbridge/API_MAPPING_QUICK_REFERENCE.md` | direct lookup sheet in `Java API / C++ API / JNI API / SmokeTest / 功能描述` format | use first when you already know the API name |
 | `docs/cppbridge/DATA_STRUCTURE_QUICK_REFERENCE.md` | direct lookup sheet in `Java 数据结构 / C++ 数据结构 / JNI Create API / JNI Parse API / SmokeTest / 功能描述` format | use first when you already know the DTO or reduced struct name |
 | `docs/cppbridge/TEST_RESULTS_TEMPLATE.md` | validation result write-back template | fill after running in the new environment |

@@ -290,6 +290,7 @@ class ExoPlayerSdkPlayer {
       const AnalyticsAvailableCommandsChangedEvent& available_commands_changed) = 0;
   virtual void SimulateAnalyticsEventsForTest(
       const AnalyticsEventsEvent& analytics_events) = 0;
+  virtual void SimulateIsLoadingChangedForTest(bool is_loading) = 0;
   virtual void SimulateSeekBackIncrementChangedForTest(
       int64_t seek_back_increment_ms) = 0;
   virtual void SimulateSeekForwardIncrementChangedForTest(

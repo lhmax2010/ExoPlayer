@@ -44,6 +44,11 @@ Notable current dirty areas:
   counts, subsample/preroll, decoded/projection/stereo/color, max sublayers, PCM/encoder, tile, and
   crypto fields through Java DTO, JNI create/parse, converter unit tests, and native current-tracks
   smokes
+- Stage 1 full API inventory added `dev_memory/DEVELOPMENT_PLAN.md`,
+  `scripts/cppbridge/api_parity_inventory.py`, parser unit tests, and
+  `docs/cppbridge/API_PARITY_GAP_REPORT.md`; it also closed direct
+  `Player.Listener#onIsLoadingChanged` bridge coverage with `nativeListenerSmokeTest` markers
+  `isLoadingCb=1` and `isLoading=1`
 
 ## 2. Current docs differ from older handoff naming
 
@@ -55,7 +60,9 @@ The current workspace does not contain these previously referenced files:
 
 Instead, the current workspace uses:
 
+- `dev_memory/DEVELOPMENT_PLAN.md`
 - `docs/cppbridge/API_MAPPING_STATUS.md`
+- `docs/cppbridge/API_PARITY_GAP_REPORT.md`
 - `docs/cppbridge/API_MAPPING_QUICK_REFERENCE.md`
 - `docs/cppbridge/DATA_STRUCTURE_MAPPING.md`
 - `docs/cppbridge/DATA_STRUCTURE_QUICK_REFERENCE.md`

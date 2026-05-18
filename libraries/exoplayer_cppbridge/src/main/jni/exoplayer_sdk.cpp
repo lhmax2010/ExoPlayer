@@ -381,6 +381,10 @@ class ForwardingPlayerListener : public PlayerListener {
     NotifyDelegate([&](PlayerListener* delegate) { delegate->OnIsPlayingChanged(snapshot); });
   }
 
+  void OnIsLoadingChanged(const PlaybackSnapshot& snapshot) override {
+    NotifyDelegate([&](PlayerListener* delegate) { delegate->OnIsLoadingChanged(snapshot); });
+  }
+
   void OnMediaItemTransition(const PlaybackSnapshot& snapshot, int reason) override {
     NotifyDelegate(
         [&](PlayerListener* delegate) { delegate->OnMediaItemTransition(snapshot, reason); });
@@ -2769,6 +2773,12 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
       const AnalyticsEventsEvent& analytics_events) override {
     WithEnv([&](JNIEnv* env) {
       bridge_->SimulateAnalyticsEventsForTest(env, analytics_events);
+    });
+  }
+
+  void SimulateIsLoadingChangedForTest(bool is_loading) override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SimulateIsLoadingChangedForTest(env, is_loading);
     });
   }
 

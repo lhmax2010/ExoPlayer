@@ -28,6 +28,8 @@ Current readiness snapshot:
   `exoplayer_cppbridge_jni` and `exoplayer_cppbridge_jni_testhooks`
 - explicit opaque-token cleanup helpers now exist for the main C++ query APIs, but they are
   developer-facing convenience helpers rather than a separately validated tester flow in this pass
+- repeatable API parity inventory is available through
+  `python3 scripts/cppbridge/api_parity_inventory.py --check`
 - latest local validation on 2026-05-18 passed on the Android 16 AVD
   `cppbridge_android16_api36`
 - the current connected suite contains 124 instrumentation tests after the runtime/audio/codec/
@@ -178,12 +180,22 @@ Recommended manual order:
 
 1. `assembleDebugAndroidTest`
 2. `testDebugUnitTest`
-3. optional production-only build with `-PcppbridgeIncludeTestEntrypoints=OFF`
-4. `CppBridgeNativeSmokeTest`
-5. `CppBridgeNativePlayerInstrumentationTest`
-6. full `connectedDebugAndroidTest`
-7. `:demo-cppbridge:installDebug`
-8. demo manual checklist
+3. API parity report freshness check
+4. optional production-only build with `-PcppbridgeIncludeTestEntrypoints=OFF`
+5. `CppBridgeNativeSmokeTest`
+6. `CppBridgeNativePlayerInstrumentationTest`
+7. full `connectedDebugAndroidTest`
+8. `:demo-cppbridge:installDebug`
+9. demo manual checklist
+
+### API parity report
+
+```bash
+python3 scripts/cppbridge/api_parity_inventory.py --check
+```
+
+Use `--write` only when intentionally updating
+`docs/cppbridge/API_PARITY_GAP_REPORT.md` after a public bridge/API surface change.
 
 ## 5. Smoke Classes To Run
 
@@ -276,6 +288,8 @@ Markers that should appear:
 - `timelineWindow0MediaUri=https://example.com/listener.mp4`
 - `cue0Text=Listener Cue 1`
 - `cue1Text=Listener Cue 2`
+- `isLoadingCb=1`
+- `isLoading=1`
 - `oldTagTokenPresent=1`
 - `newTagTokenPresent=1`
 - `mediaTitle=Video Metadata Title`

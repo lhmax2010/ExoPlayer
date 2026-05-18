@@ -176,7 +176,7 @@ Use these search chains when you want exact grep targets instead of reading the 
 
 | Java callback family | C++ callback family | Status | Smoke test reference |
 | --- | --- | --- | --- |
-| playback state / playWhenReady / isPlaying | direct callbacks | Done | `nativeListenerSmokeTest_reportsExtendedCallbacks` |
+| playback state / playWhenReady / isPlaying / isLoading | direct callbacks | Done | `nativeListenerSmokeTest_reportsExtendedCallbacks` |
 | media item transition | direct callback | Done | `nativeListenerSmokeTest_reportsExtendedCallbacks` |
 | player error / error changed | reduced error callbacks | Done | `nativeListenerSmokeTest_reportsExtendedCallbacks` |
 | timeline changed | reduced `TimelineDetailsSnapshot` payload | Done | `nativeListenerSmokeTest_reportsExtendedCallbacks`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
@@ -263,9 +263,9 @@ Use these search chains when you want exact grep targets instead of reading the 
 
 ## 6. Still Not Complete
 
-- full `api.txt` parity for direct `Player.Listener` / `AnalyticsListener` surface is not the same as
-  the reduced endpoint tracker above; this document now treats the reduced endpoint as `Done` and
-  lists the broader parity gaps here
+- exact `Player` / `ExoPlayer` method and direct `Player.Listener` callback names are now closed
+  according to `API_PARITY_GAP_REPORT.md`; this document still separates those method-name wins
+  from full object/value and analytics-payload parity
 - full Java `MediaItem` parity
   current bridge now carries reduced `RequestMetadata` (`mediaUri`, `searchQuery`, extras-present`)
   plus opaque extras-token round-trip baseline, reduced local tag observability (`tagPresent`,

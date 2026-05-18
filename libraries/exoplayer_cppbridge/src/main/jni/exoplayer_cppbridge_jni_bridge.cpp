@@ -2001,6 +2001,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     env->DeleteLocalRef(events);
   }
 
+  void SimulateIsLoadingChangedForTest(JNIEnv* env, bool is_loading) override {
+    CallBridgeVoid(
+        env,
+        "simulateIsLoadingChangedForTest",
+        "(Z)V",
+        static_cast<jboolean>(is_loading ? JNI_TRUE : JNI_FALSE));
+  }
+
   void SimulateSeekBackIncrementChangedForTest(JNIEnv* env, int64_t seek_back_increment_ms) override {
     CallBridgeVoid(
         env,
@@ -2813,6 +2821,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       PlaybackSnapshot snapshot = GetSnapshot(env);
       snapshot.is_playing = is_playing;
       listener->OnIsPlayingChanged(snapshot);
+    });
+  }
+
+  void OnIsLoadingChanged(bool is_loading) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      PlaybackSnapshot snapshot = GetSnapshot(env);
+      snapshot.is_loading = is_loading;
+      listener->OnIsLoadingChanged(snapshot);
     });
   }
 
@@ -4128,6 +4144,10 @@ class LoggingPlayerListener : public PlayerListener {
     LogInfo("isPlaying=" + std::to_string(snapshot.is_playing));
   }
 
+  void OnIsLoadingChanged(const PlaybackSnapshot& snapshot) override {
+    LogInfo("isLoading=" + std::to_string(snapshot.is_loading));
+  }
+
   void OnMediaItemTransition(const PlaybackSnapshot& snapshot, int reason) override {
     LogInfo("mediaItemIndex=" + std::to_string(snapshot.current_media_item_index) +
             " reason=" + std::to_string(reason));
@@ -4171,6 +4191,11 @@ void BridgeOnPlayWhenReadyChanged(jlong native_handle, bool play_when_ready, int
 void BridgeOnIsPlayingChanged(jlong native_handle, bool is_playing) {
   WithBridgeHandle(native_handle,
                    [&](JniExoPlayerBridge& bridge) { bridge.OnIsPlayingChanged(is_playing); });
+}
+
+void BridgeOnIsLoadingChanged(jlong native_handle, bool is_loading) {
+  WithBridgeHandle(native_handle,
+                   [&](JniExoPlayerBridge& bridge) { bridge.OnIsLoadingChanged(is_loading); });
 }
 
 void BridgeOnMediaItemTransition(jlong native_handle, int media_item_index, int reason) {

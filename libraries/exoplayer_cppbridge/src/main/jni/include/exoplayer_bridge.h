@@ -958,6 +958,7 @@ class PlayerListener {
   virtual void OnPlaybackStateChanged(const PlaybackSnapshot& snapshot) = 0;
   virtual void OnPlayWhenReadyChanged(const PlaybackSnapshot& snapshot, int reason) = 0;
   virtual void OnIsPlayingChanged(const PlaybackSnapshot& snapshot) = 0;
+  virtual void OnIsLoadingChanged(const PlaybackSnapshot& snapshot) {}
   virtual void OnMediaItemTransition(const PlaybackSnapshot& snapshot, int reason) = 0;
   virtual void OnPlayerError(const PlaybackSnapshot& snapshot) = 0;
   virtual void OnPlayerErrorChanged(const PlaybackSnapshot& snapshot) {}
@@ -1501,6 +1502,7 @@ class ExoPlayerBridge {
   virtual void SimulateAnalyticsEventsForTest(
       JNIEnv* env,
       const AnalyticsEventsEvent& analytics_events) = 0;
+  virtual void SimulateIsLoadingChangedForTest(JNIEnv* env, bool is_loading) = 0;
   virtual void SimulateSeekBackIncrementChangedForTest(
       JNIEnv* env,
       int64_t seek_back_increment_ms) = 0;

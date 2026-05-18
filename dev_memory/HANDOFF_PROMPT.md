@@ -14,14 +14,16 @@ Start by reading these files in order:
 
 1. `dev_memory/PROJECT_STATE.md`
 2. `dev_memory/DECISIONS_AND_CONVENTIONS.md`
-3. `dev_memory/WORKSPACE_DIFFS.md`
-4. `docs/cppbridge/API_MAPPING_STATUS.md`
-5. `docs/cppbridge/API_MAPPING_QUICK_REFERENCE.md`
-6. `docs/cppbridge/DATA_STRUCTURE_MAPPING.md`
-7. `docs/cppbridge/DATA_STRUCTURE_QUICK_REFERENCE.md`
-8. `docs/cppbridge/FILE_MAP.md`
-9. `docs/cppbridge/VALIDATION_GUIDE.md`
-10. `docs/cppbridge/VALIDATION_RESULTS_SUMMARY.md`
+3. `dev_memory/DEVELOPMENT_PLAN.md`
+4. `dev_memory/WORKSPACE_DIFFS.md`
+5. `docs/cppbridge/API_PARITY_GAP_REPORT.md`
+6. `docs/cppbridge/API_MAPPING_STATUS.md`
+7. `docs/cppbridge/API_MAPPING_QUICK_REFERENCE.md`
+8. `docs/cppbridge/DATA_STRUCTURE_MAPPING.md`
+9. `docs/cppbridge/DATA_STRUCTURE_QUICK_REFERENCE.md`
+10. `docs/cppbridge/FILE_MAP.md`
+11. `docs/cppbridge/VALIDATION_GUIDE.md`
+12. `docs/cppbridge/VALIDATION_RESULTS_SUMMARY.md`
 
 Then inspect these implementation roots:
 
@@ -77,6 +79,13 @@ Important context:
 - `CppBridgeConverters` now normalizes HLS MIME aliases like
   `application/vnd.apple.mpegurl` / lowercase `application/x-mpegurl`, and maps Media3
   `CONTENT_TYPE_OTHER` back to C++ `MediaSourceType::kProgressive`.
+- The 2026-05-18 Stage 1 inventory added `scripts/cppbridge/api_parity_inventory.py` and
+  `docs/cppbridge/API_PARITY_GAP_REPORT.md`. Current exact inventory status is:
+  `Player`/`ExoPlayer` method gaps `0`, `Player.Listener` callback gaps `0`, and one
+  `ExoPlayer.Builder` gap: `setAudioOutputProvider`.
+- Direct `Player.Listener#onIsLoadingChanged` is now bridged through
+  `OnIsLoadingChanged` / `nativeOnIsLoadingChanged`, with `nativeListenerSmokeTest` checking
+  `isLoadingCb=1` and `isLoading=1`.
 - The highest-value next development work is deeper full-object parity and richer payload handling
   beyond the reduced callback descriptors, plus broader full Java/api.txt parity.
 

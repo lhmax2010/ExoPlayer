@@ -49,6 +49,9 @@ Interpretation:
 - The current Android 16 emulator run reported `124/124` connected instrumentation tests passed.
 - Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
   `api.txt` parity.
+- The 2026-05-18 Stage 1 inventory report is now checked in at
+  `docs/cppbridge/API_PARITY_GAP_REPORT.md`; regenerate/check with
+  `python3 scripts/cppbridge/api_parity_inventory.py --write` / `--check`.
 
 ## Smoke footprint
 
@@ -104,6 +107,10 @@ This is consistent with a large smoke-first validation strategy.
   initialization/DRM counts, subsample/preroll, decoded/projection/stereo/color, max sublayers,
   PCM/encoder, tile, and crypto fields, covered by Java converter, JNI conversion, and native
   current-tracks smoke tests.
+- Stage 1 full API inventory closed the direct `Player.Listener#onIsLoadingChanged` gap through
+  C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; current exact gap report shows
+  `Player`/`ExoPlayer` method gaps `0`, direct `Player.Listener` callback gaps `0`, and one
+  remaining `ExoPlayer.Builder` gap: `setAudioOutputProvider`.
 
 ## Practical conclusion
 
