@@ -202,6 +202,25 @@ struct BundleValueInfo {
   std::vector<uint8_t> byte_array_value;
 };
 
+struct ObjectValueInfo {
+  enum ValueType {
+    kNull = 0,
+    kString = 1,
+    kLong = 2,
+    kDouble = 3,
+    kBoolean = 4,
+    kOther = 5,
+  };
+
+  bool present = false;
+  std::string class_name;
+  int value_type = kNull;
+  std::string string_value;
+  int64_t long_value = 0;
+  double double_value = 0.0;
+  bool boolean_value = false;
+};
+
 struct MediaMetadataSnapshot {
   std::string title;
   std::string title_token;
@@ -524,6 +543,7 @@ struct TimelineWindowSnapshot {
   std::string media_item_tag_token;
   std::string uid;
   std::string uid_token;
+  ObjectValueInfo uid_value;
   bool live_configuration_present = false;
   int64_t live_target_offset_ms = -9223372036854775807LL;
   int64_t live_min_offset_ms = -9223372036854775807LL;
@@ -533,6 +553,7 @@ struct TimelineWindowSnapshot {
   bool manifest_present = false;
   std::string manifest_string;
   std::string manifest_token;
+  ObjectValueInfo manifest_value;
   int first_period_index = -1;
   int last_period_index = -1;
   int64_t presentation_start_time_ms = -9223372036854775807LL;
@@ -553,10 +574,13 @@ struct TimelineWindowSnapshot {
 struct TimelinePeriodSnapshot {
   std::string id;
   std::string id_token;
+  ObjectValueInfo id_value;
   std::string uid;
   std::string uid_token;
+  ObjectValueInfo uid_value;
   std::string ads_id;
   std::string ads_id_token;
+  ObjectValueInfo ads_id_value;
   int window_index = -1;
   int ad_group_count = 0;
   int64_t duration_ms = -9223372036854775807LL;

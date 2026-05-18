@@ -370,6 +370,35 @@ void AppendBundleValueSummary(
   }
 }
 
+void AppendObjectValueSummary(
+    std::string* summary,
+    const std::string& prefix,
+    const ObjectValueInfo& value) {
+  if (summary == nullptr) {
+    return;
+  }
+  *summary += "," + prefix + "Present=" + std::to_string(value.present ? 1 : 0);
+  *summary += "," + prefix + "Class=" + value.class_name;
+  *summary += "," + prefix + "Type=" + std::to_string(value.value_type);
+  switch (value.value_type) {
+    case ObjectValueInfo::kString:
+    case ObjectValueInfo::kOther:
+      *summary += "," + prefix + "String=" + value.string_value;
+      break;
+    case ObjectValueInfo::kLong:
+      *summary += "," + prefix + "Long=" + std::to_string(value.long_value);
+      break;
+    case ObjectValueInfo::kDouble:
+      *summary += "," + prefix + "Double=" + std::to_string(value.double_value);
+      break;
+    case ObjectValueInfo::kBoolean:
+      *summary += "," + prefix + "Bool=" + std::to_string(value.boolean_value ? 1 : 0);
+      break;
+    default:
+      break;
+  }
+}
+
 }  // namespace
 
 class CapturingImageOutputListener : public ExoPlayerSdkImageOutputListener {
@@ -2937,6 +2966,10 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
     summary += ",timelineWindow0TagString=" + timeline_windows[0].media_item_tag_string;
     summary += ",timelineWindow0TagTokenPresent=" +
         std::to_string(timeline_windows[0].media_item_tag_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(
+        &summary, "timelineWindow0UidValue", timeline_windows[0].uid_value);
+    AppendObjectValueSummary(
+        &summary, "timelineWindow0ManifestValue", timeline_windows[0].manifest_value);
     summary += ",timelineWindow0Placeholder=" +
         std::to_string(timeline_windows[0].is_placeholder ? 1 : 0);
     summary += ",timelineWindow0PresentationStartMs=" +
@@ -2954,6 +2987,12 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
     summary += ",timelinePeriod0WindowIndex=" +
         std::to_string(timeline_periods[0].window_index);
     summary += ",timelinePeriod0Uid=" + timeline_periods[0].uid;
+    AppendObjectValueSummary(
+        &summary, "timelinePeriod0IdValue", timeline_periods[0].id_value);
+    AppendObjectValueSummary(
+        &summary, "timelinePeriod0UidValue", timeline_periods[0].uid_value);
+    AppendObjectValueSummary(
+        &summary, "timelinePeriod0AdsIdValue", timeline_periods[0].ads_id_value);
     summary += ",timelinePeriod0Placeholder=" +
         std::to_string(timeline_periods[0].is_placeholder ? 1 : 0);
     summary += ",timelinePeriod0DurationUs=" +
@@ -3347,6 +3386,10 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   first_window.media_item_tag_token = "generated-opaque-object-token-timeline-query-tag-1";
   first_window.uid = "window-uid-0";
   first_window.uid_token = "generated-opaque-object-token-window-uid-0";
+  first_window.uid_value.present = true;
+  first_window.uid_value.class_name = "java.lang.String";
+  first_window.uid_value.value_type = ObjectValueInfo::kString;
+  first_window.uid_value.string_value = "window-uid-0";
   first_window.live_configuration_present = false;
   first_window.manifest_present = false;
   first_window.first_period_index = 0;
@@ -3370,13 +3413,23 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   second_window.media_item_tag_token = "generated-opaque-object-token-timeline-query-tag-2";
   second_window.uid = "window-uid-1";
   second_window.uid_token = "generated-opaque-object-token-window-uid-1";
+  second_window.uid_value.present = true;
+  second_window.uid_value.class_name = "java.lang.String";
+  second_window.uid_value.value_type = ObjectValueInfo::kString;
+  second_window.uid_value.string_value = "window-uid-1";
   second_window.live_configuration_present = true;
   second_window.live_target_offset_ms = 7100;
   second_window.live_min_offset_ms = 6400;
   second_window.live_max_offset_ms = 8200;
   second_window.live_min_playback_speed = 0.93f;
   second_window.live_max_playback_speed = 1.07f;
-  second_window.manifest_present = false;
+  second_window.manifest_present = true;
+  second_window.manifest_string = "timeline-query-manifest";
+  second_window.manifest_token = "generated-opaque-object-token-timeline-query-manifest";
+  second_window.manifest_value.present = true;
+  second_window.manifest_value.class_name = "java.lang.String";
+  second_window.manifest_value.value_type = ObjectValueInfo::kString;
+  second_window.manifest_value.string_value = "timeline-query-manifest";
   second_window.first_period_index = 1;
   second_window.last_period_index = 1;
   second_window.default_position_ms = 0;
@@ -3389,8 +3442,17 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
 
   TimelinePeriodSnapshot first_period;
   first_period.id = "period-0";
+  first_period.id_token = "generated-opaque-object-token-period-id-0";
+  first_period.id_value.present = true;
+  first_period.id_value.class_name = "java.lang.String";
+  first_period.id_value.value_type = ObjectValueInfo::kString;
+  first_period.id_value.string_value = "period-0";
   first_period.uid = "period-uid-0";
   first_period.uid_token = "generated-opaque-object-token-period-uid-0";
+  first_period.uid_value.present = true;
+  first_period.uid_value.class_name = "java.lang.String";
+  first_period.uid_value.value_type = ObjectValueInfo::kString;
+  first_period.uid_value.string_value = "period-uid-0";
   first_period.ads_id = "";
   first_period.window_index = 0;
   first_period.ad_group_count = 0;
@@ -3401,9 +3463,23 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
 
   TimelinePeriodSnapshot second_period;
   second_period.id = "period-1";
+  second_period.id_token = "generated-opaque-object-token-period-id-1";
+  second_period.id_value.present = true;
+  second_period.id_value.class_name = "java.lang.String";
+  second_period.id_value.value_type = ObjectValueInfo::kString;
+  second_period.id_value.string_value = "period-1";
   second_period.uid = "period-uid-1";
   second_period.uid_token = "generated-opaque-object-token-period-uid-1";
-  second_period.ads_id = "";
+  second_period.uid_value.present = true;
+  second_period.uid_value.class_name = "java.lang.String";
+  second_period.uid_value.value_type = ObjectValueInfo::kString;
+  second_period.uid_value.string_value = "period-uid-1";
+  second_period.ads_id = "period-ads-1";
+  second_period.ads_id_token = "generated-opaque-object-token-period-ads-id-1";
+  second_period.ads_id_value.present = true;
+  second_period.ads_id_value.class_name = "java.lang.String";
+  second_period.ads_id_value.value_type = ObjectValueInfo::kString;
+  second_period.ads_id_value.string_value = "period-ads-1";
   second_period.window_index = 1;
   second_period.ad_group_count = 0;
   second_period.position_in_window_ms = 0;
@@ -3426,15 +3502,16 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   if (!timeline.windows.empty()) {
     const auto& window = timeline.windows.front();
     summary += ",window0MediaItemIndex=" + std::to_string(window.media_item_index);
-  summary += ",window0MediaId=" + window.media_item_id;
-  summary += ",window0MediaUri=" + window.media_item_uri;
-  summary += ",window0TagPresent=" + std::to_string(window.media_item_tag_present ? 1 : 0);
-  summary += ",window0TagString=" + window.media_item_tag_string;
-  summary += ",window0TagTokenPresent=" +
-      std::to_string(window.media_item_tag_token.empty() ? 0 : 1);
-  summary += ",window0Uid=" + window.uid;
+    summary += ",window0MediaId=" + window.media_item_id;
+    summary += ",window0MediaUri=" + window.media_item_uri;
+    summary += ",window0TagPresent=" + std::to_string(window.media_item_tag_present ? 1 : 0);
+    summary += ",window0TagString=" + window.media_item_tag_string;
+    summary += ",window0TagTokenPresent=" +
+        std::to_string(window.media_item_tag_token.empty() ? 0 : 1);
+    summary += ",window0Uid=" + window.uid;
     summary += ",window0UidTokenPresent=" +
         std::to_string(window.uid_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "window0UidValue", window.uid_value);
     summary += ",window0LiveConfigurationPresent=" +
         std::to_string(window.live_configuration_present ? 1 : 0);
     summary += ",window0LiveTargetOffsetMs=" +
@@ -3451,6 +3528,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
     summary += ",window0ManifestString=" + window.manifest_string;
     summary += ",window0ManifestTokenPresent=" +
         std::to_string(window.manifest_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "window0ManifestValue", window.manifest_value);
     summary += ",window0FirstPeriodIndex=" + std::to_string(window.first_period_index);
     summary += ",window0LastPeriodIndex=" + std::to_string(window.last_period_index);
     summary += ",window0PresentationStartTimeMs=" +
@@ -3483,6 +3561,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
     summary += ",window1Uid=" + window.uid;
     summary += ",window1UidTokenPresent=" +
         std::to_string(window.uid_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "window1UidValue", window.uid_value);
     summary += ",window1LiveConfigurationPresent=" +
         std::to_string(window.live_configuration_present ? 1 : 0);
     summary += ",window1LiveTargetOffsetMs=" +
@@ -3499,6 +3578,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
     summary += ",window1ManifestString=" + window.manifest_string;
     summary += ",window1ManifestTokenPresent=" +
         std::to_string(window.manifest_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "window1ManifestValue", window.manifest_value);
     summary += ",window1FirstPeriodIndex=" + std::to_string(window.first_period_index);
     summary += ",window1LastPeriodIndex=" + std::to_string(window.last_period_index);
     summary += ",window1DurationMs=" + std::to_string(window.duration_ms);
@@ -3515,12 +3595,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
     summary += ",period0Id=" + period.id;
     summary += ",period0IdTokenPresent=" +
         std::to_string(period.id_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "period0IdValue", period.id_value);
     summary += ",period0Uid=" + period.uid;
     summary += ",period0UidTokenPresent=" +
         std::to_string(period.uid_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "period0UidValue", period.uid_value);
     summary += ",period0AdsId=" + period.ads_id;
     summary += ",period0AdsIdTokenPresent=" +
         std::to_string(period.ads_id_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "period0AdsIdValue", period.ads_id_value);
     summary += ",period0WindowIndex=" + std::to_string(period.window_index);
     summary += ",period0AdGroupCount=" + std::to_string(period.ad_group_count);
     summary += ",period0DurationMs=" + std::to_string(period.duration_ms);
@@ -3534,12 +3617,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
     summary += ",period1Id=" + period.id;
     summary += ",period1IdTokenPresent=" +
         std::to_string(period.id_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "period1IdValue", period.id_value);
     summary += ",period1Uid=" + period.uid;
     summary += ",period1UidTokenPresent=" +
         std::to_string(period.uid_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "period1UidValue", period.uid_value);
     summary += ",period1AdsId=" + period.ads_id;
     summary += ",period1AdsIdTokenPresent=" +
         std::to_string(period.ads_id_token.empty() ? 0 : 1);
+    AppendObjectValueSummary(&summary, "period1AdsIdValue", period.ads_id_value);
     summary += ",period1WindowIndex=" + std::to_string(period.window_index);
     summary += ",period1AdGroupCount=" + std::to_string(period.ad_group_count);
     summary += ",period1DurationMs=" + std::to_string(period.duration_ms);

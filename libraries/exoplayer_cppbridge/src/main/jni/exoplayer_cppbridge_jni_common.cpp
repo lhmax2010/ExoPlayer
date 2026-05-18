@@ -788,6 +788,37 @@ float ParseFloatOrDefault(const std::string& value, float fallback) {
   }
 }
 
+double ParseDoubleOrDefault(const std::string& value, double fallback) {
+  if (value.empty()) {
+    return fallback;
+  }
+  try {
+    size_t parsed_length = 0;
+    double parsed_value = std::stod(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
+}
+
+ObjectValueInfo ParseObjectValueInfo(
+    const std::vector<std::string>& fields,
+    size_t field_offset) {
+  ObjectValueInfo info;
+  if (fields.size() < field_offset + 7) {
+    return info;
+  }
+  info.present = fields[field_offset] == "1";
+  info.class_name = fields[field_offset + 1];
+  info.value_type =
+      ParseIntOrDefault(fields[field_offset + 2], ObjectValueInfo::kNull);
+  info.string_value = fields[field_offset + 3];
+  info.long_value = ParseLongOrDefault(fields[field_offset + 4], 0);
+  info.double_value = ParseDoubleOrDefault(fields[field_offset + 5], 0.0);
+  info.boolean_value = fields[field_offset + 6] == "1";
+  return info;
+}
+
 std::vector<std::string> SplitString(const std::string& value, char delimiter) {
   std::vector<std::string> parts;
   std::string part;

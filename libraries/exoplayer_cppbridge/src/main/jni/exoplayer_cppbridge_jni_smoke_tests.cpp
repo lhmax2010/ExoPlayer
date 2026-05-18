@@ -261,6 +261,35 @@ class CapturingPlayerListener : public PlayerListener {
   int events_callback_count = 0;
 };
 
+void AppendObjectValueSummary(
+    std::string* summary,
+    const std::string& prefix,
+    const ObjectValueInfo& value) {
+  if (summary == nullptr) {
+    return;
+  }
+  *summary += "," + prefix + "Present=" + std::to_string(value.present ? 1 : 0);
+  *summary += "," + prefix + "Class=" + value.class_name;
+  *summary += "," + prefix + "Type=" + std::to_string(value.value_type);
+  switch (value.value_type) {
+    case ObjectValueInfo::kString:
+    case ObjectValueInfo::kOther:
+      *summary += "," + prefix + "String=" + value.string_value;
+      break;
+    case ObjectValueInfo::kLong:
+      *summary += "," + prefix + "Long=" + std::to_string(value.long_value);
+      break;
+    case ObjectValueInfo::kDouble:
+      *summary += "," + prefix + "Double=" + std::to_string(value.double_value);
+      break;
+    case ObjectValueInfo::kBoolean:
+      *summary += "," + prefix + "Bool=" + std::to_string(value.boolean_value ? 1 : 0);
+      break;
+    default:
+      break;
+  }
+}
+
 extern "C" {
 
 JNIEXPORT jstring JNICALL
@@ -293,6 +322,41 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBu
   std::vector<TrackGroupSnapshot> groups = {video_group, audio_group};
   std::string summary = BuildTrackSummary(groups);
   return NewStringUtfChecked(env, summary, "nativeBuildTrackSummaryForTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeObjectValueInfoParsingSmokeTest(
+    JNIEnv* env,
+    jclass) {
+  std::vector<std::string> escaped_string_fields =
+      SplitString("1|java.lang.String|1|hello\\|world|0|0.0|0", '|');
+  ObjectValueInfo string_value = ParseObjectValueInfo(escaped_string_fields, 0);
+
+  std::vector<std::string> scalar_fields = {
+      "1", "java.lang.Long", "2", "", "42", "0.0", "0",
+      "1", "java.lang.Double", "3", "", "0", "2.5", "0",
+      "1", "java.lang.Boolean", "4", "", "0", "0.0", "1",
+      "0", "", "0", "", "0", "0.0", "0",
+      "1", "java.lang.Object", "5", "object-value", "0", "0.0", "0",
+      "1", "java.lang.Double", "3", "", "0", "bad-double", "0"};
+  ObjectValueInfo long_value = ParseObjectValueInfo(scalar_fields, 0);
+  ObjectValueInfo double_value = ParseObjectValueInfo(scalar_fields, 7);
+  ObjectValueInfo boolean_value = ParseObjectValueInfo(scalar_fields, 14);
+  ObjectValueInfo null_value = ParseObjectValueInfo(scalar_fields, 21);
+  ObjectValueInfo other_value = ParseObjectValueInfo(scalar_fields, 28);
+  ObjectValueInfo invalid_double_value = ParseObjectValueInfo(scalar_fields, 35);
+  ObjectValueInfo truncated_value = ParseObjectValueInfo({"1"}, 0);
+
+  std::string summary = "objectValueParsing=1";
+  AppendObjectValueSummary(&summary, "string", string_value);
+  AppendObjectValueSummary(&summary, "long", long_value);
+  AppendObjectValueSummary(&summary, "double", double_value);
+  AppendObjectValueSummary(&summary, "bool", boolean_value);
+  AppendObjectValueSummary(&summary, "null", null_value);
+  AppendObjectValueSummary(&summary, "other", other_value);
+  AppendObjectValueSummary(&summary, "invalidDouble", invalid_double_value);
+  AppendObjectValueSummary(&summary, "truncated", truncated_value);
+  return NewStringUtfChecked(env, summary, "nativeObjectValueInfoParsingSmokeTest");
 }
 
 JNIEXPORT jstring JNICALL

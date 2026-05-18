@@ -41,12 +41,14 @@ Commands that passed:
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
 - `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest`
 - `./gradlew :demo-cppbridge:assembleDebug`
+- `python3 -m unittest discover -s scripts/cppbridge -p '*_test.py'`
+- `python3 scripts/cppbridge/api_parity_inventory.py --check`
 - `git diff --check`
 
 Interpretation:
 
 - The current Android 16 emulator run verified the smoke suite end to end.
-- The current Android 16 emulator run reported `125/125` connected instrumentation tests passed.
+- The current Android 16 emulator run reported `126/126` connected instrumentation tests passed.
 - Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
   `api.txt` parity.
 - The 2026-05-18 Stage 1 inventory report is now checked in at
@@ -62,7 +64,7 @@ Interpretation:
 Current androidTest count found in the workspace:
 
 - Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
-  `CppBridgeNativePlayerInstrumentationTest.java`: `125`
+  `CppBridgeNativePlayerInstrumentationTest.java`: `126`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -118,6 +120,11 @@ This is consistent with a large smoke-first validation strategy.
   `Bundle` value transport: C++ `BundleValueInfo` and Java `CppBundleValue` now cover stable
   string, integer-like, floating-point, boolean, and byte-array entries while preserving opaque
   token fallback for arbitrary Java-only values.
+- Stage 3 now also deepens timeline object identity fields: C++ `ObjectValueInfo` captures
+  presence, class name, reduced value type, and stable string/number/boolean payloads for
+  `Timeline.Window.uid`, `Timeline.Window.manifest`, `Timeline.Period.id`,
+  `Timeline.Period.uid`, and `Timeline.Period.adsId`, while retaining opaque-token identity
+  baselines.
 - Stage 1 full API inventory closed the direct `Player.Listener#onIsLoadingChanged` gap through
   C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; current exact gap report shows
   `Player`/`ExoPlayer` method gaps `0`, direct `Player.Listener` callback gaps `0`, and one

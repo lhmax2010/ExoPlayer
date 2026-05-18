@@ -108,6 +108,10 @@ CodecParametersDescriptor FromJavaCodecParameterArray(JNIEnv* env, jobjectArray 
 int ParseIntOrDefault(const std::string& value, int fallback);
 int64_t ParseLongOrDefault(const std::string& value, int64_t fallback);
 float ParseFloatOrDefault(const std::string& value, float fallback);
+double ParseDoubleOrDefault(const std::string& value, double fallback);
+ObjectValueInfo ParseObjectValueInfo(
+    const std::vector<std::string>& fields,
+    size_t field_offset);
 std::vector<std::string> SplitString(const std::string& value, char delimiter);
 PlaybackState ToPlaybackState(int state);
 PlaybackSuppressionReason ToPlaybackSuppressionReason(int reason);

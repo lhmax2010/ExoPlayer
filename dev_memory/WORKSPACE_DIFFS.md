@@ -53,6 +53,9 @@ Notable current dirty areas:
   `MediaMetadata.extras` now carry decoded stable `Bundle` entries through `BundleValueInfo` /
   `CppBundleValue` for strings, integer-like numbers, floating-point numbers, booleans, and byte
   arrays, with opaque-token fallback preserved for arbitrary Java objects
+- Stage 3 timeline object-value slice: timeline window `uid`/`manifest` and period
+  `id`/`uid`/`adsId` now carry reduced `ObjectValueInfo` descriptors with class/type and stable
+  scalar payload fields in addition to the existing string/token baselines
 - Stage 1 full API inventory added `dev_memory/DEVELOPMENT_PLAN.md`,
   `scripts/cppbridge/api_parity_inventory.py`, parser unit tests, and
   `docs/cppbridge/API_PARITY_GAP_REPORT.md`; it also closed direct
@@ -114,7 +117,7 @@ Passed commands:
 
 - `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`125/125`)
+- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`126/126`)
 - `./gradlew :demo-cppbridge:assembleDebug`
 - `git diff --check`
 

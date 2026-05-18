@@ -74,6 +74,12 @@ import java.util.concurrent.TimeoutException;
 public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListener {
 
   private static final String TAG = "cppbridge";
+  private static final int OBJECT_VALUE_NULL = 0;
+  private static final int OBJECT_VALUE_STRING = 1;
+  private static final int OBJECT_VALUE_LONG = 2;
+  private static final int OBJECT_VALUE_DOUBLE = 3;
+  private static final int OBJECT_VALUE_BOOLEAN = 4;
+  private static final int OBJECT_VALUE_OTHER = 5;
 
   private final ExoPlayer player;
   private final Handler playerHandler;
@@ -277,6 +283,54 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     }
     String value = String.valueOf(field);
     return value.replace("\\", "\\\\").replace("|", "\\|");
+  }
+
+  private static int objectValuePresent(@Nullable Object value) {
+    return value != null ? 1 : 0;
+  }
+
+  private static String objectValueClassName(@Nullable Object value) {
+    return value != null ? value.getClass().getName() : "";
+  }
+
+  private static int objectValueType(@Nullable Object value) {
+    if (value == null) {
+      return OBJECT_VALUE_NULL;
+    } else if (value instanceof CharSequence) {
+      return OBJECT_VALUE_STRING;
+    } else if (value instanceof Byte
+        || value instanceof Short
+        || value instanceof Integer
+        || value instanceof Long) {
+      return OBJECT_VALUE_LONG;
+    } else if (value instanceof Float || value instanceof Double) {
+      return OBJECT_VALUE_DOUBLE;
+    } else if (value instanceof Boolean) {
+      return OBJECT_VALUE_BOOLEAN;
+    }
+    return OBJECT_VALUE_OTHER;
+  }
+
+  private static String objectValueString(@Nullable Object value) {
+    if (value == null) {
+      return "";
+    }
+    int valueType = objectValueType(value);
+    return valueType == OBJECT_VALUE_STRING || valueType == OBJECT_VALUE_OTHER
+        ? String.valueOf(value)
+        : "";
+  }
+
+  private static long objectValueLong(@Nullable Object value) {
+    return objectValueType(value) == OBJECT_VALUE_LONG ? ((Number) value).longValue() : 0L;
+  }
+
+  private static double objectValueDouble(@Nullable Object value) {
+    return objectValueType(value) == OBJECT_VALUE_DOUBLE ? ((Number) value).doubleValue() : 0.0;
+  }
+
+  private static int objectValueBoolean(@Nullable Object value) {
+    return value instanceof Boolean && (Boolean) value ? 1 : 0;
   }
 
   private static void debugLog(String message) {
@@ -2395,6 +2449,8 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
           String[] rows = new String[timeline.getWindowCount()];
           for (int i = 0; i < rows.length; i++) {
             timeline.getWindow(i, window);
+            @Nullable Object windowUid = window.uid;
+            @Nullable Object windowManifest = window.manifest;
             rows[i] =
                 joinEscapedRowFields(
                     i,
@@ -2419,8 +2475,8 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
                             && window.mediaItem.localConfiguration.tag != null
                         ? CppOpaqueObjectRegistry.register(window.mediaItem.localConfiguration.tag)
                         : "",
-                    String.valueOf(window.uid),
-                    window.uid != null ? CppOpaqueObjectRegistry.register(window.uid) : "",
+                    String.valueOf(windowUid),
+                    windowUid != null ? CppOpaqueObjectRegistry.register(windowUid) : "",
                     window.liveConfiguration != null ? 1 : 0,
                     window.liveConfiguration != null
                         ? window.liveConfiguration.targetOffsetMs
@@ -2437,9 +2493,9 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
                     window.liveConfiguration != null
                         ? window.liveConfiguration.maxPlaybackSpeed
                         : C.RATE_UNSET,
-                    window.manifest != null ? 1 : 0,
-                    window.manifest != null ? String.valueOf(window.manifest) : "",
-                    window.manifest != null ? CppOpaqueObjectRegistry.register(window.manifest) : "",
+                    windowManifest != null ? 1 : 0,
+                    windowManifest != null ? String.valueOf(windowManifest) : "",
+                    windowManifest != null ? CppOpaqueObjectRegistry.register(windowManifest) : "",
                     window.firstPeriodIndex,
                     window.lastPeriodIndex,
                     window.presentationStartTimeMs,
@@ -2454,7 +2510,21 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
                     window.isSeekable ? 1 : 0,
                     window.isDynamic ? 1 : 0,
                     window.isLive() ? 1 : 0,
-                    window.isPlaceholder ? 1 : 0);
+                    window.isPlaceholder ? 1 : 0,
+                    objectValuePresent(windowUid),
+                    objectValueClassName(windowUid),
+                    objectValueType(windowUid),
+                    objectValueString(windowUid),
+                    objectValueLong(windowUid),
+                    objectValueDouble(windowUid),
+                    objectValueBoolean(windowUid),
+                    objectValuePresent(windowManifest),
+                    objectValueClassName(windowManifest),
+                    objectValueType(windowManifest),
+                    objectValueString(windowManifest),
+                    objectValueLong(windowManifest),
+                    objectValueDouble(windowManifest),
+                    objectValueBoolean(windowManifest));
           }
           return rows;
         });
@@ -2468,23 +2538,45 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
           String[] rows = new String[timeline.getPeriodCount()];
           for (int i = 0; i < rows.length; i++) {
             timeline.getPeriod(i, period);
+            @Nullable Object periodId = period.id;
+            @Nullable Object periodUid = period.uid;
+            @Nullable Object periodAdsId = period.getAdsId();
             rows[i] =
                 joinEscapedRowFields(
-                    String.valueOf(period.id),
-                    period.id != null ? CppOpaqueObjectRegistry.register(period.id) : "",
-                    String.valueOf(period.uid),
-                    period.uid != null ? CppOpaqueObjectRegistry.register(period.uid) : "",
-                    String.valueOf(period.getAdsId()),
-                    period.getAdsId() != null
-                        ? CppOpaqueObjectRegistry.register(period.getAdsId())
-                        : "",
+                    String.valueOf(periodId),
+                    periodId != null ? CppOpaqueObjectRegistry.register(periodId) : "",
+                    String.valueOf(periodUid),
+                    periodUid != null ? CppOpaqueObjectRegistry.register(periodUid) : "",
+                    String.valueOf(periodAdsId),
+                    periodAdsId != null ? CppOpaqueObjectRegistry.register(periodAdsId) : "",
                     period.windowIndex,
                     period.getAdGroupCount(),
                     period.getDurationMs(),
                     period.getDurationUs(),
                     period.getPositionInWindowMs(),
                     period.getPositionInWindowUs(),
-                    period.isPlaceholder ? 1 : 0);
+                    period.isPlaceholder ? 1 : 0,
+                    objectValuePresent(periodId),
+                    objectValueClassName(periodId),
+                    objectValueType(periodId),
+                    objectValueString(periodId),
+                    objectValueLong(periodId),
+                    objectValueDouble(periodId),
+                    objectValueBoolean(periodId),
+                    objectValuePresent(periodUid),
+                    objectValueClassName(periodUid),
+                    objectValueType(periodUid),
+                    objectValueString(periodUid),
+                    objectValueLong(periodUid),
+                    objectValueDouble(periodUid),
+                    objectValueBoolean(periodUid),
+                    objectValuePresent(periodAdsId),
+                    objectValueClassName(periodAdsId),
+                    objectValueType(periodAdsId),
+                    objectValueString(periodAdsId),
+                    objectValueLong(periodAdsId),
+                    objectValueDouble(periodAdsId),
+                    objectValueBoolean(periodAdsId));
           }
           return rows;
         });

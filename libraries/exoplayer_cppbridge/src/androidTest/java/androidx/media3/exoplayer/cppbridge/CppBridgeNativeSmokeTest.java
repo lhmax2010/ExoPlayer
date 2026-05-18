@@ -31,6 +31,31 @@ public final class CppBridgeNativeSmokeTest {
   }
 
   @Test
+  public void nativeObjectValueInfoParsingSmokeTest_parsesReducedValueTypes() {
+    String summary = CppBridgeNativeSmokeTestHelper.nativeObjectValueInfoParsingSmokeTest();
+
+    assertThat(summary).contains("objectValueParsing=1");
+    assertThat(summary).contains("stringPresent=1");
+    assertThat(summary).contains("stringClass=java.lang.String");
+    assertThat(summary).contains("stringType=1");
+    assertThat(summary).contains("stringString=hello|world");
+    assertThat(summary).contains("longType=2");
+    assertThat(summary).contains("longLong=42");
+    assertThat(summary).contains("doubleType=3");
+    assertThat(summary).contains("doubleDouble=2.500000");
+    assertThat(summary).contains("boolType=4");
+    assertThat(summary).contains("boolBool=1");
+    assertThat(summary).contains("nullPresent=0");
+    assertThat(summary).contains("nullType=0");
+    assertThat(summary).contains("otherType=5");
+    assertThat(summary).contains("otherString=object-value");
+    assertThat(summary).contains("invalidDoubleType=3");
+    assertThat(summary).contains("invalidDoubleDouble=0.000000");
+    assertThat(summary).contains("truncatedPresent=0");
+    assertThat(summary).contains("truncatedType=0");
+  }
+
+  @Test
   public void nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary() {
     String summary = CppBridgeNativeSmokeTestHelper.nativeTracksSnapshotConversionSmokeTest();
 

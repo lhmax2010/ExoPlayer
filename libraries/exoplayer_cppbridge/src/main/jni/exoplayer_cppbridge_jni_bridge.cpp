@@ -2696,6 +2696,19 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       if (fields.size() >= 32) {
         window.is_placeholder = fields[31] == "1";
       }
+      if (fields.size() >= 46) {
+        window.uid_value = ParseObjectValueInfo(fields, 32);
+        window.manifest_value = ParseObjectValueInfo(fields, 39);
+      } else {
+        window.uid_value.present = !window.uid_token.empty() || !window.uid.empty();
+        window.uid_value.value_type =
+            window.uid_value.present ? ObjectValueInfo::kOther : ObjectValueInfo::kNull;
+        window.uid_value.string_value = window.uid;
+        window.manifest_value.present = window.manifest_present;
+        window.manifest_value.value_type =
+            window.manifest_present ? ObjectValueInfo::kOther : ObjectValueInfo::kNull;
+        window.manifest_value.string_value = window.manifest_string;
+      }
       windows.push_back(window);
     }
     return windows;
@@ -2729,6 +2742,24 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       period.position_in_window_ms = ParseLongOrDefault(fields[10], 0);
       period.position_in_window_us = ParseLongOrDefault(fields[11], 0);
       period.is_placeholder = fields[12] == "1";
+      if (fields.size() >= 34) {
+        period.id_value = ParseObjectValueInfo(fields, 13);
+        period.uid_value = ParseObjectValueInfo(fields, 20);
+        period.ads_id_value = ParseObjectValueInfo(fields, 27);
+      } else {
+        period.id_value.present = !period.id_token.empty() || !period.id.empty();
+        period.id_value.value_type =
+            period.id_value.present ? ObjectValueInfo::kOther : ObjectValueInfo::kNull;
+        period.id_value.string_value = period.id;
+        period.uid_value.present = !period.uid_token.empty() || !period.uid.empty();
+        period.uid_value.value_type =
+            period.uid_value.present ? ObjectValueInfo::kOther : ObjectValueInfo::kNull;
+        period.uid_value.string_value = period.uid;
+        period.ads_id_value.present = !period.ads_id_token.empty() || !period.ads_id.empty();
+        period.ads_id_value.value_type =
+            period.ads_id_value.present ? ObjectValueInfo::kOther : ObjectValueInfo::kNull;
+        period.ads_id_value.string_value = period.ads_id;
+      }
       periods.push_back(period);
     }
     return periods;

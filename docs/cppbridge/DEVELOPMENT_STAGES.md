@@ -359,12 +359,17 @@ Already in place:
 - reduced summary/window/period snapshots
 - multi-window and multi-period smoke visibility
 - `uid`, `id`, `adsId`, and manifest token baselines
+- reduced `ObjectValueInfo` descriptors for `Timeline.Window.uid`,
+  `Timeline.Window.manifest`, `Timeline.Period.id`, `Timeline.Period.uid`, and
+  `Timeline.Period.adsId`, distinguishing null, class name, reduced value type, and stable
+  string/number/boolean payloads where applicable
 - query, direct-listener, and listener-payload smoke coverage
 
 Still required for true full support:
 
 - decide the final parity target for `Timeline.Window` / `Timeline.Period`
-- expand beyond token baselines for manifest/uid/id semantics if full object parity is required
+- expand beyond reduced value descriptors and token baselines for manifest/uid/id semantics if full
+  object parity is required
 - close remaining second-window/second-period asymmetries until coverage is intentionally complete
 - validate runtime stability with real playlist and timeline mutation scenarios
 

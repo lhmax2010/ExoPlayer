@@ -1,6 +1,6 @@
 # Data Structure Mapping
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 This document tracks the reduced-model mapping for value objects used by the bridge. Each entry
 includes its development status and the smoke test that currently validates it.
@@ -89,7 +89,7 @@ DTO tracker below.
 | Object family | Full-support status | Currently supported | Still missing |
 | --- | --- | --- | --- |
 | `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM, tag/adsId/requestMetadata opaque-token baselines, decoded stable `requestMetadata.extras` values for strings/numbers/booleans/byte arrays | full arbitrary-object semantics and full Java object parity |
-| `Timeline` | Partial | reduced summary/window/period snapshots, uid/id/manifest token baselines, multi-window/multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` semantics |
+| `Timeline` | Partial | reduced summary/window/period snapshots, uid/id/adsId/manifest token baselines, reduced `ObjectValueInfo` semantics for window `uid`/`manifest` and period `id`/`uid`/`adsId`, multi-window/multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` behavior, arbitrary object graph semantics, and deeper ad/playback structure parity beyond the reduced row model |
 | `Tracks` | Partial | reduced tracks/group/format snapshots, group and label token baselines, representative query/listener coverage | full `Tracks.Group` / `Format` parity and deeper second-group parity |
 | `MediaMetadata` | Partial | representative text fields, artwork, extras token baseline, decoded stable extras values for strings/numbers/booleans/byte arrays, query/listener/playlist smoke coverage | full Java `MediaMetadata` semantics beyond reduced snapshot |
 | `Cue` | Partial | representative text, bitmap token baseline, layout/style smoke coverage, query/listener/analytics visibility | full Java `Cue` styled-text and bitmap-object parity |
@@ -149,8 +149,8 @@ Field observability conventions:
 | --- | --- | --- | --- | --- |
 | `Timeline` | `TimelineDetailsSnapshot` | Done | summary + window list + period list | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
 | timeline summary | `TimelineSnapshot` | Done | window/period count, empty, current/next/previous indices, has next/previous, current item dynamic/live/seekable | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` |
-| `Timeline.Window` | `TimelineWindowSnapshot` | Done | media item index, media item id, media item uri, media item tag presence/string plus opaque token baseline, uid plus opaque token baseline, reduced live-configuration fields, manifest presence/string plus opaque token baseline, first/last period index, start/duration/default position fields, seekable/dynamic/live/placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |
-| `Timeline.Period` | `TimelinePeriodSnapshot` | Done | id plus opaque token baseline, uid plus opaque token baseline, ads id plus opaque token baseline, window index, ad-group count, duration, position-in-window, placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
+| `Timeline.Window` | `TimelineWindowSnapshot` | Done | media item index, media item id, media item uri, media item tag presence/string plus opaque token baseline, uid plus opaque token baseline and reduced object value info, reduced live-configuration fields, manifest presence/string plus opaque token baseline and reduced object value info, first/last period index, start/duration/default position fields, seekable/dynamic/live/placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |
+| `Timeline.Period` | `TimelinePeriodSnapshot` | Done | id plus opaque token baseline and reduced object value info, uid plus opaque token baseline and reduced object value info, ads id plus opaque token baseline and reduced object value info, window index, ad-group count, duration, position-in-window, placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
 
 ## 6. Audio / Device / Video / Metadata / Cue Objects
 
@@ -228,6 +228,12 @@ Field observability conventions:
   full arbitrary `Bundle` parity for nested objects, parcelables, serializables, or styled
   `CharSequence` semantics.
 - no full Java `Tracks` or `Timeline` parity
+- `Timeline.Window.uid`, `Timeline.Window.manifest`, `Timeline.Period.id`,
+  `Timeline.Period.uid`, and `Timeline.Period.getAdsId()` now carry `ObjectValueInfo`
+  descriptors that distinguish null, class name, reduced value type, and stable string/number/
+  boolean payloads where applicable; arbitrary Java object behavior still falls back to
+  `String.valueOf(...)` plus the existing opaque-token identity baseline rather than full object
+  graph transfer.
 - no full `AnalyticsListener` parity
 - no full `Cue` bitmap object transfer
 - no arbitrary Java target parity for `PlayerMessage`
@@ -334,6 +340,10 @@ Directly observed by smoke:
 - `media_item_tag_token`
 - `uid`
 - `uid_token`
+- `uid_value.present`
+- `uid_value.class_name`
+- `uid_value.value_type`
+- `uid_value.string_value`
 - `live_configuration_present`
 - `live_target_offset_ms`
 - `live_min_offset_ms`
@@ -343,6 +353,10 @@ Directly observed by smoke:
 - `manifest_present`
 - `manifest_string`
 - `manifest_token`
+- `manifest_value.present`
+- `manifest_value.class_name`
+- `manifest_value.value_type`
+- `manifest_value.string_value`
 - `first_period_index`
 - `last_period_index`
 - `presentation_start_time_ms`
@@ -361,7 +375,8 @@ Directly observed by smoke:
 
 Present in bridge but not directly smoke-observed:
 
-- no additional high-signal window timing fields remain completely unobserved in the current smoke set
+- numeric and boolean `ObjectValueInfo` payload fields for timeline window objects are supported by
+  the row parser but are not separately asserted by the current string/null timeline smoke data
 
 Primary smoke evidence:
 
@@ -375,10 +390,22 @@ Directly observed by smoke:
 
 - `id`
 - `id_token`
+- `id_value.present`
+- `id_value.class_name`
+- `id_value.value_type`
+- `id_value.string_value`
 - `uid`
 - `uid_token`
+- `uid_value.present`
+- `uid_value.class_name`
+- `uid_value.value_type`
+- `uid_value.string_value`
 - `ads_id`
 - `ads_id_token`
+- `ads_id_value.present`
+- `ads_id_value.class_name`
+- `ads_id_value.value_type`
+- `ads_id_value.string_value`
 - `window_index`
 - `ad_group_count`
 - `duration_ms`
@@ -389,7 +416,8 @@ Directly observed by smoke:
 
 Present in bridge but not directly smoke-observed:
 
-- no additional high-signal period timing/count fields remain completely unobserved in the current smoke set
+- numeric and boolean `ObjectValueInfo` payload fields for timeline period objects are supported by
+  the row parser but are not separately asserted by the current string/null timeline smoke data
 
 Primary smoke evidence:
 

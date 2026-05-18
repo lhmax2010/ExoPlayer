@@ -46,7 +46,7 @@ Important context:
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
 - Latest local validation passed on 2026-05-18 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`125/125`),
+  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`126/126`),
   `:demo-cppbridge:assembleDebug`, and `git diff --check`.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
@@ -87,6 +87,13 @@ Important context:
   `CppBundleValue` carry string, integer-like, floating-point, boolean, and byte-array entries,
   while opaque tokens remain the fallback for arbitrary Java-only values. Coverage includes
   converter UTs and current-item / playlist-metadata native smoke markers.
+- The 2026-05-18 Stage 3 timeline object-value slice adds C++ `ObjectValueInfo` descriptors for
+  `Timeline.Window.uid`, `Timeline.Window.manifest`, `Timeline.Period.id`,
+  `Timeline.Period.uid`, and `Timeline.Period.adsId`. The bridge now preserves null/class/type
+  metadata plus stable string/number/boolean values where practical, while retaining opaque-token
+  baselines. Coverage includes expanded current-timeline smoke assertions and runtime query-smoke
+  markers plus a native parser smoke that exercises string/long/double/boolean/null/other and
+  malformed-row fallback behavior.
 - `CppBridgeConverters` now normalizes HLS MIME aliases like
   `application/vnd.apple.mpegurl` / lowercase `application/x-mpegurl`, and maps Media3
   `CONTENT_TYPE_OTHER` back to C++ `MediaSourceType::kProgressive`.

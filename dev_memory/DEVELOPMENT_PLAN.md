@@ -92,6 +92,14 @@ Current progress:
   `CppBundleValue`, while preserving opaque-token fallback for unsupported arbitrary Java values.
 - Coverage includes Java converter UTs plus native current-item and playlist-metadata smoke
   assertions for decoded extras values.
+- 2026-05-18: second Stage 3 slice adds reduced `ObjectValueInfo` metadata for timeline object
+  identity fields: `Timeline.Window.uid`, `Timeline.Window.manifest`, `Timeline.Period.id`,
+  `Timeline.Period.uid`, and `Timeline.Period.adsId`. The bridge now distinguishes null, class
+  name, reduced value type, and stable string/number/boolean payloads while keeping existing
+  opaque-token baselines.
+- Coverage includes a native `ObjectValueInfo` parser smoke for string/long/double/boolean/null/
+  other/truncated rows, expanded native current-timeline assertions, and query-smoke markers for
+  real runtime timeline rows.
 
 ## Stage 4: Listener / Analytics Completeness
 
