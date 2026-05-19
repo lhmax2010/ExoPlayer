@@ -58,6 +58,16 @@ grep -iE "cppbridge|ExoPlayer|MediaCodec|AndroidRuntime|FATAL|tombstone|Unsatisf
 If `run_validation.sh` passes and the demo can play HTTP/HLS/DASH manually, collect the files in
 `$RPI4_OUT` with the board facts from section 3.
 
+For a one-command UT pass that runs the host-side checks, board-side connected instrumentation, and
+log collection, use:
+
+```bash
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial "$RPI4_SERIAL"
+```
+
+The script runs on the host machine connected to the board. The connected instrumentation tests
+execute on the RPI4 through adb.
+
 ## 2. Host Prerequisites
 
 Use the same host setup as Android 16 emulator validation:
@@ -173,6 +183,61 @@ bash scripts/cppbridge/run_validation.sh --local-only | tee "$RPI4_OUT/local_onl
 ```
 
 This does not touch the board and does not replace connected validation.
+
+## 4A. One-Command UT Validation Script
+
+Use this when the goal is to answer "do all cppbridge UT and board-side instrumentation tests pass
+on the RPI4?":
+
+```bash
+cd /home/linhao/Toolchain/development/ExoPlayer
+
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export ANDROID_SDK_ROOT=$HOME/Android/Sdk
+export PATH=$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/emulator:$PATH
+
+adb devices
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial>
+```
+
+What it runs:
+
+- `bash scripts/cppbridge/run_validation.sh --local-only`
+- `bash scripts/cppbridge/run_validation.sh --serial <rpi4-serial>`
+- board facts capture into `board_facts.txt`
+- full and high-signal logcat capture after the connected run
+
+Useful options:
+
+```bash
+# Skip host-side local checks and run only board-side instrumentation.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --connected-only
+
+# Run only local checks without touching the board.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --local-only
+
+# Pick the output folder explicitly.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --out "$PWD/buildout/my-rpi4-run"
+
+# Launch the demo after UT passes.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --launch-demo
+```
+
+Default output path:
+
+```text
+buildout/cppbridge-rpi4-ut-YYYYMMDD-HHMMSS/
+```
+
+Important files in the output folder:
+
+- `summary.txt`
+- `local_validation.txt`
+- `connected_validation.txt`
+- `board_facts.txt`
+- `logcat-full.txt`
+- `logcat-high-signal.txt`
+- `tombstones-list.txt`
 
 ## 5. Connected Validation
 
