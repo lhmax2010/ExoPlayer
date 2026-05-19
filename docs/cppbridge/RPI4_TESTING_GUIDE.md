@@ -203,9 +203,17 @@ bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial>
 What it runs:
 
 - `bash scripts/cppbridge/run_validation.sh --local-only`
-- `bash scripts/cppbridge/run_validation.sh --serial <rpi4-serial>`
+- `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest --console=plain`
+- `adb install -r -t` for the cppbridge androidTest APK
+- `adb shell am instrument` for `CppBridgeNativeSmokeTest` and
+  `CppBridgeNativePlayerInstrumentationTest`
 - board facts capture into `board_facts.txt`
 - full and high-signal logcat capture after the connected run
+
+The RPI4 script uses direct adb instrumentation by default so the board-side phase does not depend
+on Gradle's Unified Test Platform host plugins. This avoids failures where Gradle tries to download
+`com.android.tools.utp:*` before it can talk to the board. If you need to compare with the standard
+Gradle connected task, pass `--gradle-connected`.
 
 The script does not fail fast between phases. If the host-side local JVM checks fail because
 Robolectric cannot download its runtime artifacts, it still runs the board-side connected
@@ -218,6 +226,10 @@ Useful options:
 # Skip host-side local checks and run only board-side instrumentation.
 bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --connected-only
 
+# Run one board-side instrumentation class.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --connected-only \
+  --test-class androidx.media3.exoplayer.cppbridge.CppBridgeNativeSmokeTest
+
 # Run only local checks without touching the board.
 bash scripts/cppbridge/run_rpi4_ut_validation.sh --local-only
 
@@ -226,6 +238,9 @@ bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --out "$
 
 # Launch the demo after UT passes.
 bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --launch-demo
+
+# Use Gradle connectedDebugAndroidTest instead of direct adb instrumentation.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --gradle-connected
 ```
 
 Default output path:
@@ -239,6 +254,8 @@ Important files in the output folder:
 - `summary.txt`
 - `local_validation.txt`
 - `connected_validation.txt`
+- `instrument-CppBridgeNativeSmokeTest.txt`
+- `instrument-CppBridgeNativePlayerInstrumentationTest.txt`
 - `board_facts.txt`
 - `logcat-full.txt`
 - `logcat-high-signal.txt`
