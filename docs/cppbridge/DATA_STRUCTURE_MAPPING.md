@@ -1,6 +1,6 @@
 # Data Structure Mapping
 
-Last updated: 2026-03-19
+Last updated: 2026-05-19
 
 This document tracks the reduced-model mapping for value objects used by the bridge. Each entry
 includes its development status and the smoke test that currently validates it.
@@ -78,7 +78,7 @@ DTO tracker below.
 
 | Object family | Full-support status | Currently supported | Still missing |
 | --- | --- | --- | --- |
-| `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM, tag/adsId/requestMetadata opaque-token baselines | full arbitrary-object semantics and full Java object parity |
+| `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM/custom-cache-key, tag/adsId/requestMetadata opaque-token baselines | full arbitrary-object semantics and full Java object parity |
 | `Timeline` | Partial | reduced summary/window/period snapshots, uid/id/manifest token baselines, multi-window/multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` semantics |
 | `Tracks` | Partial | reduced tracks/group/format snapshots, group and label token baselines, representative query/listener coverage | full `Tracks.Group` / `Format` parity and deeper second-group parity |
 | `MediaMetadata` | Partial | representative text fields, artwork, extras token baseline, query/listener/playlist smoke coverage | full Java `MediaMetadata` semantics beyond reduced snapshot |
@@ -103,12 +103,12 @@ Field observability conventions:
 
 | Java type | C++ type | Status | Preserved fields / concepts | Smoke test reference |
 | --- | --- | --- | --- | --- |
-| `MediaItem` | `MediaItemDescriptor` | Done | uri, media id, mime type, source type, reduced local tag observability (`tagPresent`, `tagString`) plus opaque token round-trip baseline, reduced metadata identity fields, reduced request metadata (`mediaUri`, `searchQuery`, extras-presence`) plus opaque extras token baseline, reduced ads config plus opaque `adsId` token baseline, subtitles, clipping, live, DRM | `CppBridgeNativePlayerInstrumentationTest.nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
+| `MediaItem` | `MediaItemDescriptor` | Done | uri, media id, mime type, source type, custom cache key, reduced local tag observability (`tagPresent`, `tagString`) plus opaque token round-trip baseline, reduced metadata identity fields, reduced request metadata (`mediaUri`, `searchQuery`, extras-presence`) plus opaque extras token baseline, reduced ads config plus opaque `adsId` token baseline, subtitles, clipping, live, DRM | `CppBridgeNativePlayerInstrumentationTest.nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`; `nativeCustomCacheKeyPlaybackSmokeTest_preservesCacheKeyThroughPlaybackPath`; `nativeDrmPlaybackSmokeTest_preservesDrmConfigThroughPlaybackPath`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
 | `MediaItem.RequestMetadata` | `MediaItemDescriptor::RequestMetadataDescriptor` | Done | `mediaUri`, `searchQuery`, extras presence flag, extras key count, opaque extras token baseline | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
 | `MediaItem.SubtitleConfiguration` | `MediaItemDescriptor::SubtitleConfigurationDescriptor` | Done | uri, mime type, language, label, id, selection flags, role flags | `nativeSubtitleSmokeTest_returnsSubtitleSummary`; `nativeMultiSubtitleSmokeTest_returnsSubtitleAndPreferenceSummary` |
 | `MediaItem.ClippingConfiguration` | `MediaItemDescriptor::ClippingConfigurationDescriptor` | Done | start/end position, live/default/keyframe/unseekable flags | `nativeClippingSmokeTest_returnsClippingSummary` |
 | `MediaItem.LiveConfiguration` | `MediaItemDescriptor::LiveConfigurationDescriptor` | Done | target/min/max offsets, min/max speed | `nativeLiveConfigurationSmokeTest_returnsLiveSummary` |
-| `MediaItem.DrmConfiguration` | `MediaItemDescriptor::DrmConfigurationDescriptor` | Done | scheme UUID, license URI, request headers, forced session track types, key-set id, core flags | `nativeDrmSmokeTest_returnsDrmSummary` |
+| `MediaItem.DrmConfiguration` | `MediaItemDescriptor::DrmConfigurationDescriptor` | Done | scheme UUID, license URI, request headers, forced session track types, key-set id, core flags | `nativeDrmSmokeTest_returnsDrmSummary`; `nativeDrmPlaybackSmokeTest_preservesDrmConfigThroughPlaybackPath` |
 | `MediaItem.AdsConfiguration` | `MediaItemDescriptor::AdsConfigurationDescriptor` | Done | `adTagUri`, string `adsId` | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds` |
 
 ## 3. Playback State And Query Snapshots
@@ -224,6 +224,7 @@ Directly observed by smoke:
 - `uri`
 - `media_id`
 - `mime_type`
+- `custom_cache_key`
 - `source_type`
 - `tag_present`
 - `tag_string`

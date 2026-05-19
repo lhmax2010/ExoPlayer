@@ -8,6 +8,7 @@ public final class CppMediaItem {
   public final String uri;
   @Nullable public final String mediaId;
   @Nullable public final String mimeType;
+  @Nullable public final String customCacheKey;
   public final int sourceType;
   public final boolean tagPresent;
   @Nullable public final String tagString;
@@ -24,6 +25,7 @@ public final class CppMediaItem {
       String uri,
       @Nullable String mediaId,
       @Nullable String mimeType,
+      @Nullable String customCacheKey,
       int sourceType,
       boolean tagPresent,
       @Nullable String tagString,
@@ -38,6 +40,7 @@ public final class CppMediaItem {
     this.uri = uri;
     this.mediaId = mediaId;
     this.mimeType = mimeType;
+    this.customCacheKey = customCacheKey;
     this.sourceType = sourceType;
     this.tagPresent = tagPresent;
     this.tagString = tagString;

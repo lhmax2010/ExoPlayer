@@ -79,6 +79,20 @@ final class CppBridgeConverters {
     if ("application/x-rtsp".equals(mimeType)) {
       return 4;
     }
+    if (MimeTypes.VIDEO_MP4.equals(mimeType)
+        || MimeTypes.AUDIO_MP4.equals(mimeType)
+        || MimeTypes.APPLICATION_MP4.equals(mimeType)
+        || MimeTypes.VIDEO_WEBM.equals(mimeType)
+        || MimeTypes.AUDIO_WEBM.equals(mimeType)
+        || MimeTypes.AUDIO_MPEG.equals(mimeType)
+        || MimeTypes.AUDIO_AAC.equals(mimeType)
+        || MimeTypes.AUDIO_FLAC.equals(mimeType)
+        || MimeTypes.AUDIO_OGG.equals(mimeType)
+        || MimeTypes.AUDIO_OPUS.equals(mimeType)
+        || MimeTypes.AUDIO_WAV.equals(mimeType)
+        || MimeTypes.VIDEO_AVI.equals(mimeType)) {
+      return 5;
+    }
     return 0;
   }
 
@@ -90,16 +104,41 @@ final class CppBridgeConverters {
     if (normalizedUri.startsWith("rtsp://")) {
       return 4;
     }
-    if (normalizedUri.contains(".mpd")) {
+    int queryIndex = normalizedUri.indexOf('?');
+    int fragmentIndex = normalizedUri.indexOf('#');
+    int pathEnd = normalizedUri.length();
+    if (queryIndex >= 0) {
+      pathEnd = queryIndex;
+    }
+    if (fragmentIndex >= 0) {
+      pathEnd = Math.min(pathEnd, fragmentIndex);
+    }
+    String normalizedPath = normalizedUri.substring(0, pathEnd);
+    if (normalizedPath.contains(".mpd")) {
       return 1;
     }
-    if (normalizedUri.contains(".m3u8")) {
+    if (normalizedPath.contains(".m3u8")) {
       return 2;
     }
-    if (normalizedUri.contains(".ism/manifest")
-        || normalizedUri.endsWith(".ism")
-        || normalizedUri.endsWith(".isml")) {
+    if (normalizedPath.contains(".ism/manifest")
+        || normalizedPath.endsWith(".ism")
+        || normalizedPath.endsWith(".isml")) {
       return 3;
+    }
+    if (normalizedPath.endsWith(".mp4")
+        || normalizedPath.endsWith(".m4a")
+        || normalizedPath.endsWith(".m4v")
+        || normalizedPath.endsWith(".mp3")
+        || normalizedPath.endsWith(".aac")
+        || normalizedPath.endsWith(".flac")
+        || normalizedPath.endsWith(".ogg")
+        || normalizedPath.endsWith(".opus")
+        || normalizedPath.endsWith(".wav")
+        || normalizedPath.endsWith(".webm")
+        || normalizedPath.endsWith(".mkv")
+        || normalizedPath.endsWith(".avi")
+        || normalizedPath.endsWith(".mov")) {
+      return 5;
     }
     return 0;
   }
@@ -113,6 +152,9 @@ final class CppBridgeConverters {
     }
     if (mediaItem.mediaId != null) {
       builder.setMediaId(mediaItem.mediaId);
+    }
+    if (mediaItem.customCacheKey != null) {
+      builder.setCustomCacheKey(mediaItem.customCacheKey);
     }
     String inferredMimeType = inferMimeType(mediaItem);
     if (inferredMimeType != null) {
@@ -257,6 +299,8 @@ final class CppBridgeConverters {
             ? localConfiguration.uri.toString()
             : "";
     @Nullable String mimeType = localConfiguration != null ? localConfiguration.mimeType : null;
+    @Nullable String customCacheKey =
+        localConfiguration != null ? localConfiguration.customCacheKey : null;
     boolean tagPresent = localConfiguration != null && localConfiguration.tag != null;
     @Nullable String tagString =
         localConfiguration != null && localConfiguration.tag != null
@@ -378,6 +422,7 @@ final class CppBridgeConverters {
         uri,
         mediaItem.mediaId,
         mimeType,
+        customCacheKey,
         inferredSourceTypeFromMimeType != 0
             ? inferredSourceTypeFromMimeType
             : inferSourceTypeFromUri(uri),

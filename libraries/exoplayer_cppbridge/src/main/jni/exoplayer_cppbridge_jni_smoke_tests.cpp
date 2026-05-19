@@ -109,6 +109,13 @@ class CapturingPlayerListener : public PlayerListener {
         !tracks.groups.empty() && !tracks.groups[0].group_token.empty();
     first_track_count =
         tracks.groups.empty() ? 0 : static_cast<int>(tracks.groups[0].tracks.size());
+    first_track_label =
+        !tracks.groups.empty() && !tracks.groups[0].tracks.empty()
+            ? tracks.groups[0].tracks[0].label
+            : "";
+    first_track_label_token_present =
+        !tracks.groups.empty() && !tracks.groups[0].tracks.empty() &&
+        !tracks.groups[0].tracks[0].label_token.empty();
     first_track_selected =
         !tracks.groups.empty() && !tracks.groups[0].tracks.empty() && tracks.groups[0].tracks[0].selected;
     first_track_supported =
@@ -212,6 +219,8 @@ class CapturingPlayerListener : public PlayerListener {
   std::string first_track_group_id;
   bool first_track_group_token_present = false;
   int first_track_count = 0;
+  std::string first_track_label;
+  bool first_track_label_token_present = false;
   bool first_track_selected = false;
   bool first_track_supported = false;
   bool first_track_supported_within_capabilities = false;
@@ -1184,6 +1193,9 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeLi
   summary += ",firstTrackGroupTokenPresent=" +
       std::to_string(listener.first_track_group_token_present ? 1 : 0);
   summary += ",firstTrackCount=" + std::to_string(listener.first_track_count);
+  summary += ",firstTrackLabel=" + listener.first_track_label;
+  summary += ",firstTrackLabelTokenPresent=" +
+      std::to_string(listener.first_track_label_token_present ? 1 : 0);
   summary += ",secondTrackGroupId=" + listener.second_track_group_id;
   summary += ",secondTrackGroupTokenPresent=" +
       std::to_string(listener.second_track_group_token_present ? 1 : 0);

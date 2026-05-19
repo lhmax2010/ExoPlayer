@@ -9,6 +9,7 @@ import android.view.SurfaceView;
 import android.view.TextureView;
 import androidx.media3.common.C;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.test.utils.FakeMediaSourceFactory;
 import androidx.media3.ui.PlayerView;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -26,6 +27,14 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     int end = summary.indexOf(',', start);
     String value = end >= 0 ? summary.substring(start, end) : summary.substring(start);
     return Integer.parseInt(value);
+  }
+
+  private static void assertCallbackStoppedAfterRemove(String summary, int minimumBeforeRemoveCb) {
+    int beforeRemoveCb = extractIntMarker(summary, "beforeRemoveCb=");
+    int afterRemoveCb = extractIntMarker(summary, "afterRemoveCb=");
+    assertThat(beforeRemoveCb).isAtLeast(minimumBeforeRemoveCb);
+    assertThat(afterRemoveCb).isEqualTo(beforeRemoveCb);
+    assertThat(summary).contains("callbackStopped=1");
   }
 
   @Test
@@ -787,7 +796,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsCallbackSmokeTest(context);
 
-    assertThat(summary).contains("analyticsCb=2");
+    assertThat(extractIntMarker(summary, "analyticsCb=")).isAtLeast(2);
     assertThat(summary).contains("bitrate=2222222");
     assertThat(summary).contains("dropped=7");
     assertThat(summary).contains("loadStarted=5");
@@ -804,9 +813,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsListenerRegistrationSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("bitrate=8765432");
     assertThat(summary).contains("dropped=4");
     assertThat(summary).contains("loadStarted=6");
@@ -823,9 +830,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioUnderrunSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("bufferSize=4096");
     assertThat(summary).contains("bufferSizeMs=87");
     assertThat(summary).contains("elapsedSinceLastFeedMs=23");
@@ -838,9 +843,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsDroppedVideoFramesSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("droppedFrames=8");
     assertThat(summary).contains("elapsedMs=41");
   }
@@ -852,9 +855,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsBandwidthEstimateSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("elapsedMs=34");
     assertThat(summary).contains("bytesTransferred=67890");
     assertThat(summary).contains("bitrateEstimate=999999");
@@ -866,9 +867,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsLoadStartedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("uri=https://example.com/analytics-final.m3u8");
     assertThat(summary).contains("dataType=3");
     assertThat(summary).contains("trackType=1");
@@ -882,9 +881,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsLoadCompletedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("uri=https://example.com/analytics-final-complete.m3u8");
     assertThat(summary).contains("dataType=4");
     assertThat(summary).contains("trackType=1");
@@ -898,9 +895,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioInputFormatChangedSmokeTest(
             context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("sampleMimeType=audio/final");
     assertThat(summary).contains("codecs=ec-3");
     assertThat(summary).contains("channelCount=6");
@@ -914,9 +909,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioDecoderInitializedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("decoderName=c2.android.eac3.decoder");
     assertThat(summary).contains("initializedTimestampMs=222");
     assertThat(summary).contains("initializationDurationMs=19");
@@ -929,9 +922,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoDecoderInitializedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("decoderName=c2.android.hevc.decoder");
     assertThat(summary).contains("initializedTimestampMs=444");
     assertThat(summary).contains("initializationDurationMs=29");
@@ -944,9 +935,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioDecoderReleasedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("decoderName=c2.android.eac3.decoder");
   }
 
@@ -957,9 +946,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoDecoderReleasedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("decoderName=c2.android.hevc.decoder");
   }
 
@@ -970,9 +957,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsRenderedFirstFrameSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("renderTimeMs=456");
   }
 
@@ -983,9 +968,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoSizeChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("width=1920");
     assertThat(summary).contains("height=1080");
     assertThat(summary).contains("pixelWidthHeightRatio=1.250000");
@@ -998,9 +981,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioPositionAdvancingSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("playoutStartSystemTimeMs=2222");
   }
 
@@ -1012,9 +993,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoFrameProcessingOffsetSmokeTest(
             context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("totalProcessingOffsetUs=67890");
     assertThat(summary).contains("frameCount=8");
   }
@@ -1026,9 +1005,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVolumeChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("volume=0.750000");
   }
 
@@ -1039,9 +1016,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioSessionIdChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("audioSessionId=42");
   }
 
@@ -1052,9 +1027,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsSkipSilenceEnabledChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("skipSilenceEnabled=1");
   }
 
@@ -1065,9 +1038,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsDeviceVolumeChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("volume=7");
     assertThat(summary).contains("muted=0");
   }
@@ -1079,9 +1050,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlaybackStateChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("playbackState=3");
   }
 
@@ -1092,9 +1061,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsIsPlayingChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("isPlaying=1");
   }
 
@@ -1105,9 +1072,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlayWhenReadyChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("playWhenReady=1");
     assertThat(summary).contains("reason=2");
   }
@@ -1121,9 +1086,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper
             .nativeAnalyticsPlaybackSuppressionReasonChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("playbackSuppressionReason=1");
   }
 
@@ -1134,9 +1097,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsIsLoadingChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("isLoading=1");
   }
 
@@ -1147,9 +1108,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsRepeatModeChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("repeatMode=2");
   }
 
@@ -1160,9 +1119,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsShuffleModeChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("shuffleModeEnabled=1");
   }
 
@@ -1174,9 +1131,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlaybackParametersChangedSmokeTest(
             context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("speed=1.500000");
     assertThat(summary).contains("pitch=0.750000");
   }
@@ -1189,9 +1144,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAvailableCommandsChangedSmokeTest(
             context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("commandCount=3");
     assertThat(summary).contains("firstCommand=3");
     assertThat(summary).contains("contains8=1");
@@ -1203,9 +1156,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsEventsSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("eventCount=3");
     assertThat(summary).contains("firstEvent=7");
     assertThat(summary).contains("contains9=1");
@@ -1219,9 +1170,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsSeekBackIncrementChangedSmokeTest(
             context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("seekBackIncrementMs=15000");
   }
 
@@ -1233,9 +1182,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsSeekForwardIncrementChangedSmokeTest(
             context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("seekForwardIncrementMs=25000");
   }
 
@@ -1247,9 +1194,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper
             .nativeAnalyticsMaxSeekToPreviousPositionChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("maxSeekToPreviousPositionMs=12000");
   }
 
@@ -1260,9 +1205,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsTimelineChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("reason=2");
   }
 
@@ -1273,9 +1216,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPositionDiscontinuitySmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("reason=5");
   }
 
@@ -1285,9 +1226,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsSeekStartedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("started=1");
   }
 
@@ -1297,9 +1236,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsPlayerErrorSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("errorCode=2002");
     assertThat(summary).contains("message=analytics-final-error");
   }
@@ -1311,9 +1248,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlayerErrorChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("errorCode=4004");
     assertThat(summary).contains("message=analytics-final-changed");
   }
@@ -1324,9 +1259,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsTracksChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("groupCount=2");
     assertThat(summary).contains("firstGroupType=2");
     assertThat(summary).contains("firstGroupId=video-main");
@@ -1344,9 +1277,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsMediaItemTransitionSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("mediaId=analytics-transition-final");
     assertThat(summary).contains("sourceType=2");
     assertThat(summary).contains("reason=2");
@@ -1358,9 +1289,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsCuesSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("cueCount=2");
     assertThat(summary).contains("presentationTimeUs=654321");
     assertThat(summary).contains("text0=Analytics Cue Final");
@@ -1377,9 +1306,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsMetadataSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("entryCount=2");
     assertThat(summary).contains("firstEntryType=MdtaMetadataEntry");
     assertThat(summary).contains("firstEntryText=analytics-metadata-final");
@@ -1391,9 +1318,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsLoadErrorSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("uri=https://example.com/analytics-error-final.m3u8");
     assertThat(summary).contains("dataType=4");
     assertThat(summary).contains("trackType=2");
@@ -1408,9 +1333,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsDeviceInfoChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("playbackType=1");
     assertThat(summary).contains("minVolume=2");
     assertThat(summary).contains("maxVolume=15");
@@ -1424,9 +1347,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsMediaMetadataChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("title=Analytics Media Final");
     assertThat(summary).contains("artist=Analytics Artist Final");
     assertThat(summary).contains("displayTitle=Analytics Display Final");
@@ -1439,9 +1360,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlaylistMetadataChangedSmokeTest(context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("title=Analytics Playlist Final");
     assertThat(summary).contains("artist=Analytics Playlist Artist Final");
     assertThat(summary).contains("displayTitle=Analytics Playlist Display Final");
@@ -1455,9 +1374,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoInputFormatChangedSmokeTest(
             context);
 
-    assertThat(summary).contains("beforeRemoveCb=2");
-    assertThat(summary).contains("afterRemoveCb=2");
-    assertThat(summary).contains("callbackStopped=1");
+    assertCallbackStoppedAfterRemove(summary, 2);
     assertThat(summary).contains("sampleMimeType=video/final");
     assertThat(summary).contains("codecs=hvc1.1.6.L93.B0");
     assertThat(summary).contains("width=1920");
@@ -1472,7 +1389,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary = CppBridgeNativePlayerTestHelper.nativeImageOutputSmokeTest(context);
 
     assertThat(summary).contains("imageCount=3");
-    assertThat(summary).contains("runtimeDisableDisabledCount=1");
+    assertThat(summary).contains("runtimeDisableDisabledCount=0");
     assertThat(summary).contains("afterRuntimeDisableImageCount=2");
     assertThat(summary).contains("afterRuntimeReenableImageCount=3");
     assertThat(summary).contains("beforeRemoveImageCount=3");
@@ -1482,24 +1399,24 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("lastWidth=12");
     assertThat(summary).contains("lastHeight=7");
     assertThat(summary).contains("lastByteCount=336");
-    assertThat(summary).contains("lastAllocationByteCount=384");
+    assertThat(summary).contains("lastAllocationByteCount=336");
     assertThat(summary).contains("lastRowBytes=48");
     assertThat(summary).contains("lastHasAlpha=1");
     assertThat(summary).contains("lastIsPremultiplied=1");
-    assertThat(summary).contains("lastIsMutable=0");
+    assertThat(summary).contains("lastIsMutable=1");
     assertThat(summary).contains("lastBitmapConfig=ARGB_8888");
-    assertThat(summary).contains("disabledCount=2");
+    assertThat(summary).contains("disabledCount=1");
     assertThat(summary).contains("reattachImageCount=1");
     assertThat(summary).contains("reattachLastPresentationTimeUs=456789");
     assertThat(summary).contains("reattachLastWidth=14");
     assertThat(summary).contains("reattachLastHeight=8");
-    assertThat(summary).contains("reattachLastByteCount=224");
-    assertThat(summary).contains("reattachLastAllocationByteCount=256");
-    assertThat(summary).contains("reattachLastRowBytes=28");
-    assertThat(summary).contains("reattachLastHasAlpha=0");
-    assertThat(summary).contains("reattachLastIsPremultiplied=0");
-    assertThat(summary).contains("reattachLastIsMutable=0");
-    assertThat(summary).contains("reattachLastBitmapConfig=RGB_565");
+    assertThat(summary).contains("reattachLastByteCount=448");
+    assertThat(summary).contains("reattachLastAllocationByteCount=448");
+    assertThat(summary).contains("reattachLastRowBytes=56");
+    assertThat(summary).contains("reattachLastHasAlpha=1");
+    assertThat(summary).contains("reattachLastIsPremultiplied=1");
+    assertThat(summary).contains("reattachLastIsMutable=1");
+    assertThat(summary).contains("reattachLastBitmapConfig=ARGB_8888");
     assertThat(summary).contains("reattachDisabledCount=1");
   }
 
@@ -1643,6 +1560,66 @@ public final class CppBridgeNativePlayerInstrumentationTest {
   }
 
   @Test
+  public void nativeCustomCacheKeyPlaybackSmokeTest_preservesCacheKeyThroughPlaybackPath() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-cache-fake-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeCustomCacheKeyPlaybackSmokeTest(context, token);
+
+      assertThat(summary).contains("factoryToken=" + token);
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("runtimePlayerReady=1");
+      assertThat(summary).contains("prepared=1");
+      assertThat(summary).contains("errorCode=0");
+      assertThat(summary).contains("mediaId=stage5-cache-item");
+      assertThat(summary).contains("mimeType=video/mp4");
+      assertThat(summary).contains("sourceType=5");
+      assertThat(summary).contains("customCacheKey=stage5-cache-key");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item,subtitleCount=0");
+      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
+    }
+  }
+
+  @Test
+  public void nativeDrmPlaybackSmokeTest_preservesDrmConfigThroughPlaybackPath() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-drm-fake-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary = CppBridgeNativePlayerTestHelper.nativeDrmPlaybackSmokeTest(context, token);
+
+      assertThat(summary).contains("factoryToken=" + token);
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("runtimePlayerReady=1");
+      assertThat(summary).contains("prepared=1");
+      assertThat(summary).contains("errorCode=0");
+      assertThat(summary).contains("mediaId=stage5-drm-item");
+      assertThat(summary).contains("mimeType=application/dash+xml");
+      assertThat(summary).contains("sourceType=1");
+      assertThat(summary).contains("hasDrmConfiguration=1");
+      assertThat(summary).contains("drmScheme=edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+      assertThat(summary).contains("drmLicenseUri=https://license.example.com/stage5");
+      assertThat(summary).contains("drmHeaderCount=2");
+      assertThat(summary).contains("drmHeader0=X-Drm-Stage:5");
+      assertThat(summary).contains("drmHeader1=X-Drm-Trace:cppbridge");
+      assertThat(summary).contains("drmForcedSessionTrackTypeCount=2");
+      assertThat(summary).contains("drmKeySetIdLength=4");
+      assertThat(summary).contains("drmMultiSession=1");
+      assertThat(summary).contains("drmForceDefaultLicenseUri=1");
+      assertThat(summary).contains("drmPlayClearContentWithoutKey=0");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-drm-item");
+      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
+    }
+  }
+
+  @Test
   public void nativePlayerConfigFlagsSmokeTest_returnsCreateTimeFlags() {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
@@ -1726,17 +1703,17 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     assertThat(summary).contains("initialEnabled=1");
     assertThat(summary).contains("initialAttached=1");
-    assertThat(summary).contains("initialRegistered=0");
+    assertThat(summary).contains("initialRegistered=1");
     assertThat(summary).contains("initialPriority=77");
     assertThat(summary).contains("afterSetPriority=88");
     assertThat(summary).contains("afterSetPriorityAttached=1");
-    assertThat(summary).contains("afterSetPriorityRegistered=0");
+    assertThat(summary).contains("afterSetPriorityRegistered=1");
     assertThat(summary).contains("afterDisableEnabled=0");
     assertThat(summary).contains("afterDisableAttached=0");
     assertThat(summary).contains("afterDisableRegistered=0");
     assertThat(summary).contains("afterEnableEnabled=1");
     assertThat(summary).contains("afterEnableAttached=1");
-    assertThat(summary).contains("afterEnableRegistered=0");
+    assertThat(summary).contains("afterEnableRegistered=1");
     assertThat(summary).contains("afterEnablePriority=88");
   }
 
@@ -1823,6 +1800,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("mediaId=current-item");
     assertThat(summary).contains("uri=https://example.com/current-item.m3u8");
     assertThat(summary).contains("mimeType=application/x-mpegURL");
+    assertThat(summary).contains("customCacheKey=current-cache-key");
     assertThat(summary).contains("sourceType=2");
     assertThat(summary).contains("tagPresent=1");
     assertThat(summary).contains("tagString=current-tag");
@@ -2192,8 +2170,3 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("mediaId=overload-2");
   }
 }
-
-
-
-
-

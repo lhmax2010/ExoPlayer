@@ -188,6 +188,11 @@ public final class CppBridgeNativePlayerTestHelper {
   public static native String nativeMediaSourceFactoryGeneratedTokenSmokeTest(
       Context context, String token);
 
+  public static native String nativeCustomCacheKeyPlaybackSmokeTest(
+      Context context, String token);
+
+  public static native String nativeDrmPlaybackSmokeTest(Context context, String token);
+
   public static native String nativePlayerConfigFlagsSmokeTest(Context context);
 
   public static native String nativeWakeModeRuntimeSmokeTest(Context context);
@@ -237,4 +242,3 @@ public final class CppBridgeNativePlayerTestHelper {
 
   public static native String nativeMediaSetOverloadsSmokeTest(Context context);
 }
-

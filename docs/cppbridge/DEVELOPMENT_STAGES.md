@@ -1,6 +1,6 @@
 # Development Stages
 
-Last updated: 2026-03-18
+Last updated: 2026-05-19
 
 This document summarizes what has been developed so far, what remains, and what the final delivery
 package should contain.
@@ -224,6 +224,14 @@ Completed:
 - video effects smoke now validates scale/rotate, RGB adjustment, and presentation parameters, plus clear/reset, reapply ordering, duplicate effect-type behavior, and default/boundary-value cases for the supported effect families
 - builder/config smoke now covers builder-produced runtime players, handle-audio-focus and seek-increment observability, wake mode runtime updates, and preload round-trip updates across SDK builder/runtime and bridge-runtime paths
 - token-registered and registry-generated-token `MediaSource.Factory` injection baseline now covers both direct native-create and builder-build paths, including safe fallback to the default factory when the token is missing, replacement-registration observability via factory identity markers, and multi-token isolation behavior
+- Stage 5 source integration now covers C++ `MediaItem.custom_cache_key` / Java
+  `MediaItem.customCacheKey` mapping, progressive source-type inference from common progressive
+  mime/URI values, and token-injected playback preparation for both custom-cache-key and DRM
+  descriptor preservation
+- Ownership boundary for RPI4-oriented source integration is explicit: the bridge owns reduced
+  descriptors and factory-token selection; the app/platform owns concrete cache/offline-download
+  instances, DRM session/license/provisioning behavior, and registered `MediaSource.Factory`
+  implementations
 - renderer messaging smoke now validates reduced result payload fields more directly
 - priority smoke now covers bridge and wrapper state transitions with richer registration/priority markers
 

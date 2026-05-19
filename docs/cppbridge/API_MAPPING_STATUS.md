@@ -1,6 +1,6 @@
 # API Mapping Status
 
-Last updated: 2026-03-19
+Last updated: 2026-05-19
 
 Current reduced-endpoint tracker totals:
 
@@ -36,6 +36,9 @@ Current review note:
 - Track snapshots now preserve an opaque-token baseline for representative `label` identity, with
   direct smoke visibility in runtime tracks query, JNI tracks conversion smoke, and listener
   payload capture.
+- Stage 5 source integration now preserves `MediaItem.customCacheKey` through the C++/JNI/Java
+  media-item round trip, infers progressive source type from common progressive mime/URI values,
+  and validates custom-cache-key plus DRM descriptors through token-injected playback preparation.
 
 Smoke reference conventions:
 
@@ -116,7 +119,7 @@ Use these search chains when you want exact grep targets instead of reading the 
 | seek parameters | `SetSeekParameters`, `GetSeekParameters` | Done | `nativeSeekParametersSmokeTest_roundTripsSeekParameters` |
 | playlist mutation | set/add/remove/move/replace/clear | Done | `nativePlaylistMutationSmokeTest_returnsUpdatedPlaylistState`; `nativeMediaSetOverloadsSmokeTest_returnsUpdatedPlaylistSummary` |
 | `getMediaItemAt` | `GetMediaItemAt(int)` | Done | `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds` |
-| `getCurrentMediaItem` | `GetCurrentMediaItem()` | Done | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary` |
+| `getCurrentMediaItem` | `GetCurrentMediaItem()` | Done | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`; `nativeCustomCacheKeyPlaybackSmokeTest_preservesCacheKeyThroughPlaybackPath`; `nativeDrmPlaybackSmokeTest_preservesDrmConfigThroughPlaybackPath` |
 | playlist metadata set/get | `SetPlaylistMetadata`, `GetPlaylistMetadata` | Done | `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata`; `nativePlaylistMetadataOpaqueTokenSmokeTest_resolvesRegisteredObjects`; `nativeVideoAndMetadataSmokeTest_returnsQuerySummary` |
 | repeat/shuffle | direct setter/getter parity | Done | `nativeCreateConfiguredPlayerSnapshotForTest_returnsConfiguredState`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |
 | playback parameters | reduced `PlaybackParametersSnapshot` | Done | `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |

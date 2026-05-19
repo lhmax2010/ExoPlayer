@@ -79,7 +79,7 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   private final boolean configuredUseLazyPreparationForTest;
   private final long configuredSeekBackIncrementMsForTest;
   private final long configuredSeekForwardIncrementMsForTest;
-  private final int configuredWakeModeForTest;
+  private volatile int configuredWakeModeForTest;
   private final CppMediaSourceFactoryConfig mediaSourceFactoryConfig;
   private final String injectedMediaSourceFactoryTokenForTest;
   private final boolean injectedMediaSourceFactoryUsedForTest;
@@ -639,6 +639,7 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   public void setWakeMode(int wakeMode) {
+    configuredWakeModeForTest = wakeMode;
     runOnPlayerThread(() -> player.setWakeMode(wakeMode));
   }
 
@@ -1118,12 +1119,20 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   public void simulateAnalyticsAvailableCommandsChangedForTest(int[] commandCodes) {
+    simulateAnalyticsAvailableCommandsChangedForTest(new CppCommands(commandCodes));
+  }
+
+  public void simulateAnalyticsAvailableCommandsChangedForTest(CppCommands commands) {
     runOnPlayerThread(
-        () -> dispatchAnalyticsAvailableCommandsChanged(new CppCommands(commandCodes)));
+        () -> dispatchAnalyticsAvailableCommandsChanged(commands));
   }
 
   public void simulateAnalyticsEventsForTest(int[] eventCodes) {
-    runOnPlayerThread(() -> dispatchAnalyticsEvents(new CppPlayerEvents(eventCodes)));
+    simulateAnalyticsEventsForTest(new CppPlayerEvents(eventCodes));
+  }
+
+  public void simulateAnalyticsEventsForTest(CppPlayerEvents events) {
+    runOnPlayerThread(() -> dispatchAnalyticsEvents(events));
   }
 
   public void simulateSeekBackIncrementChangedForTest(long seekBackIncrementMs) {
@@ -1228,10 +1237,13 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   public void simulateAnalyticsDeviceInfoChangedForTest(
       int playbackType, int minVolume, int maxVolume, @Nullable String routingControllerId) {
+    simulateAnalyticsDeviceInfoChangedForTest(
+        new CppDeviceInfo(playbackType, minVolume, maxVolume, routingControllerId));
+  }
+
+  public void simulateAnalyticsDeviceInfoChangedForTest(CppDeviceInfo deviceInfo) {
     runOnPlayerThread(
-        () ->
-            dispatchAnalyticsDeviceInfoChanged(
-                new CppDeviceInfo(playbackType, minVolume, maxVolume, routingControllerId)));
+        () -> dispatchAnalyticsDeviceInfoChanged(deviceInfo));
   }
 
   public void simulateAnalyticsMediaMetadataChangedForTest(CppMediaMetadata metadata) {
@@ -2024,6 +2036,10 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
                   : "";
           @Nullable String localMimeType =
               mediaItem.localConfiguration != null ? mediaItem.localConfiguration.mimeType : "";
+          @Nullable String customCacheKey =
+              mediaItem.localConfiguration != null
+                  ? mediaItem.localConfiguration.customCacheKey
+                  : "";
           @Nullable String drmLicenseUri =
               mediaItem.localConfiguration != null
                       && mediaItem.localConfiguration.drmConfiguration != null
@@ -2092,6 +2108,8 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
               + liveMaxPlaybackSpeed
               + ",mimeType="
               + localMimeType
+              + ",customCacheKey="
+              + customCacheKey
               + ",drmScheme="
               + drmScheme
               + ",drmLicenseUri="
@@ -3503,5 +3521,3 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   private static native void nativeOnImageOutputDisabled(long nativeHandle);
 }
-
-

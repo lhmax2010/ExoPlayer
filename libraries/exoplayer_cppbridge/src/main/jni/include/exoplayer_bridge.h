@@ -159,6 +159,7 @@ struct MediaItemDescriptor {
   std::string uri;
   std::string media_id;
   std::string mime_type;
+  std::string custom_cache_key;
   MediaSourceType source_type = MediaSourceType::kDefault;
   bool tag_present = false;
   std::string tag_string;
@@ -1409,4 +1410,3 @@ class ExoPlayerBridge {
 }  // namespace androidx::media3::cppbridge
 
 #endif  // ANDROIDX_MEDIA3_EXOPLAYER_CPPBRIDGE_EXOPLAYER_BRIDGE_H_
-

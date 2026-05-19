@@ -1,6 +1,6 @@
 # C++ Bridge Validation Guide
 
-Last updated: 2026-03-19
+Last updated: 2026-05-19
 
 This guide is for moving the current `exoplayer_cppbridge` work to another machine and validating
 that the JNI bridge, C++ API surface, smoke coverage, and demo app all behave as expected.
@@ -24,6 +24,8 @@ Current readiness snapshot:
 - negative smoke coverage now includes double-release and listener lifecycle mutation checks
 - helper scripts are present for full validation and demo launch
 - demo now exposes manual queries for tracks, current item, timeline, metadata, and cues
+- Stage 5 playback-path smoke now covers C++ `MediaItem.customCacheKey` preservation and reduced
+  DRM descriptor preservation through token-injected fake `MediaSource.Factory` preparation
 - native build now separates core bridge code from smoke/player-test/demo entrypoints through
   `exoplayer_cppbridge_jni` and `exoplayer_cppbridge_jni_testhooks`
 - explicit opaque-token cleanup helpers now exist for the main C++ query APIs, but they are
@@ -202,6 +204,11 @@ Native target note:
 - `exoplayer_cppbridge_jni` contains the production bridge core
 - `exoplayer_cppbridge_jni_testhooks` contains smoke, player-test, and demo JNI entrypoints
 - the default validation build includes both targets
+- Stage 5 source/DRM ownership note: the bridge owns the reduced media-item descriptors,
+  source-type/mime inference, HTTP config values, factory-token selection, `customCacheKey`, and
+  DRM configuration descriptors. The app/platform still owns concrete cache instances/offline
+  downloads, DRM session/license/provisioning behavior, and any concrete `MediaSource.Factory`
+  object registered behind a token.
 
 ## 6. Human Acceptance Checklist
 
@@ -331,7 +338,7 @@ Additional high-signal markers worth checking for the newest reduced-scope work:
 - `injectedFactoryUsed=1`
 - `fallbackApplied=1`
 - `tokensIsolated=1`
-- `beforeRemoveCb=2`
+- `beforeRemoveCb>=2`
 - `callbackStopped=1`
 - `bufferSizeMs=87`
 - `elapsedSinceLastFeedMs=23`

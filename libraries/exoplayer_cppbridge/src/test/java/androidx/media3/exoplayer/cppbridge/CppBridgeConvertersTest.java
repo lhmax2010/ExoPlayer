@@ -37,6 +37,7 @@ public final class CppBridgeConvertersTest {
             "https://example.com/video.mpd",
             "media-id",
             "application/dash+xml",
+            "cache-key-advanced",
             1,
             false,
             null,
@@ -66,6 +67,7 @@ public final class CppBridgeConvertersTest {
     assertThat(mediaItem.mediaId).isEqualTo("media-id");
     assertThat(mediaItem.localConfiguration).isNotNull();
     assertThat(mediaItem.localConfiguration.mimeType).isEqualTo("application/dash+xml");
+    assertThat(mediaItem.localConfiguration.customCacheKey).isEqualTo("cache-key-advanced");
     assertThat(mediaItem.localConfiguration.subtitleConfigurations).hasSize(1);
     assertThat(mediaItem.localConfiguration.subtitleConfigurations.get(0).language).isEqualTo("en");
     assertThat(mediaItem.clippingConfiguration.startPositionMs).isEqualTo(1000);
@@ -93,6 +95,7 @@ public final class CppBridgeConvertersTest {
             "https://example.com/live.m3u8",
             "hls-id",
             null,
+            null,
             2,
             false,
             null,
@@ -118,6 +121,7 @@ public final class CppBridgeConvertersTest {
             null,
             "no-uri-id",
             null,
+            null,
             0,
             false,
             null,
@@ -137,11 +141,30 @@ public final class CppBridgeConvertersTest {
   }
 
   @Test
+  public void fromMediaItem_preservesCustomCacheKey() {
+    MediaItem mediaItem =
+        new MediaItem.Builder()
+            .setUri("https://example.com/cache.mp4")
+            .setMediaId("cache-id")
+            .setMimeType("video/mp4")
+            .setCustomCacheKey("cache-key-from-platform")
+            .build();
+
+    CppMediaItem cppMediaItem = CppBridgeConverters.fromMediaItem(mediaItem);
+
+    assertThat(cppMediaItem.mediaId).isEqualTo("cache-id");
+    assertThat(cppMediaItem.mimeType).isEqualTo("video/mp4");
+    assertThat(cppMediaItem.customCacheKey).isEqualTo("cache-key-from-platform");
+    assertThat(cppMediaItem.sourceType).isEqualTo(5);
+  }
+
+  @Test
   public void toMediaItem_mapsAdsConfiguration() {
     CppMediaItem item =
         new CppMediaItem(
             "https://example.com/content.m3u8",
             "ads-id",
+            null,
             null,
             2,
             false,
@@ -461,11 +484,21 @@ public final class CppBridgeConvertersTest {
     CppMediaItem genericManifestItem =
         CppBridgeConverters.fromMediaItem(
             new MediaItem.Builder().setUri("https://example.com/api/manifest").build());
+    CppMediaItem progressiveWithQueryItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/video.mp4?token=abc#fragment")
+                .build());
+    CppMediaItem progressiveAudioItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder().setUri("https://example.com/audio.flac").build());
 
     assertThat(dashItem.sourceType).isEqualTo(1);
     assertThat(hlsItem.sourceType).isEqualTo(2);
     assertThat(ssItem.sourceType).isEqualTo(3);
     assertThat(genericManifestItem.sourceType).isEqualTo(0);
+    assertThat(progressiveWithQueryItem.sourceType).isEqualTo(5);
+    assertThat(progressiveAudioItem.sourceType).isEqualTo(5);
   }
 
   @Test
