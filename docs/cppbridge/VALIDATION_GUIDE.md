@@ -42,13 +42,12 @@ Current readiness snapshot:
   complete
 - repeatable API parity inventory is available through
   `python3 scripts/cppbridge/api_parity_inventory.py --check`
-- latest Android 16 emulator validation on 2026-05-19 used AVD
-  `cppbridge_android16_api36` on serial `emulator-5554` and passed the connected smoke suite:
-  `CppBridgeNativeSmokeTest` `26/26`, `CppBridgeNativePlayerInstrumentationTest` `112/112`,
-  connected total `138/138`
+- current Android 16 connected validation passed on AVD `emulator-5554`:
+  `CppBridgeNativeSmokeTest` `27/27`, `CppBridgeNativePlayerInstrumentationTest` `112/112`,
+  connected total `139/139`
 - RPI4 board validation is intentionally deferred until the board is reachable; use
   `RPI4_TESTING_GUIDE.md` for that manual pass
-- the current source tree contains 168 `@Test` methods across the cppbridge unit and
+- the current source tree contains 169 `@Test` methods across the cppbridge unit and
   instrumentation sources after the runtime/audio/codec/auxiliary-callback, TrackInfo
   format-payload, HTTP/HLS/DASH playback, HTTP data-source config playback, custom source-factory
   SmoothStreaming / RTSP playback, decoded extras, Timeline / MediaItem / MediaMetadata

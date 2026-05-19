@@ -262,9 +262,8 @@ Completed:
   work.
 - Stage 6 validation script stabilization adds `--local-only` to the shell and Python validation
   entrypoints for no-device build/unit/package verification.
-- Android 16 AVD `cppbridge_android16_api36` passed the full connected Stage 6 smoke suite on
-  2026-05-19: `26/26` JNI/value smoke, `112/112` player/runtime smoke, `138/138` total. The demo
-  installed and `MainActivity` launched on the emulator.
+- The current workspace passes the connected Stage 6 smoke suite on Android 16: `27/27` JNI/value
+  smoke, `112/112` player/runtime smoke, `139/139` total after the demo subtitle-array smoke.
 - RPI4 manual validation is documented in `RPI4_TESTING_GUIDE.md` and remains pending until board
   access returns.
 

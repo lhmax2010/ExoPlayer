@@ -26,39 +26,33 @@ Important nuance:
 
 ## Validation status
 
-Latest local validation on this machine, refreshed on `2026-05-19`:
+Latest current-turn validation on this machine, refreshed on `2026-05-19`:
 
 - Build/native link: `Pass`
-- JNI/value smoke: `Pass`
-- Player/runtime smoke: `Pass`
+- JVM unit tests: `Pass`
+- AndroidTest package build: `Pass`
 - Demo build: `Pass`
-- Demo manual validation: demo installed and `MainActivity` launched on Android 16 emulator;
-  UIAutomator/adb taps verified Play, Pause, Stop, Playback, Tracks, Item, Timeline, Metadata, and
-  Cues status updates through the native bridge
-- Logcat review: high-signal crash/error filters were clean after the emulator demo UI smoke
+- Connected instrumentation: `Pass`; Android 16 AVD `emulator-5554` passed `139/139` connected
+  tests (`27/27` JNI/value smoke plus `112/112` player/runtime smoke).
+- Demo manual validation: previous Stage 6 demo UI smoke installed and launched `MainActivity` on
+  Android 16 emulator; the current demo subtitle/audio update has been package-built but still needs
+  a connected AVD or RPI4 manual playback pass.
 
 Commands that passed:
 
-- `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
-- `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest`
-- `./gradlew :demo-cppbridge:assembleDebug`
-- `bash scripts/cppbridge/run_validation.sh --serial emulator-5554`
-- `python3 scripts/cppbridge/run_validation.py --local-only`
-- `bash scripts/cppbridge/run_validation.sh --local-only`
-- `./gradlew :lib-exoplayer-cppbridge:assemble -PcppbridgeIncludeTestEntrypoints=OFF`
-- `python3 -m unittest discover -s scripts/cppbridge -p '*_test.py'`
+- `./gradlew :demo-cppbridge:assembleDebug :lib-exoplayer-cppbridge:assembleDebugAndroidTest --console=plain`
+- `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest --console=plain`
+- `ANDROID_SDK_ROOT=$HOME/Android/Sdk PATH=$HOME/Android/Sdk/platform-tools:$HOME/Android/Sdk/emulator:$PATH bash scripts/cppbridge/run_validation.sh --serial emulator-5554`
+- `adb -s emulator-5554 shell am instrument -w -r -e class androidx.media3.exoplayer.cppbridge.CppBridgeNativeSmokeTest androidx.media3.exoplayer.cppbridge.test/androidx.test.runner.AndroidJUnitRunner`
 - `python3 scripts/cppbridge/api_parity_inventory.py --check`
 - `git diff --check`
 
 Interpretation:
 
-- The current Android 16 emulator run verified the smoke suite end to end.
-- The current Android 16 emulator run reported `138/138` connected instrumentation tests passed:
-  `26/26` for `CppBridgeNativeSmokeTest` and `112/112` for
-  `CppBridgeNativePlayerInstrumentationTest`.
-- RPI4 board validation is not executed yet because the board is currently unreachable; use
-  `docs/cppbridge/RPI4_TESTING_GUIDE.md` when manual access returns.
+- The current workspace contains the new demo multi-subtitle smoke, and the Android 16 connected
+  baseline is now verified at `139/139`.
+- RPI4 board validation is the next manual device gate; use `docs/cppbridge/RPI4_TESTING_GUIDE.md`
+  when board access returns.
 - Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
   `api.txt` parity.
 - The 2026-05-18 Stage 1 inventory report is now checked in at
@@ -74,8 +68,8 @@ Interpretation:
 Current androidTest count found in the workspace:
 
 - Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
-  `CppBridgeNativePlayerInstrumentationTest.java`: `138`
-- Total `@Test` count across cppbridge Android instrumentation and JVM unit sources: `168`
+  `CppBridgeNativePlayerInstrumentationTest.java`: `139`
+- Total `@Test` count across cppbridge Android instrumentation and JVM unit sources: `169`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -166,11 +160,8 @@ This is consistent with a large smoke-first validation strategy.
 - Stage 6 validation scripts now have a `--local-only` path for no-device environments, covering
   API inventory, JVM UT, AndroidTest packaging, and demo packaging in one command; the connected
   path now verifies the requested `--serial` is actually online before running Gradle.
-- Android 16/API 36 emulator validation is clean for Stage 6: `138/138` connected tests passed, and
-  the demo process launched successfully on `emulator-5554`. A follow-up demo UI smoke launched
-  with `skip_default_load`, clicked control/query buttons, observed native `status_text` summaries
-  such as `state=1`, `windowCount=0`, `title=`, and `cueCount=0`, and found no fatal JNI/native/demo
-  crash markers in logcat.
+- Android 16/API 36 connected validation is clean for the current Stage 6 baseline: `27/27`
+  JNI/value smoke, `112/112` player/runtime smoke, `139/139` aggregate.
 - Stage 4 has completed reduced `AnalyticsListener` method-name coverage. It started with the
   independent `AnalyticsListener#onAudioAttributesChanged` callback carrying
   `AudioAttributesDescriptor`, then added 25 remaining reduced analytics callbacks for load,

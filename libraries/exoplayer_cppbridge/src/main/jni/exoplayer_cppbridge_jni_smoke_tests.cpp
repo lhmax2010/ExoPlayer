@@ -2336,4 +2336,31 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBu
   return NewStringUtfChecked(env, summary, "nativeBuildPlaylistIdsForTest");
 }
 
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBuildSubtitleConfigurationsForTest(
+    JNIEnv* env,
+    jclass,
+    jobjectArray urls,
+    jobjectArray mime_types,
+    jobjectArray languages,
+    jobjectArray labels) {
+  std::vector<MediaItemDescriptor::SubtitleConfigurationDescriptor> subtitles =
+      BuildSubtitleConfigurations(
+          JStringArrayToVector(env, urls),
+          JStringArrayToVector(env, mime_types),
+          JStringArrayToVector(env, languages),
+          JStringArrayToVector(env, labels));
+  std::string summary = "subtitleCount=" + std::to_string(subtitles.size());
+  for (size_t i = 0; i < subtitles.size(); ++i) {
+    const auto& subtitle = subtitles[i];
+    const std::string index = std::to_string(i);
+    summary += ",subtitle" + index + "Uri=" + subtitle.uri;
+    summary += ",subtitle" + index + "Mime=" + subtitle.mime_type;
+    summary += ",subtitle" + index + "Language=" + subtitle.language;
+    summary += ",subtitle" + index + "Label=" + subtitle.label;
+    summary += ",subtitle" + index + "Id=" + subtitle.id;
+  }
+  return NewStringUtfChecked(env, summary, "nativeBuildSubtitleConfigurationsForTest");
+}
+
 }  // extern "C"

@@ -3,10 +3,11 @@
 Last updated: 2026-05-19
 
 This guide is the manual Raspberry Pi 4 validation pass for `exoplayer_cppbridge`. The board is not
-currently connected in the Codex environment, so the latest automated gate is Android 16 emulator
-validation. Run this guide on the host machine when the RPI4 is reachable.
+currently connected in the Codex environment, so run this guide on the host machine when the RPI4 is
+reachable.
 
-Use absolute dates in reports. The current emulator baseline was refreshed on 2026-05-19.
+Use absolute dates in reports. The current Android 16 connected baseline was refreshed on
+2026-05-19 and passed on AVD `emulator-5554`.
 
 ## 1. Scope
 
@@ -17,13 +18,13 @@ Validate that the `exoplayer_cppbridge` Android app and native bridge work on th
 3. The demo launches and can exercise HTTP progressive, HLS, and DASH playback through the C++ API.
 4. Board-specific decoder, audio, network, and rendering issues are captured with useful evidence.
 
-The expected Android 16 emulator baseline before RPI4 validation is:
+The expected Android 16 connected baseline before RPI4 validation is:
 
-- `CppBridgeNativeSmokeTest`: `26/26` passed
-- `CppBridgeNativePlayerInstrumentationTest`: `112/112` passed
-- connected total: `138/138` passed
+- `CppBridgeNativeSmokeTest`: `27/27`
+- `CppBridgeNativePlayerInstrumentationTest`: `112/112`
+- connected total: `139/139`
 - demo UI target: single-screen player with no scroll/log panel; source, speed, playlist, file,
-  audio, and subtitle choices live behind the bottom-right `Menu` button
+  audio, subtitle-cycle, and subtitle-file choices live behind the bottom-right `Menu` button
 
 ## 1A. Quick Start
 
@@ -287,8 +288,8 @@ Useful targeted fallback commands:
 
 Expected result:
 
-- `CppBridgeNativeSmokeTest`: all tests pass. The current emulator baseline is `26/26`.
-- `CppBridgeNativePlayerInstrumentationTest`: all tests pass. The current emulator baseline is
+- `CppBridgeNativeSmokeTest`: all tests pass. The current expected connected baseline is `27/27`.
+- `CppBridgeNativePlayerInstrumentationTest`: all tests pass. The current expected connected baseline is
   `112/112`.
 - No `UnsatisfiedLinkError`, JNI exception, native crash, or instrumentation timeout.
 - HTTP/HLS/DASH instrumentation smoke passes through
@@ -410,19 +411,20 @@ Fill this during board testing:
 
 | Media type | URL / source | Expected | Result | Notes |
 | --- | --- | --- | --- | --- |
-| HTTP progressive | `Menu` -> `HTTP` | starts video/audio; controls respond |  |  |
-| HLS | `Menu` -> `HLS` | manifest loads; playback starts |  |  |
-| DASH | `Menu` -> `DASH` | manifest loads; playback starts |  |  |
+| HTTP progressive | `Menu` -> `HTTP` | starts video/audio; `Text +` cycles demo sidecar subtitles; `Audio +` reports selected audio or single-track status |  |  |
+| HLS | `Menu` -> `HLS` | manifest loads; playback starts; `Audio +` and `Text +` cycle available tracks |  |  |
+| DASH | `Menu` -> `DASH` | manifest loads; playback starts; `Audio +` and `Text +` cycle available tracks |  |  |
 | Playlist | `Menu` -> `Playlist` | playback remains usable |  |  |
-| Track controls | `Menu` -> `Audio +`, `Text +`, `Text EN` | track selection controls respond without crash |  |  |
-| USB/local file | `Menu` -> `File` | content URI loads as progressive |  |  |
+| Track controls | `Menu` -> `Audio +`, `Text +`, `Text EN`, `Sub File` | track selection controls respond without crash; subtitle picker reloads current media with the selected subtitle |  |  |
+| USB/local file | `Menu` -> `File` | content URI loads as progressive with demo subtitles; audio switching works when the file contains multiple audio tracks |  |  |
 
 ## 9. Pass Criteria
 
 RPI4 validation is considered pass when:
 
-- Full connected validation passes on the board. Use the current emulator baseline as reference:
-  `26/26`, `112/112`, `138/138`.
+- Full connected validation passes on the board. Use the current connected baseline expectation as
+  reference:
+  `27/27`, `112/112`, `139/139`.
 - Demo installs and launches.
 - HTTP progressive, HLS, and DASH playback start through the demo without native crash or JNI error.
 - Basic controls respond: play/pause, progress-bar scrub, menu seek shortcuts, menu source selection,

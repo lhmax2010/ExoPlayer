@@ -15,10 +15,12 @@ constexpr int kTrackTypeText = 3;
 constexpr char kDemoHttpUrl[] =
     "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4";
 constexpr char kDemoDashUrl[] =
-    "https://storage.googleapis.com/wvmedia/clear/h264/tears/tears.mpd";
+    "https://storage.googleapis.com/shaka-demo-assets/sintel/dash.mpd";
 constexpr char kDemoHlsUrl[] =
-    "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/"
-    "bipbop_4x3_variant.m3u8";
+    "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/"
+    "master.m3u8";
+constexpr char kDemoSubtitleEnUri[] = "asset:///subtitles/demo_en.vtt";
+constexpr char kDemoSubtitleEsUri[] = "asset:///subtitles/demo_es.vtt";
 
 struct DemoTrackCandidate {
   std::string group_id;
@@ -145,6 +147,27 @@ MediaItemDescriptor BuildDemoMediaItem(
   return descriptor;
 }
 
+std::vector<MediaItemDescriptor::SubtitleConfigurationDescriptor>
+BuildDemoSubtitleConfigurations() {
+  return BuildSubtitleConfigurations(
+      {kDemoSubtitleEnUri, kDemoSubtitleEsUri},
+      {"text/vtt", "text/vtt"},
+      {"en", "es"},
+      {"English", "Spanish"});
+}
+
+MediaItemDescriptor BuildDemoMediaItemWithDemoSubtitles(
+    const std::string& uri,
+    int source_type,
+    const std::string& mime_type,
+    const std::string& media_id,
+    const std::string& title) {
+  MediaItemDescriptor descriptor =
+      BuildDemoMediaItem(uri, source_type, mime_type, media_id, title);
+  descriptor.subtitle_configurations = BuildDemoSubtitleConfigurations();
+  return descriptor;
+}
+
 std::string BuildDemoCurrentItemSummary(const MediaItemDescriptor& item) {
   std::string summary = "mediaId=" + item.media_id;
   summary += ",uri=" + item.uri;
@@ -157,6 +180,11 @@ std::string BuildDemoCurrentItemSummary(const MediaItemDescriptor& item) {
     const auto& subtitle = item.subtitle_configurations.front();
     summary += ",subtitle0Language=" + subtitle.language;
     summary += ",subtitle0Label=" + subtitle.label;
+  }
+  if (item.subtitle_configurations.size() > 1) {
+    const auto& subtitle = item.subtitle_configurations[1];
+    summary += ",subtitle1Language=" + subtitle.language;
+    summary += ",subtitle1Label=" + subtitle.label;
   }
   return summary;
 }
@@ -1664,17 +1692,48 @@ Java_androidx_media3_demo_cppbridge_MainActivity_nativeLoadMediaWithSubtitle(
       JStringToString(env, mime_type),
       "subtitle-demo-item",
       "CppBridge Subtitle Demo");
-  MediaItemDescriptor::SubtitleConfigurationDescriptor subtitle;
-  subtitle.uri = JStringToString(env, subtitle_url);
-  subtitle.mime_type = "text/vtt";
-  subtitle.language = "en";
-  subtitle.label = "English";
-  descriptor.subtitle_configurations.push_back(subtitle);
+  descriptor.subtitle_configurations = BuildSubtitleConfigurations(
+      {JStringToString(env, subtitle_url)}, {"text/vtt"}, {"en"}, {"English"});
   player->SetMediaItem(descriptor);
   player->Prepare();
   std::string summary = "Loaded media + subtitle via C++ API\n";
   summary += BuildDemoCurrentItemSummary(player->GetCurrentMediaItem());
   return NewStringUtfChecked(env, summary, "nativeLoadMediaWithSubtitle");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_demo_cppbridge_MainActivity_nativeLoadMediaWithSubtitles(
+    JNIEnv* env,
+    jobject,
+    jlong native_handle,
+    jstring media_url,
+    jint source_type,
+    jstring mime_type,
+    jobjectArray subtitle_urls,
+    jobjectArray subtitle_mime_types,
+    jobjectArray subtitle_languages,
+    jobjectArray subtitle_labels) {
+  ExoPlayerSdkPlayer* player = AcquireDemoPlayer(native_handle);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env, "Player not initialized", "nativeLoadMediaWithSubtitles.error");
+  }
+  MediaItemDescriptor descriptor = BuildDemoMediaItem(
+      JStringToString(env, media_url),
+      source_type,
+      JStringToString(env, mime_type),
+      "subtitle-demo-item",
+      "CppBridge Subtitle Demo");
+  descriptor.subtitle_configurations = BuildSubtitleConfigurations(
+      JStringArrayToVector(env, subtitle_urls),
+      JStringArrayToVector(env, subtitle_mime_types),
+      JStringArrayToVector(env, subtitle_languages),
+      JStringArrayToVector(env, subtitle_labels));
+  player->SetMediaItem(descriptor);
+  player->Prepare();
+  std::string summary = "Loaded media + subtitles via C++ API\n";
+  summary += BuildDemoCurrentItemSummary(player->GetCurrentMediaItem());
+  return NewStringUtfChecked(env, summary, "nativeLoadMediaWithSubtitles");
 }
 
 JNIEXPORT jstring JNICALL
@@ -1687,11 +1746,11 @@ Java_androidx_media3_demo_cppbridge_MainActivity_nativeLoadDemoPlaylist(
     return NewStringUtfChecked(env, "Player not initialized", "nativeLoadDemoPlaylist.error");
   }
   std::vector<MediaItemDescriptor> items;
-  items.push_back(
-      BuildDemoMediaItem(kDemoHttpUrl, 5, "video/mp4", "playlist-http", "HTTP Progressive"));
-  items.push_back(BuildDemoMediaItem(
+  items.push_back(BuildDemoMediaItemWithDemoSubtitles(
+      kDemoHttpUrl, 5, "video/mp4", "playlist-http", "HTTP Progressive"));
+  items.push_back(BuildDemoMediaItemWithDemoSubtitles(
       kDemoDashUrl, 1, "application/dash+xml", "playlist-dash", "DASH Sample"));
-  items.push_back(BuildDemoMediaItem(
+  items.push_back(BuildDemoMediaItemWithDemoSubtitles(
       kDemoHlsUrl, 2, "application/x-mpegURL", "playlist-hls", "HLS Sample"));
   player->SetMediaItems(items, 0, 0);
   player->Prepare();

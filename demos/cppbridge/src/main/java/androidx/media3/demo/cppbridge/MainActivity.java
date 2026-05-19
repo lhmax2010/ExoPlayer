@@ -54,6 +54,7 @@ public final class MainActivity extends AppCompatActivity {
   private static final int MENU_SEEK_BACK = 13;
   private static final int MENU_SEEK_FORWARD = 14;
   private static final int MENU_STOP = 15;
+  private static final int MENU_SUBTITLE_FILE = 16;
 
   private static final long TIME_UNSET = -9223372036854775807L;
   private static final long SEEK_STEP_MS = 10_000L;
@@ -62,13 +63,19 @@ public final class MainActivity extends AppCompatActivity {
   private static final String DEFAULT_HTTP_URL =
       "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4";
   private static final String DEFAULT_DASH_URL =
-      "https://storage.googleapis.com/wvmedia/clear/h264/tears/tears.mpd";
+      "https://storage.googleapis.com/shaka-demo-assets/sintel/dash.mpd";
   private static final String DEFAULT_HLS_URL =
-      "https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_4x3/"
-          + "bipbop_4x3_variant.m3u8";
+      "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/"
+          + "master.m3u8";
   private static final String DEFAULT_HTTP_MIME = "video/mp4";
   private static final String DEFAULT_DASH_MIME = "application/dash+xml";
   private static final String DEFAULT_HLS_MIME = "application/x-mpegURL";
+  private static final String[] DEMO_SUBTITLE_URLS = {
+    "asset:///subtitles/demo_en.vtt", "asset:///subtitles/demo_es.vtt"
+  };
+  private static final String[] DEMO_SUBTITLE_MIME_TYPES = {"text/vtt", "text/vtt"};
+  private static final String[] DEMO_SUBTITLE_LANGUAGES = {"en", "es"};
+  private static final String[] DEMO_SUBTITLE_LABELS = {"English", "Spanish"};
 
   static {
     System.loadLibrary("exoplayer_cppbridge_jni");
@@ -97,9 +104,17 @@ public final class MainActivity extends AppCompatActivity {
   private Button playPauseButton;
   private PopupWindow playerMenuWindow;
   private ActivityResultLauncher<String[]> openDocumentLauncher;
+  private ActivityResultLauncher<String[]> openSubtitleDocumentLauncher;
   private boolean isUserSeeking;
   private float currentSpeed = 1.0f;
   private String currentSourceName = "HTTP";
+  private String currentMediaUrl;
+  private int currentSourceType = SOURCE_PROGRESSIVE;
+  private String currentMimeType = DEFAULT_HTTP_MIME;
+  private String selectedSubtitleUrl;
+  private String selectedSubtitleMimeType;
+  private String selectedSubtitleLanguage;
+  private String selectedSubtitleLabel;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -124,6 +139,26 @@ public final class MainActivity extends AppCompatActivity {
               }
               grantPersistableReadPermission(uri);
               loadAndPlay("File", uri.toString(), SOURCE_PROGRESSIVE, resolveMimeType(uri, ""));
+            });
+    openSubtitleDocumentLauncher =
+        registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(),
+            uri -> {
+              if (uri == null) {
+                showTransientMessage("Subtitle selection canceled");
+                return;
+              }
+              if (TextUtils.isEmpty(currentMediaUrl)) {
+                showTransientMessage(getString(R.string.load_media_first));
+                return;
+              }
+              grantPersistableReadPermission(uri);
+              selectedSubtitleUrl = uri.toString();
+              selectedSubtitleMimeType = resolveSubtitleMimeType(uri);
+              selectedSubtitleLanguage = "und";
+              selectedSubtitleLabel = getString(R.string.external_subtitle_label);
+              reloadCurrentMedia(/* preservePlayback= */ true);
+              showTransientMessage(getString(R.string.subtitle_attached));
             });
 
     wireCompactControls();
@@ -233,8 +268,8 @@ public final class MainActivity extends AppCompatActivity {
         new int[] {R.string.seek_back_10s, R.string.seek_forward_10s, R.string.cycle_audio});
     addMenuRow(
         panel,
-        new int[] {MENU_TEXT, MENU_TEXT_EN},
-        new int[] {R.string.cycle_text, R.string.prefer_text});
+        new int[] {MENU_TEXT, MENU_TEXT_EN, MENU_SUBTITLE_FILE},
+        new int[] {R.string.cycle_text, R.string.prefer_text, R.string.pick_subtitle_file});
 
     playerMenuWindow =
         new PopupWindow(panel, dp(300), ViewGroup.LayoutParams.WRAP_CONTENT, /* focusable= */ true);
@@ -314,20 +349,28 @@ public final class MainActivity extends AppCompatActivity {
         return true;
       case MENU_AUDIO:
         if (ensurePlayerReady()) {
-          nativeCycleAudioTrack(nativePlayerHandle);
-          showTransientMessage(getString(R.string.audio_changed));
+          showTrackMessage(nativeCycleAudioTrack(nativePlayerHandle), R.string.audio_changed);
         }
         return true;
       case MENU_TEXT:
         if (ensurePlayerReady()) {
-          nativeCycleTextTrack(nativePlayerHandle);
-          showTransientMessage(getString(R.string.text_changed));
+          showTrackMessage(nativeCycleTextTrack(nativePlayerHandle), R.string.text_changed);
         }
         return true;
       case MENU_TEXT_EN:
         if (ensurePlayerReady()) {
           nativePreferTextLanguage(nativePlayerHandle, "en");
           showTransientMessage(getString(R.string.prefer_text_applied));
+        }
+        return true;
+      case MENU_SUBTITLE_FILE:
+        if (TextUtils.isEmpty(currentMediaUrl)) {
+          showTransientMessage(getString(R.string.load_media_first));
+        } else {
+          openSubtitleDocumentLauncher.launch(
+              new String[] {
+                "text/*", "application/ttml+xml", "application/x-subrip", "application/octet-stream"
+              });
         }
         return true;
       case MENU_STOP:
@@ -348,6 +391,8 @@ public final class MainActivity extends AppCompatActivity {
     nativeLoadDemoPlaylist(nativePlayerHandle);
     nativePlay(nativePlayerHandle);
     currentSourceName = "Playlist";
+    currentMediaUrl = null;
+    clearSelectedSubtitle();
     updateCurrentSourceLabel();
     updatePlaybackProgress();
   }
@@ -356,11 +401,93 @@ public final class MainActivity extends AppCompatActivity {
     if (!ensurePlayerReady()) {
       return;
     }
-    nativeLoadMedia(nativePlayerHandle, mediaUrl, sourceType, mimeType);
-    nativePlay(nativePlayerHandle);
     currentSourceName = label;
+    currentMediaUrl = mediaUrl;
+    currentSourceType = sourceType;
+    currentMimeType = TextUtils.isEmpty(mimeType) ? inferMimeType(sourceType) : mimeType;
+    clearSelectedSubtitle();
+    nativeLoadMediaWithSubtitles(
+        nativePlayerHandle,
+        currentMediaUrl,
+        currentSourceType,
+        currentMimeType,
+        buildSubtitleUrls(),
+        buildSubtitleMimeTypes(),
+        buildSubtitleLanguages(),
+        buildSubtitleLabels());
+    nativePlay(nativePlayerHandle);
     updateCurrentSourceLabel();
     updatePlaybackProgress();
+  }
+
+  private void reloadCurrentMedia(boolean preservePlayback) {
+    if (!ensurePlayerReady() || TextUtils.isEmpty(currentMediaUrl)) {
+      return;
+    }
+    long resumePositionMs =
+        preservePlayback ? Math.max(0L, nativeGetCurrentPosition(nativePlayerHandle)) : 0L;
+    boolean resumePlaying = preservePlayback && nativeIsPlaying(nativePlayerHandle);
+    nativeLoadMediaWithSubtitles(
+        nativePlayerHandle,
+        currentMediaUrl,
+        currentSourceType,
+        currentMimeType,
+        buildSubtitleUrls(),
+        buildSubtitleMimeTypes(),
+        buildSubtitleLanguages(),
+        buildSubtitleLabels());
+    if (resumePositionMs > 0L) {
+      nativeSeekTo(nativePlayerHandle, resumePositionMs);
+    }
+    if (resumePlaying || !preservePlayback) {
+      nativePlay(nativePlayerHandle);
+    } else {
+      nativePause(nativePlayerHandle);
+    }
+    updateCurrentSourceLabel();
+    updatePlaybackProgress();
+  }
+
+  private String[] buildSubtitleUrls() {
+    if (TextUtils.isEmpty(selectedSubtitleUrl)) {
+      return DEMO_SUBTITLE_URLS;
+    }
+    return append(DEMO_SUBTITLE_URLS, selectedSubtitleUrl);
+  }
+
+  private String[] buildSubtitleMimeTypes() {
+    if (TextUtils.isEmpty(selectedSubtitleUrl)) {
+      return DEMO_SUBTITLE_MIME_TYPES;
+    }
+    return append(DEMO_SUBTITLE_MIME_TYPES, selectedSubtitleMimeType);
+  }
+
+  private String[] buildSubtitleLanguages() {
+    if (TextUtils.isEmpty(selectedSubtitleUrl)) {
+      return DEMO_SUBTITLE_LANGUAGES;
+    }
+    return append(DEMO_SUBTITLE_LANGUAGES, selectedSubtitleLanguage);
+  }
+
+  private String[] buildSubtitleLabels() {
+    if (TextUtils.isEmpty(selectedSubtitleUrl)) {
+      return DEMO_SUBTITLE_LABELS;
+    }
+    return append(DEMO_SUBTITLE_LABELS, selectedSubtitleLabel);
+  }
+
+  private String[] append(String[] values, String value) {
+    String[] result = new String[values.length + 1];
+    System.arraycopy(values, 0, result, 0, values.length);
+    result[values.length] = value;
+    return result;
+  }
+
+  private void clearSelectedSubtitle() {
+    selectedSubtitleUrl = null;
+    selectedSubtitleMimeType = null;
+    selectedSubtitleLanguage = null;
+    selectedSubtitleLabel = null;
   }
 
   private void seekRelative(long offsetMs) {
@@ -401,6 +528,8 @@ public final class MainActivity extends AppCompatActivity {
     if (TextUtils.isEmpty(mediaUrl)) {
       if (skipDefaultLoad) {
         currentSourceName = "Select source";
+        currentMediaUrl = null;
+        clearSelectedSubtitle();
         updateCurrentSourceLabel();
         return true;
       }
@@ -416,12 +545,26 @@ public final class MainActivity extends AppCompatActivity {
             ? resolveMimeType(Uri.parse(mediaUrl), inferMimeType(sourceType))
             : mimeType;
 
-    if (!TextUtils.isEmpty(subtitleUrl)) {
-      nativeLoadMediaWithSubtitle(
-          nativePlayerHandle, mediaUrl, sourceType, resolvedMimeType, subtitleUrl);
+    currentMediaUrl = mediaUrl;
+    currentSourceType = sourceType;
+    currentMimeType = resolvedMimeType;
+    if (TextUtils.isEmpty(subtitleUrl)) {
+      clearSelectedSubtitle();
     } else {
-      nativeLoadMedia(nativePlayerHandle, mediaUrl, sourceType, resolvedMimeType);
+      selectedSubtitleUrl = subtitleUrl;
+      selectedSubtitleMimeType = "text/vtt";
+      selectedSubtitleLanguage = "en";
+      selectedSubtitleLabel = getString(R.string.external_subtitle_label);
     }
+    nativeLoadMediaWithSubtitles(
+        nativePlayerHandle,
+        currentMediaUrl,
+        currentSourceType,
+        currentMimeType,
+        buildSubtitleUrls(),
+        buildSubtitleMimeTypes(),
+        buildSubtitleLanguages(),
+        buildSubtitleLabels());
     if (autoPlay) {
       nativePlay(nativePlayerHandle);
     }
@@ -514,6 +657,27 @@ public final class MainActivity extends AppCompatActivity {
     return fallbackMimeType;
   }
 
+  private String resolveSubtitleMimeType(Uri uri) {
+    if ("content".equalsIgnoreCase(uri.getScheme())) {
+      String contentMimeType = getContentResolver().getType(uri);
+      if (!TextUtils.isEmpty(contentMimeType)
+          && !TextUtils.equals(contentMimeType, "application/octet-stream")) {
+        return contentMimeType;
+      }
+    }
+    String path = String.valueOf(uri.getLastPathSegment()).toLowerCase(Locale.US);
+    if (path.endsWith(".srt")) {
+      return "application/x-subrip";
+    }
+    if (path.endsWith(".ttml") || path.endsWith(".dfxp") || path.endsWith(".xml")) {
+      return "application/ttml+xml";
+    }
+    if (path.endsWith(".ass") || path.endsWith(".ssa")) {
+      return "text/x-ssa";
+    }
+    return "text/vtt";
+  }
+
   private void grantPersistableReadPermission(Uri uri) {
     try {
       getContentResolver()
@@ -530,6 +694,14 @@ public final class MainActivity extends AppCompatActivity {
 
   private void showTransientMessage(String message) {
     Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+  }
+
+  private void showTrackMessage(String nativeSummary, int fallbackTextId) {
+    if (TextUtils.isEmpty(nativeSummary)) {
+      showTransientMessage(getString(fallbackTextId));
+    } else {
+      showTransientMessage(nativeSummary);
+    }
   }
 
   private int dp(int value) {
@@ -555,6 +727,16 @@ public final class MainActivity extends AppCompatActivity {
 
   private native String nativeLoadMediaWithSubtitle(
       long nativeHandle, String mediaUrl, int sourceType, String mimeType, String subtitleUrl);
+
+  private native String nativeLoadMediaWithSubtitles(
+      long nativeHandle,
+      String mediaUrl,
+      int sourceType,
+      String mimeType,
+      String[] subtitleUrls,
+      String[] subtitleMimeTypes,
+      String[] subtitleLanguages,
+      String[] subtitleLabels);
 
   private native String nativeLoadDemoPlaylist(long nativeHandle);
 

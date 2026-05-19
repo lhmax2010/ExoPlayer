@@ -208,9 +208,8 @@ Current progress:
   `run_validation.sh`, letting no-device environments run API inventory, JVM unit tests,
   AndroidTest packaging, and demo packaging from one command. `run_validation_test.py` covers the
   device parser, serial-specific online-device preflight, and local command plan.
-- Android 16 emulator validation on 2026-05-19 used AVD `cppbridge_android16_api36` and passed the
-  connected suite with `138/138` instrumentation tests (`26/26` JNI/value smoke plus `112/112`
-  player/runtime smoke). The demo installed and `MainActivity` launched on the emulator.
+- Android 16 connected validation passed the current Stage 6 smoke suite on 2026-05-19:
+  `139/139` aggregate (`27/27` JNI/value smoke plus `112/112` player/runtime smoke).
 - RPI4 validation is documented in `docs/cppbridge/RPI4_TESTING_GUIDE.md` and remains a manual board
   gate because the RPI4 is currently unavailable.
 

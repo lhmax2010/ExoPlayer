@@ -708,4 +708,26 @@ public final class CppBridgeNativeSmokeTest {
 
     assertThat(playlistIds).isEqualTo("playlist-item-0,playlist-item-1");
   }
+
+  @Test
+  public void nativeBuildSubtitleConfigurationsForTest_preservesDemoSubtitleArrays() {
+    String summary =
+        CppBridgeNativeSmokeTestHelper.nativeBuildSubtitleConfigurationsForTest(
+            new String[] {"asset:///subtitles/demo_en.vtt", "content://demo/subtitle.srt"},
+            new String[] {"text/vtt"},
+            new String[] {"en", "und"},
+            new String[] {"English", "External"});
+
+    assertThat(summary).contains("subtitleCount=2");
+    assertThat(summary).contains("subtitle0Uri=asset:///subtitles/demo_en.vtt");
+    assertThat(summary).contains("subtitle0Mime=text/vtt");
+    assertThat(summary).contains("subtitle0Language=en");
+    assertThat(summary).contains("subtitle0Label=English");
+    assertThat(summary).contains("subtitle0Id=subtitle-en");
+    assertThat(summary).contains("subtitle1Uri=content://demo/subtitle.srt");
+    assertThat(summary).contains("subtitle1Mime=text/vtt");
+    assertThat(summary).contains("subtitle1Language=und");
+    assertThat(summary).contains("subtitle1Label=External");
+    assertThat(summary).contains("subtitle1Id=subtitle-und");
+  }
 }

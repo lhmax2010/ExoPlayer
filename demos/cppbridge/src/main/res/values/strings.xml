@@ -7,6 +7,10 @@
   <string name="audio_changed">Audio track changed</string>
   <string name="text_changed">Subtitle track changed</string>
   <string name="prefer_text_applied">English subtitles preferred</string>
+  <string name="pick_subtitle_file">Sub File</string>
+  <string name="load_media_first">Load media first</string>
+  <string name="subtitle_attached">Subtitle file attached</string>
+  <string name="external_subtitle_label">External</string>
   <string name="source_type_label">Source Type</string>
   <string name="media_url_hint">Media URL / USB Content URI</string>
   <string name="subtitle_url_hint">External Subtitle URL</string>

@@ -324,7 +324,7 @@ serial=${SERIAL:-not-used}
 local_validation=${local_result}
 connected_validation=${connected_result}
 connected_mode=$([[ "${RUN_CONNECTED}" -eq 1 ]] && echo "${CONNECTED_MODE}" || echo "skipped")
-expected_connected_baseline=CppBridgeNativeSmokeTest 26/26 + CppBridgeNativePlayerInstrumentationTest 112/112 = 138/138
+expected_connected_baseline=CppBridgeNativeSmokeTest 27/27 + CppBridgeNativePlayerInstrumentationTest 112/112 = 139/139
 EOF
 
 if [[ "${LOCAL_STATUS}" -ne 0 || "${CONNECTED_STATUS}" -ne 0 ]]; then

@@ -1,15 +1,15 @@
 # CppBridge Demo App Capability Matrix
 
-Last updated: 2026-04-02
+Last updated: 2026-05-19
 
 ## Implemented In `demos/cppbridge`
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| HTTP progressive playback | Supported | Demo exposes a preset HTTP MP4 sample and custom URL loading through C++ APIs. |
-| DASH playback | Supported | Demo exposes a DASH preset and explicit DASH source type loading through C++ APIs. |
-| HLS playback | Supported | Demo exposes an HLS preset and explicit HLS source type loading through C++ APIs. |
-| USB / local file playback | Supported with URI handoff | Android Java picks a `content://` or `file://` URI, then playback is started through the C++ player API. |
+| HTTP progressive playback | Supported | Demo exposes a preset HTTP MP4 sample through C++ APIs and attaches two demo sidecar subtitles for text-track switching. Audio switching is available when the HTTP asset contains multiple audio tracks. |
+| DASH playback | Supported | Demo preset now uses a DASH stream with multiple text tracks and multiple audio adaptation sets, then also attaches demo sidecar subtitles through C++ APIs. |
+| HLS playback | Supported | Demo preset now uses an Apple advanced multivariant HLS stream with alternate audio groups and subtitle metadata, then also attaches demo sidecar subtitles through C++ APIs. |
+| USB / local file playback | Supported with URI handoff | Android Java picks a `content://` or `file://` URI, then playback is started through the C++ player API with demo sidecar subtitles attached. Audio switching works for local files that contain multiple audio tracks. |
 | Video rendering | Supported | Demo binds `PlayerView` through `ExoPlayerSdkPlayer::BindPlayerView`. |
 | Audio playback | Supported | Standard playback path uses the C++ bridge-backed player. |
 | Play / Pause / Stop | Supported | Wired to `Play`, `Pause`, and `Stop`. |
@@ -17,7 +17,7 @@ Last updated: 2026-04-02
 | Seek back / forward increments | Supported | Wired to `SeekBack` and `SeekForward`. |
 | Previous / next media item | Supported | Wired to `SeekToPreviousMediaItem` and `SeekToNextMediaItem`. |
 | Trick play by speed | Supported | Demo exposes `0.5x`, `1.0x`, `1.5x`, and `2.0x` through `SetPlaybackSpeed`. |
-| External subtitle loading | Supported | Demo exposes a media + external WebVTT loading path through C++ APIs. |
+| External subtitle loading | Supported | Demo exposes built-in sidecar subtitles for every HTTP/DASH/HLS/file load plus a `Sub File` picker that reloads the current media with an external subtitle URI. |
 | Preferred text language | Supported | Wired to `SetTrackSelectionParameters`. |
 | Audio track switching | Supported | Demo cycles audio tracks via `TrackSelectionParametersDescriptor::OverrideDescriptor`. |
 | Text track switching | Supported | Demo cycles text tracks via track selection overrides and can disable text after the last track. |

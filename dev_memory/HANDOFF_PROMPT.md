@@ -45,16 +45,14 @@ Important context:
 - The legacy reduced endpoint tracker claims `Done: 99`, `Partial: 0`, `Not started: 0`; a
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
-- Latest local validation passed on 2026-05-19 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full connected validation through
-  `scripts/cppbridge/run_validation.sh --serial emulator-5554` (`138/138`: `26/26`
-  `CppBridgeNativeSmokeTest` plus `112/112` `CppBridgeNativePlayerInstrumentationTest`),
-  `:demo-cppbridge:assembleDebug`, production-only assemble with
-  `-PcppbridgeIncludeTestEntrypoints=OFF`, Python script/unit checks, and `git diff --check`.
-  The demo installed and `MainActivity` launched on the emulator. A later emulator demo UI smoke
-  launched with `skip_default_load`, clicked Play/Pause/Stop and Playback/Tracks/Item/Timeline/
-  Metadata/Cues buttons, observed native `status_text` summaries, and found no high-signal fatal
-  JNI/native/demo crash markers in logcat.
+- Latest current-turn validation on 2026-05-19 passed `:demo-cppbridge:assembleDebug`,
+  `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`,
+  `:lib-exoplayer-cppbridge:testDebugUnitTest`,
+  `python3 scripts/cppbridge/api_parity_inventory.py --check`, and `git diff --check`.
+  Connected instrumentation on Android 16 AVD `emulator-5554` passed `139/139` (`27/27`
+  `CppBridgeNativeSmokeTest` plus `112/112` `CppBridgeNativePlayerInstrumentationTest`). Previous
+  Stage 6 demo UI smoke installed and launched `MainActivity` on emulator and found no high-signal
+  fatal JNI/native/demo crash markers.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
   `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` covering the main

@@ -75,9 +75,8 @@ Recent test-facing additions:
 - `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary` and
   `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata` now assert decoded stable
   `Bundle` extras values for string, numeric, boolean, and byte-array entries
-- Android 16 AVD `cppbridge_android16_api36` passed the connected smoke suite with `138/138`
-  instrumentation tests; RPI4 board validation remains a manual follow-up using
-  `RPI4_TESTING_GUIDE.md`
+- Android 16 connected smoke passed for the current Stage 6 workspace: `139/139` connected tests
+  after the demo subtitle-array smoke; repeat on RPI4 using `RPI4_TESTING_GUIDE.md`.
 
 Recent dev-facing additions:
 

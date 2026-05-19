@@ -86,6 +86,11 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
 jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues);
 jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks);
 std::vector<std::string> JStringArrayToVector(JNIEnv* env, jobjectArray values);
+std::vector<MediaItemDescriptor::SubtitleConfigurationDescriptor> BuildSubtitleConfigurations(
+    const std::vector<std::string>& urls,
+    const std::vector<std::string>& mime_types,
+    const std::vector<std::string>& languages,
+    const std::vector<std::string>& labels);
 std::vector<uint8_t> JByteArrayToVector(JNIEnv* env, jbyteArray values);
 std::vector<std::vector<uint8_t>> JByteArrayArrayToVector(JNIEnv* env, jobjectArray values);
 std::vector<float> JFloatArrayToVector(JNIEnv* env, jfloatArray values);
