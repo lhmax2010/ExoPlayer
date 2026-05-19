@@ -16,7 +16,7 @@ status notes in:
 | JNI/value smoke | Pass | `CppBridgeNativeSmokeTest` on Android 16 AVD: `26/26` passed | Codex | Stage 6 audio-output-provider and opaque-token batch-release smokes are included in the connected run. |
 | Player/runtime smoke | Pass | `CppBridgeNativePlayerInstrumentationTest` on Android 16 AVD: `112/112` passed; connected total `138/138` passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track full-payload parity, decoded extras value-model markers, timeline / MediaItem / MediaMetadata object value metadata, Stage 4 analytics callback coverage, HTTP/HLS/DASH C++ playback smoke, Stage 5 HTTP data-source config smoke, Stage 5 custom source-factory SmoothStreaming / RTSP smoke, and Stage 6 audio-output-provider plus opaque-token batch smoke coverage. |
 | API parity inventory | Pass | `python3 scripts/cppbridge/api_parity_inventory.py --check` | Codex | Generated report is current; exact `Player`/`ExoPlayer`, `ExoPlayer.Builder`, and direct `Player.Listener` gaps are now `0`. |
-| Demo manual validation | Pass with notes | `:demo-cppbridge:installDebug`; Android 16 emulator `MainActivity`; UIAutomator-driven legacy smoke before the simplified demo UI refresh | Codex | Demo now uses a single-screen player layout with no visible log panel; HTTP/HLS/DASH source buttons are intended to load and play immediately. Remote media playback remains covered by instrumentation and RPI4 manual testing. |
+| Demo manual validation | Pass with notes | `:demo-cppbridge:installDebug`; Android 16 emulator `MainActivity`; UIAutomator-driven legacy smoke before the compact player-menu UI refresh | Codex | Demo now uses a single-screen player layout with a compact bottom overlay; HTTP/HLS/DASH, playlist, file, speed, and track actions are behind `Menu`. Remote media playback remains covered by instrumentation and RPI4 manual testing. |
 | Logcat review | Pass | no test failure, JNI fatal, `UnsatisfiedLinkError`, native fatal signal, tombstone, or demo ANR surfaced during Gradle instrumentation or demo UI smoke | Codex | Dedicated full log archive was not written, but high-signal crash/error filters were clean. |
 | Release recommendation | Pass with notes | latest local, production-only, and Android 16 connected emulator validation passed | Codex | Emulator coverage is clean. RPI4 remains a manual board-validation gate because the board is currently unavailable. |
 
@@ -236,8 +236,8 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | --- | --- | --- |
 | Demo app installs | Pass | Installed on Android 16 emulator through `run_validation.sh --serial emulator-5554` and again with `:demo-cppbridge:installDebug`. |
 | Demo app launches | Pass | `adb -s emulator-5554 shell am start -n androidx.media3.demo.cppbridge/.MainActivity --ez skip_default_load true`; process observed as `10520`. |
-| Player controls respond | Pass with notes | The simplified demo UI now exposes source, resume, pause, stop, seek, playlist, track, and speed controls without a visible debug log panel. |
-| C++ bridge demo path visible in UI/logs | Pass with notes | Source buttons continue to use C++ bridge load/play paths; query-output buttons were removed from the demo surface to keep it presentation-friendly. |
+| Player controls respond | Pass with notes | The simplified demo UI now exposes play/pause, a progress bar, time text, and a compact bottom-right `Menu`; seek shortcuts moved into the menu to keep the playback surface clean. |
+| C++ bridge demo path visible in UI/logs | Pass with notes | Menu actions continue to use C++ bridge load/play, speed, playlist, file, audio, and text paths; query-output buttons were removed from the demo surface to keep it presentation-friendly. |
 | No crash / ANR during manual flow | Pass | Logcat filters for `FATAL EXCEPTION`, `JNI DETECTED ERROR`, `UnsatisfiedLinkError`, `Fatal signal`, `tombstone`, and demo ANR returned no matches. |
 
 ## 7. Blocking Issues
@@ -248,7 +248,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 
 ## 8. Recommended Next Step
 
-- Summary: reduced bridge smoke suite is passing locally on Android 16 after the Stage 6 builder/token lifecycle addenda; connected emulator total is `138/138`, and the demo UI has been simplified into a single-screen player surface.
+- Summary: reduced bridge smoke suite is passing locally on Android 16 after the Stage 6 builder/token lifecycle addenda; connected emulator total is `138/138`, and the demo UI has been simplified into a single-screen player with compact menu controls.
 - Ship / continue development decision: continue development; RPI4 remains manual validation after board access returns, while future feature work should target deeper full-object parity beyond the reduced descriptors.
 - Owner: Codex
 - Date: 2026-05-19

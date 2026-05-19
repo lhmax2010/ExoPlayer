@@ -1860,6 +1860,42 @@ Java_androidx_media3_demo_cppbridge_MainActivity_nativeGetPlaybackSummary(
   return NewStringUtfChecked(env, summary, "nativeGetPlaybackSummary");
 }
 
+JNIEXPORT jlong JNICALL
+Java_androidx_media3_demo_cppbridge_MainActivity_nativeGetCurrentPosition(
+    JNIEnv*,
+    jobject,
+    jlong native_handle) {
+  ExoPlayerSdkPlayer* player = AcquireDemoPlayer(native_handle);
+  if (player == nullptr) {
+    return 0;
+  }
+  return static_cast<jlong>(player->GetCurrentPosition());
+}
+
+JNIEXPORT jlong JNICALL
+Java_androidx_media3_demo_cppbridge_MainActivity_nativeGetDuration(
+    JNIEnv*,
+    jobject,
+    jlong native_handle) {
+  ExoPlayerSdkPlayer* player = AcquireDemoPlayer(native_handle);
+  if (player == nullptr) {
+    return 0;
+  }
+  return static_cast<jlong>(player->GetDuration());
+}
+
+JNIEXPORT jboolean JNICALL
+Java_androidx_media3_demo_cppbridge_MainActivity_nativeIsPlaying(
+    JNIEnv*,
+    jobject,
+    jlong native_handle) {
+  ExoPlayerSdkPlayer* player = AcquireDemoPlayer(native_handle);
+  if (player == nullptr) {
+    return JNI_FALSE;
+  }
+  return player->IsPlaying() ? JNI_TRUE : JNI_FALSE;
+}
+
 JNIEXPORT jstring JNICALL
 Java_androidx_media3_demo_cppbridge_MainActivity_nativeGetTrackSummary(
     JNIEnv* env,

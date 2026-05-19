@@ -2,6 +2,11 @@
   <string name="app_name">C++ Bridge Demo</string>
   <string name="current_source_default">HTTP | 1.0x</string>
   <string name="player_create_failed">Player failed to start</string>
+  <string name="time_unset">0:00 / --:--</string>
+  <string name="player_menu">Menu</string>
+  <string name="audio_changed">Audio track changed</string>
+  <string name="text_changed">Subtitle track changed</string>
+  <string name="prefer_text_applied">English subtitles preferred</string>
   <string name="source_type_label">Source Type</string>
   <string name="media_url_hint">Media URL / USB Content URI</string>
   <string name="subtitle_url_hint">External Subtitle URL</string>
@@ -20,7 +25,11 @@
   <string name="seek_to">Seek To</string>
   <string name="seek_start">Start</string>
   <string name="seek_back">Seek Back</string>
+  <string name="seek_back_short">-10</string>
+  <string name="seek_back_10s">Back 10s</string>
   <string name="seek_forward">Seek Fwd</string>
+  <string name="seek_forward_short">+10</string>
+  <string name="seek_forward_10s">Forward 10s</string>
   <string name="previous_item">Prev</string>
   <string name="next_item">Next</string>
   <string name="prefer_text">Text EN</string>

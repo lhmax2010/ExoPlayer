@@ -22,8 +22,8 @@ The expected Android 16 emulator baseline before RPI4 validation is:
 - `CppBridgeNativeSmokeTest`: `26/26` passed
 - `CppBridgeNativePlayerInstrumentationTest`: `112/112` passed
 - connected total: `138/138` passed
-- demo UI target: single-screen player with no scroll/log panel; HTTP/HLS/DASH buttons load and play
-  immediately, and Pause/Resume/Seek/Speed controls remain visible
+- demo UI target: single-screen player with no scroll/log panel; source, speed, playlist, file,
+  audio, and subtitle choices live behind the bottom-right `Menu` button
 
 ## 1A. Quick Start
 
@@ -316,15 +316,16 @@ Manual playback focus:
 
 1. Confirm the app opens as a single-screen player. There should be no scroll area and no visible
    debug log/status panel.
-2. Press `HTTP`; playback should load and start immediately.
-3. Press `Pause`, then `Resume`; confirm playback pauses and resumes.
-4. Press `Seek Back`, `Seek Fwd`, and `Start`; confirm seeking works.
-5. Press `0.5x`, `1.0x`, `1.5x`, and `2.0x`; confirm speed changes take effect.
-6. Press `HLS`; playback should load and start immediately.
-7. Press `DASH`; playback should load and start immediately.
-8. Press `Playlist`, then use `Next` and `Prev`; confirm item transitions.
-9. If track selection is required, use `Audio +`, `Text +`, and `Text EN`.
-10. Use `File` for a local/USB content URI progressive playback check when needed.
+2. Confirm the bottom overlay is compact: `Play/Pause`, progress, time, and `Menu`.
+3. Use `Menu` -> `HTTP`; playback should load and start immediately.
+4. Press `Pause`, then `Play`; confirm playback pauses and resumes.
+5. Scrub the progress bar, then use `Menu` -> `Back 10s` and `Forward 10s`; confirm seeking works.
+6. Use `Menu` -> `0.5x`, `1.0x`, `1.5x`, and `2.0x`; confirm speed changes take effect.
+7. Use `Menu` -> `HLS`; playback should load and start immediately.
+8. Use `Menu` -> `DASH`; playback should load and start immediately.
+9. Use `Menu` -> `Playlist`; confirm playback remains usable.
+10. If track selection is required, use `Menu` -> `Audio +`, `Text +`, and `Text EN`.
+11. Use `Menu` -> `File` for a local/USB content URI progressive playback check when needed.
 
 The instrumentation suite already validates deterministic local HTTP/HLS/DASH, HTTP data-source
 configuration, and custom source-factory SmoothStreaming / RTSP paths. The RPI4 manual demo check is
@@ -409,12 +410,12 @@ Fill this during board testing:
 
 | Media type | URL / source | Expected | Result | Notes |
 | --- | --- | --- | --- | --- |
-| HTTP progressive | default HTTP button | starts video/audio; controls respond |  |  |
-| HLS | default HLS button | manifest loads; playback starts |  |  |
-| DASH | default DASH button | manifest loads; playback starts |  |  |
-| Mixed playlist | `Playlist` button | `Next` / `Prev` switch items |  |  |
-| Track controls | `Audio +`, `Text +`, `Text EN` | track selection controls respond without crash |  |  |
-| USB/local file | `File` button | content URI loads as progressive |  |  |
+| HTTP progressive | `Menu` -> `HTTP` | starts video/audio; controls respond |  |  |
+| HLS | `Menu` -> `HLS` | manifest loads; playback starts |  |  |
+| DASH | `Menu` -> `DASH` | manifest loads; playback starts |  |  |
+| Playlist | `Menu` -> `Playlist` | playback remains usable |  |  |
+| Track controls | `Menu` -> `Audio +`, `Text +`, `Text EN` | track selection controls respond without crash |  |  |
+| USB/local file | `Menu` -> `File` | content URI loads as progressive |  |  |
 
 ## 9. Pass Criteria
 
@@ -424,8 +425,8 @@ RPI4 validation is considered pass when:
   `26/26`, `112/112`, `138/138`.
 - Demo installs and launches.
 - HTTP progressive, HLS, and DASH playback start through the demo without native crash or JNI error.
-- Basic controls respond: resume, pause, seek back, seek forward, start, speed, next/previous,
-  track-selection buttons, and stop.
+- Basic controls respond: play/pause, progress-bar scrub, menu seek shortcuts, menu source selection,
+  speed selection, playlist, track-selection actions, and stop.
 - The demo remains a single-screen player with no scrolling and no visible debug log/status panel.
 - Logcat has no bridge crash, `UnsatisfiedLinkError`, fatal JNI exception, or repeated decoder crash.
 
