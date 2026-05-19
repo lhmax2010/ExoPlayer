@@ -207,6 +207,11 @@ What it runs:
 - board facts capture into `board_facts.txt`
 - full and high-signal logcat capture after the connected run
 
+The script does not fail fast between phases. If the host-side local JVM checks fail because
+Robolectric cannot download its runtime artifacts, it still runs the board-side connected
+instrumentation phase and writes both phase statuses to `summary.txt`. The final exit code remains
+non-zero if either phase fails.
+
 Useful options:
 
 ```bash

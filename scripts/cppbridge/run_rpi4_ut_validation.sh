@@ -10,6 +10,8 @@ OUT_DIR=""
 RUN_LOCAL=1
 RUN_CONNECTED=1
 LAUNCH_DEMO=0
+LOCAL_STATUS=0
+CONNECTED_STATUS=0
 
 usage() {
   cat <<'EOF'
@@ -170,8 +172,9 @@ fi
 echo "Output directory: ${OUT_DIR}"
 
 if [[ "${RUN_LOCAL}" -eq 1 ]]; then
+  LOCAL_STATUS=0
   run_logged "${OUT_DIR}/local_validation.txt" \
-    bash scripts/cppbridge/run_validation.sh --local-only
+    bash scripts/cppbridge/run_validation.sh --local-only || LOCAL_STATUS=$?
 fi
 
 if [[ "${RUN_CONNECTED}" -eq 1 ]]; then
@@ -179,12 +182,23 @@ if [[ "${RUN_CONNECTED}" -eq 1 ]]; then
   if [[ "${LAUNCH_DEMO}" -eq 1 ]]; then
     connected_args+=(--launch-demo)
   fi
-  connected_status=0
-  run_logged "${OUT_DIR}/connected_validation.txt" "${connected_args[@]}" || connected_status=$?
+  CONNECTED_STATUS=0
+  run_logged "${OUT_DIR}/connected_validation.txt" "${connected_args[@]}" || CONNECTED_STATUS=$?
   collect_logs
-  if [[ "${connected_status}" -ne 0 ]]; then
-    echo "Connected validation failed with exit code ${connected_status}. Logs were collected in ${OUT_DIR}." >&2
-    exit "${connected_status}"
+fi
+
+local_result="skipped"
+connected_result="skipped"
+if [[ "${RUN_LOCAL}" -eq 1 ]]; then
+  local_result="passed"
+  if [[ "${LOCAL_STATUS}" -ne 0 ]]; then
+    local_result="failed:${LOCAL_STATUS}"
+  fi
+fi
+if [[ "${RUN_CONNECTED}" -eq 1 ]]; then
+  connected_result="passed"
+  if [[ "${CONNECTED_STATUS}" -ne 0 ]]; then
+    connected_result="failed:${CONNECTED_STATUS}"
   fi
 fi
 
@@ -192,7 +206,12 @@ cat <<EOF | tee "${OUT_DIR}/summary.txt"
 cppbridge RPI4 UT validation completed.
 output_dir=${OUT_DIR}
 serial=${SERIAL:-not-used}
-local_validation=$([[ "${RUN_LOCAL}" -eq 1 ]] && echo "passed" || echo "skipped")
-connected_validation=$([[ "${RUN_CONNECTED}" -eq 1 ]] && echo "passed" || echo "skipped")
+local_validation=${local_result}
+connected_validation=${connected_result}
 expected_connected_baseline=CppBridgeNativeSmokeTest 26/26 + CppBridgeNativePlayerInstrumentationTest 112/112 = 138/138
 EOF
+
+if [[ "${LOCAL_STATUS}" -ne 0 || "${CONNECTED_STATUS}" -ne 0 ]]; then
+  echo "Validation had failures. See ${OUT_DIR}/summary.txt and the phase logs." >&2
+  exit 1
+fi
