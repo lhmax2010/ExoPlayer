@@ -133,17 +133,30 @@ Implication:
 ## 5. Validation status was closed locally on Android 16
 
 Older docs said validation was still open. The latest local pass on 2026-05-19 refreshed the main
-smoke loop on an Android 16 emulator after the Stage 5 source-factory and HTTP data-source config
+smoke loop on an Android 16 emulator after the Stage 6 audio-output-provider and opaque-token batch
 smokes were added.
 
 Passed commands:
 
 - `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`132/132`)
+- `bash scripts/cppbridge/run_validation.sh --serial emulator-5554` (`138/138`)
 - `./gradlew :demo-cppbridge:assembleDebug`
+- `./gradlew :lib-exoplayer-cppbridge:assemble -PcppbridgeIncludeTestEntrypoints=OFF`
+- `python3 -m unittest discover -s scripts/cppbridge -p '*_test.py'`
+- `python3 scripts/cppbridge/api_parity_inventory.py --check`
 - `git diff --check`
+
+Script review follow-up:
+
+- `run_validation.py` / `.sh` now fail early when `--serial` names a device that is not online,
+  instead of only checking for any online adb device.
 
 Remaining caveat:
 
-- demo manual interaction and logcat auditing were not separately written up in this pass
+- RPI4 board validation remains pending until the board is reachable; use
+  `docs/cppbridge/RPI4_TESTING_GUIDE.md` for that manual pass
+- demo remote-media playback still belongs to RPI4/manual media validation, but Android 16 emulator
+  UI control/query smoke is now written up: Play/Pause/Stop and Playback/Tracks/Item/Timeline/
+  Metadata/Cues buttons refreshed native status summaries, and high-signal logcat crash filters were
+  clean.

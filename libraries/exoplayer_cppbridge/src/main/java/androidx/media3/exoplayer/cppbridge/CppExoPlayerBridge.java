@@ -47,6 +47,7 @@ import androidx.media3.exoplayer.ScrubbingModeParameters;
 import androidx.media3.exoplayer.SeekParameters;
 import java.util.Arrays;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
+import androidx.media3.exoplayer.audio.AudioOutputProvider;
 import androidx.media3.exoplayer.audio.AudioSink;
 import androidx.media3.exoplayer.drm.DrmSession;
 import androidx.media3.exoplayer.drm.KeyRequestInfo;
@@ -119,6 +120,9 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   private final String injectedMediaSourceFactoryTokenForTest;
   private final boolean injectedMediaSourceFactoryUsedForTest;
   private final int injectedMediaSourceFactoryIdentityForTest;
+  private final String injectedAudioOutputProviderTokenForTest;
+  private final boolean injectedAudioOutputProviderUsedForTest;
+  private final int injectedAudioOutputProviderIdentityForTest;
   private volatile long latestBitrateEstimate;
   private volatile int droppedVideoFrames;
   private volatile int loadStartedCount;
@@ -213,7 +217,13 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
         injectedFactory != null ? System.identityHashCode(injectedFactory) : 0;
     MediaSource.Factory mediaSourceFactory =
         injectedFactory != null ? injectedFactory : defaultMediaSourceFactory;
-    player =
+    injectedAudioOutputProviderTokenForTest = resolvedConfig.audioOutputProviderToken;
+    AudioOutputProvider audioOutputProvider =
+        CppAudioOutputProviderRegistry.resolve(resolvedConfig.audioOutputProviderToken);
+    injectedAudioOutputProviderUsedForTest = audioOutputProvider != null;
+    injectedAudioOutputProviderIdentityForTest =
+        audioOutputProvider != null ? System.identityHashCode(audioOutputProvider) : 0;
+    ExoPlayer.Builder playerBuilder =
         new ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(AudioAttributes.DEFAULT, resolvedConfig.handleAudioFocus)
@@ -223,8 +233,11 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
             .setSeekForwardIncrementMs(resolvedConfig.seekForwardIncrementMs)
             .setWakeMode(resolvedConfig.wakeMode)
             .setPriority(resolvedConfig.priority)
-            .setPriorityTaskManager(priorityTaskManagerForTest)
-            .build();
+            .setPriorityTaskManager(priorityTaskManagerForTest);
+    if (audioOutputProvider != null) {
+      playerBuilder.setAudioOutputProvider(audioOutputProvider);
+    }
+    player = playerBuilder.build();
     playerHandler = new Handler(player.getApplicationLooper());
     if (resolvedConfig.targetPreloadDurationUs != C.TIME_UNSET) {
       long targetPreloadDurationUs = resolvedConfig.targetPreloadDurationUs;
@@ -2163,7 +2176,10 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
               Integer.toString(configuredVirtualDeviceIdForTest),
               player.isScrubbingModeEnabled() ? "1" : "0",
               latestAudioCodecParametersSummaryForTest,
-              latestVideoCodecParametersSummaryForTest
+              latestVideoCodecParametersSummaryForTest,
+              injectedAudioOutputProviderTokenForTest,
+              injectedAudioOutputProviderUsedForTest ? "1" : "0",
+              Integer.toString(injectedAudioOutputProviderIdentityForTest)
             });
   }
 

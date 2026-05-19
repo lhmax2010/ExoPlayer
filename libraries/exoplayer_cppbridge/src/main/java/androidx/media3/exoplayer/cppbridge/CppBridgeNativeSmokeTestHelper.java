@@ -40,6 +40,9 @@ public final class CppBridgeNativeSmokeTestHelper {
   public static native String nativeOpaqueTokenReleaseSmokeTest(
       Context context, String[] tokens);
 
+  public static native String nativeOpaqueTokenBatchReleaseSmokeTest(
+      Context context, String firstToken, String secondToken);
+
   public static native String nativeBuilderPreloadRoundTripSmokeTest(Context context);
 
   public static native String nativeBuilderMediaSourceFactoryInjectionSmokeTest(Context context);
@@ -53,6 +56,9 @@ public final class CppBridgeNativeSmokeTestHelper {
       Context context);
 
   public static native String nativeBuilderMediaSourceFactoryGeneratedTokenSmokeTest(
+      Context context, String token);
+
+  public static native String nativeBuilderAudioOutputProviderInjectionSmokeTest(
       Context context, String token);
 
   public static native String nativePriorityTaskManagerWrapperSmokeTest(Context context);

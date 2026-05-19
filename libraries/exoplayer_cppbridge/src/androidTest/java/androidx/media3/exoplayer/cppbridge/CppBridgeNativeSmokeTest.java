@@ -3,6 +3,7 @@ package androidx.media3.exoplayer.cppbridge;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
+import androidx.media3.exoplayer.audio.AudioTrackAudioOutputProvider;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -431,6 +432,34 @@ public final class CppBridgeNativeSmokeTest {
   }
 
   @Test
+  public void nativeOpaqueTokenBatchReleaseSmokeTest_dedupesAndClearsCollectedTokens() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    Object firstObject = new Object();
+    Object secondObject = new Object();
+    String firstToken = CppOpaqueObjectRegistry.register(firstObject);
+    String secondToken = CppOpaqueObjectRegistry.register(secondObject);
+
+    try {
+      assertThat(CppOpaqueObjectRegistry.resolve(firstToken)).isSameInstanceAs(firstObject);
+      assertThat(CppOpaqueObjectRegistry.resolve(secondToken)).isSameInstanceAs(secondObject);
+
+      String summary =
+          CppBridgeNativeSmokeTestHelper.nativeOpaqueTokenBatchReleaseSmokeTest(
+              context, firstToken, secondToken);
+
+      assertThat(summary).contains("playerBuild=1");
+      assertThat(summary).contains("collectedTokenCount=2");
+      assertThat(summary).contains("batchCleared=1");
+      assertThat(summary).contains("releaseIdempotent=1");
+      assertThat(CppOpaqueObjectRegistry.resolve(firstToken)).isNull();
+      assertThat(CppOpaqueObjectRegistry.resolve(secondToken)).isNull();
+    } finally {
+      CppOpaqueObjectRegistry.unregister(firstToken);
+      CppOpaqueObjectRegistry.unregister(secondToken);
+    }
+  }
+
+  @Test
   public void nativeBuilderPreloadRoundTripSmokeTest_updatesAndRestoresPreloadTarget() {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
@@ -559,6 +588,69 @@ public final class CppBridgeNativeSmokeTest {
     } finally {
       CppMediaSourceFactoryRegistry.unregister(token);
     }
+  }
+
+  @Test
+  public void nativeBuilderAudioOutputProviderInjectionSmokeTest_buildsWithRegisteredProviderToken() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage6-audio-output-provider";
+    CppAudioOutputProviderRegistry.register(
+        token, new AudioTrackAudioOutputProvider.Builder(context).build());
+    try {
+      String summary =
+          CppBridgeNativeSmokeTestHelper.nativeBuilderAudioOutputProviderInjectionSmokeTest(
+              context, token);
+
+      assertThat(summary).contains("builderAudioOutputProviderBuild=1");
+      assertThat(summary).contains("configAudioOutputProviderToken=" + token);
+      assertThat(summary).contains("resolvedAudioOutputProviderToken=" + token);
+      assertThat(summary).contains("resolvedAudioOutputProviderUsed=1");
+      assertThat(extractIntMarker(summary, "resolvedAudioOutputProviderIdentity="))
+          .isGreaterThan(0);
+    } finally {
+      CppAudioOutputProviderRegistry.unregister(token);
+    }
+  }
+
+  @Test
+  public void nativeBuilderAudioOutputProviderGeneratedTokenSmokeTest_buildsWithGeneratedProviderToken() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    AudioTrackAudioOutputProvider provider =
+        new AudioTrackAudioOutputProvider.Builder(context).build();
+    String token = CppAudioOutputProviderRegistry.register(provider);
+    try {
+      assertThat(CppAudioOutputProviderRegistry.register(provider)).isEqualTo(token);
+
+      String summary =
+          CppBridgeNativeSmokeTestHelper.nativeBuilderAudioOutputProviderInjectionSmokeTest(
+              context, token);
+
+      assertThat(summary).contains("builderAudioOutputProviderBuild=1");
+      assertThat(summary).contains("configAudioOutputProviderToken=" + token);
+      assertThat(summary).contains("resolvedAudioOutputProviderToken=" + token);
+      assertThat(summary).contains("resolvedAudioOutputProviderUsed=1");
+      assertThat(extractIntMarker(summary, "resolvedAudioOutputProviderIdentity="))
+          .isGreaterThan(0);
+    } finally {
+      CppAudioOutputProviderRegistry.unregister(token);
+    }
+  }
+
+  @Test
+  public void nativeBuilderAudioOutputProviderFallbackSmokeTest_buildsWhenTokenIsMissing() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativeSmokeTestHelper.nativeBuilderAudioOutputProviderInjectionSmokeTest(
+            context, "missing-audio-output-provider-token");
+
+    assertThat(summary).contains("builderAudioOutputProviderBuild=1");
+    assertThat(summary)
+        .contains("configAudioOutputProviderToken=missing-audio-output-provider-token");
+    assertThat(summary)
+        .contains("resolvedAudioOutputProviderToken=missing-audio-output-provider-token");
+    assertThat(summary).contains("resolvedAudioOutputProviderUsed=0");
+    assertThat(summary).contains("resolvedAudioOutputProviderIdentity=0");
   }
 
   @Test

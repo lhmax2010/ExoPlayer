@@ -20,6 +20,7 @@ If you only send one file to a tester or a handoff owner, send this one first.
 | [DATA_STRUCTURE_MAPPING.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DATA_STRUCTURE_MAPPING.md) | value-object / DTO mapping status; explains what reduced snapshots preserve and what full-support still lacks | bridge developer, reviewer |
 | [DEVELOPMENT_STAGES.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DEVELOPMENT_STAGES.md) | project history, current stage, and full-support backlog for the next phase | dev lead, handoff owner |
 | [VALIDATION_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_GUIDE.md) | compile / instrumentation / demo validation guide for a new machine or server | tester, release owner |
+| [RPI4_TESTING_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/RPI4_TESTING_GUIDE.md) | Raspberry Pi 4 manual validation checklist after board access returns | tester, release owner |
 | [TEST_RESULTS_TEMPLATE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/TEST_RESULTS_TEMPLATE.md) | raw result write-back template during validation | tester |
 | [VALIDATION_RESULTS_SUMMARY.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_RESULTS_SUMMARY.md) | final pass/fail rollup after validation | test lead, release owner |
 | [FILE_MAP.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/FILE_MAP.md) | file-to-responsibility map for code reading and modification | developer |
@@ -57,6 +58,7 @@ Native target split:
 ### For test personnel
 
 - [VALIDATION_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_GUIDE.md)
+- [RPI4_TESTING_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/RPI4_TESTING_GUIDE.md)
 - [TEST_RESULTS_TEMPLATE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/TEST_RESULTS_TEMPLATE.md)
 - [VALIDATION_RESULTS_SUMMARY.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/VALIDATION_RESULTS_SUMMARY.md)
 - [DOCUMENT_INDEX.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/DOCUMENT_INDEX.md)
@@ -73,6 +75,9 @@ Recent test-facing additions:
 - `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary` and
   `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata` now assert decoded stable
   `Bundle` extras values for string, numeric, boolean, and byte-array entries
+- Android 16 AVD `cppbridge_android16_api36` passed the connected smoke suite with `138/138`
+  instrumentation tests; RPI4 board validation remains a manual follow-up using
+  `RPI4_TESTING_GUIDE.md`
 
 Recent dev-facing additions:
 
@@ -196,6 +201,10 @@ These are the files to use for hands-on validation on a device after compilation
 ### Demo JNI entrypoints
 
 - [exoplayer_cppbridge_jni_callbacks_demo.cpp](/home/linhao/Toolchain/development/ExoPlayer/libraries/exoplayer_cppbridge/src/main/jni/exoplayer_cppbridge_jni_callbacks_demo.cpp)
+
+### Board validation
+
+- [RPI4_TESTING_GUIDE.md](/home/linhao/Toolchain/development/ExoPlayer/docs/cppbridge/RPI4_TESTING_GUIDE.md)
 
 ## 6. Fast Reading Order
 

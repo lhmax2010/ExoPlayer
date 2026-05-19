@@ -252,6 +252,21 @@ Completed:
 - first-batch reduced parity (`MediaItem`, `Timeline`, `Tracks`, `MediaMetadata`, `Cue`) now has
   high-signal smoke-observed field coverage aligned with the mapping docs
 - several static compile hazards fixed during smoke maintenance
+- Stage 6 stabilization now closes the remaining exact `ExoPlayer.Builder#setAudioOutputProvider`
+  inventory gap with a token-injected app-owned `AudioOutputProvider` path. C++ exposes
+  `ExoPlayerSdkPlayerBuilder::SetAudioOutputProviderToken`, Java resolves the token through
+  `CppAudioOutputProviderRegistry`, and smoke coverage verifies the configured provider identity,
+  generated token reuse, and missing-token fallback.
+- Stage 6 now also deduplicates C++ opaque-token collection and smoke-covers
+  `OpaqueTokenBatch::Release` clear/idempotency behavior before broader token lifecycle cleanup
+  work.
+- Stage 6 validation script stabilization adds `--local-only` to the shell and Python validation
+  entrypoints for no-device build/unit/package verification.
+- Android 16 AVD `cppbridge_android16_api36` passed the full connected Stage 6 smoke suite on
+  2026-05-19: `26/26` JNI/value smoke, `112/112` player/runtime smoke, `138/138` total. The demo
+  installed and `MainActivity` launched on the emulator.
+- RPI4 manual validation is documented in `RPI4_TESTING_GUIDE.md` and remains pending until board
+  access returns.
 
 ## Remaining Work For Next Stage
 

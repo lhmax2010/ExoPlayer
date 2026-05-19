@@ -1874,6 +1874,47 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeOp
 }
 
 JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeOpaqueTokenBatchReleaseSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context,
+    jstring first_token,
+    jstring second_token) {
+  ExoPlayerSdkPlayerBuilder builder;
+  std::unique_ptr<ExoPlayerSdkPlayer> player = builder.Build(env, context);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "playerBuild=0,collectedTokenCount=0,batchCleared=0,releaseIdempotent=0",
+        "nativeOpaqueTokenBatchReleaseSmokeTest.error");
+  }
+
+  const std::string first = JStringToString(env, first_token);
+  const std::string second = JStringToString(env, second_token);
+  MediaItemDescriptor media_item;
+  media_item.tag_token = first;
+  media_item.media_metadata.title_token = first;
+  media_item.media_metadata.artist_token = second;
+  media_item.request_metadata.extras_token = second;
+  media_item.ads_configuration.ads_id_token = first;
+
+  OpaqueTokenBatch<MediaItemDescriptor> batch{
+      media_item, CollectOpaqueObjectTokens(media_item)};
+  const size_t collected_token_count = batch.tokens.size();
+  batch.Release(player.get());
+  const bool batch_cleared = batch.tokens.empty();
+  batch.Release(player.get());
+  const bool release_idempotent = batch.tokens.empty();
+  player->Release();
+
+  std::string summary =
+      "playerBuild=1,collectedTokenCount=" + std::to_string(collected_token_count) +
+      ",batchCleared=" + std::to_string(batch_cleared ? 1 : 0) +
+      ",releaseIdempotent=" + std::to_string(release_idempotent ? 1 : 0);
+  return NewStringUtfChecked(env, summary, "nativeOpaqueTokenBatchReleaseSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBuilderPreloadRoundTripSmokeTest(
     JNIEnv* env,
     jclass,
@@ -2096,6 +2137,38 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBu
   player->Release();
   return NewStringUtfChecked(
       env, summary, "nativeBuilderMediaSourceFactoryGeneratedTokenSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBuilderAudioOutputProviderInjectionSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context,
+    jstring token) {
+  ExoPlayerSdkPlayerBuilder builder;
+  builder.SetAudioOutputProviderToken(JStringToString(env, token));
+
+  const PlayerConfig& config = builder.GetConfig();
+  std::shared_ptr<ExoPlayerBridge> bridge = ExoPlayerBridge::Create(env, context, config);
+  if (bridge == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "builderAudioOutputProviderBuild=0",
+        "nativeBuilderAudioOutputProviderInjectionSmokeTest.error");
+  }
+
+  std::vector<std::string> flags = BridgeGetPlayerConfigFlagsForTest(env, bridge);
+  std::string resolved_token = flags.size() > 22 ? flags[22] : "";
+  std::string resolved_used = flags.size() > 23 ? flags[23] : "0";
+  std::string resolved_identity = flags.size() > 24 ? flags[24] : "0";
+  std::string summary = "builderAudioOutputProviderBuild=1";
+  summary += ",configAudioOutputProviderToken=" + config.audio_output_provider_token;
+  summary += ",resolvedAudioOutputProviderToken=" + resolved_token;
+  summary += ",resolvedAudioOutputProviderUsed=" + resolved_used;
+  summary += ",resolvedAudioOutputProviderIdentity=" + resolved_identity;
+  bridge->Release(env);
+  return NewStringUtfChecked(
+      env, summary, "nativeBuilderAudioOutputProviderInjectionSmokeTest");
 }
 
 JNIEXPORT jstring JNICALL

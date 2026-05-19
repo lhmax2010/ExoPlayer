@@ -456,6 +456,8 @@ class ExoPlayerSdkPlayerBuilder {
       int64_t live_max_offset_ms);
   ExoPlayerSdkPlayerBuilder& SetLiveSpeeds(float live_min_speed, float live_max_speed);
   ExoPlayerSdkPlayerBuilder& SetMediaSourceFactoryToken(const std::string& factory_token);
+  ExoPlayerSdkPlayerBuilder& SetAudioOutputProviderToken(
+      const std::string& audio_output_provider_token);
   ExoPlayerSdkPlayerBuilder& SetMediaSourceFactoryConfig(
       const PlayerConfig::MediaSourceFactoryConfig& media_source_factory_config);
 

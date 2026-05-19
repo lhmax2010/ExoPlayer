@@ -16,7 +16,8 @@ public final class CppPlayerConfig {
           /* wakeMode= */ 0, // Media3 C.WAKE_MODE_NONE
           /* priority= */ 0, // No PriorityTaskManager priority unless explicitly configured.
           /* usePriorityTaskManager= */ false,
-          /* targetPreloadDurationUs= */ C.TIME_UNSET);
+          /* targetPreloadDurationUs= */ C.TIME_UNSET,
+          /* audioOutputProviderToken= */ "");
 
   public final boolean handleAudioFocus;
   public final boolean handleAudioBecomingNoisy;
@@ -34,6 +35,7 @@ public final class CppPlayerConfig {
   public final int priority;
   public final boolean usePriorityTaskManager;
   public final long targetPreloadDurationUs;
+  public final String audioOutputProviderToken;
 
   public CppPlayerConfig(
       boolean handleAudioFocus,
@@ -46,6 +48,32 @@ public final class CppPlayerConfig {
       int priority,
       boolean usePriorityTaskManager,
       long targetPreloadDurationUs) {
+    this(
+        handleAudioFocus,
+        handleAudioBecomingNoisy,
+        useLazyPreparation,
+        mediaSourceFactoryConfig,
+        seekBackIncrementMs,
+        seekForwardIncrementMs,
+        wakeMode,
+        priority,
+        usePriorityTaskManager,
+        targetPreloadDurationUs,
+        "");
+  }
+
+  public CppPlayerConfig(
+      boolean handleAudioFocus,
+      boolean handleAudioBecomingNoisy,
+      boolean useLazyPreparation,
+      CppMediaSourceFactoryConfig mediaSourceFactoryConfig,
+      long seekBackIncrementMs,
+      long seekForwardIncrementMs,
+      int wakeMode,
+      int priority,
+      boolean usePriorityTaskManager,
+      long targetPreloadDurationUs,
+      String audioOutputProviderToken) {
     this.handleAudioFocus = handleAudioFocus;
     this.handleAudioBecomingNoisy = handleAudioBecomingNoisy;
     this.useLazyPreparation = useLazyPreparation;
@@ -56,5 +84,7 @@ public final class CppPlayerConfig {
     this.priority = priority;
     this.usePriorityTaskManager = usePriorityTaskManager;
     this.targetPreloadDurationUs = targetPreloadDurationUs;
+    this.audioOutputProviderToken =
+        audioOutputProviderToken != null ? audioOutputProviderToken : "";
   }
 }

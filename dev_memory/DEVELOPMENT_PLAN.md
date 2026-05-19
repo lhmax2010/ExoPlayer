@@ -189,6 +189,31 @@ Objective:
 - Stabilize public C++ headers, error behavior, token lifetime rules, validation scripts, demo
   flows, and RPI4 deployment notes.
 
+Current progress:
+
+- 2026-05-19: first Stage 6 slice closes the remaining exact
+  `ExoPlayer.Builder#setAudioOutputProvider` inventory gap. C++ now exposes
+  `ExoPlayerSdkPlayerBuilder::SetAudioOutputProviderToken`, `PlayerConfig` carries the token, and
+  Java resolves it through `CppAudioOutputProviderRegistry` before calling the real Media3 builder.
+  The bridge keeps ownership explicit: C++ selects the token; the app/platform owns the concrete
+  `AudioOutputProvider` instance.
+- Coverage includes the inventory parser alias test plus audio-output-provider native smokes for
+  explicit registered tokens, generated token reuse, and missing-token fallback. The positive
+  smokes register an `AudioTrackAudioOutputProvider`, build through the C++ builder config, and
+  verify token/identity markers from the Java bridge.
+- The next Stage 6 stabilization slice deduplicates C++ opaque-token collection and adds
+  `nativeOpaqueTokenBatchReleaseSmokeTest_dedupesAndClearsCollectedTokens`, covering
+  `OpaqueTokenBatch::Release` clear/idempotency behavior against the Java opaque-object registry.
+- Validation script stabilization adds `--local-only` to `run_validation.py` and
+  `run_validation.sh`, letting no-device environments run API inventory, JVM unit tests,
+  AndroidTest packaging, and demo packaging from one command. `run_validation_test.py` covers the
+  device parser, serial-specific online-device preflight, and local command plan.
+- Android 16 emulator validation on 2026-05-19 used AVD `cppbridge_android16_api36` and passed the
+  connected suite with `138/138` instrumentation tests (`26/26` JNI/value smoke plus `112/112`
+  player/runtime smoke). The demo installed and `MainActivity` launched on the emulator.
+- RPI4 validation is documented in `docs/cppbridge/RPI4_TESTING_GUIDE.md` and remains a manual board
+  gate because the RPI4 is currently unavailable.
+
 Exit criteria:
 
 - Full validation guide is current.
