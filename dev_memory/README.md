@@ -6,13 +6,15 @@ Read in this order:
 
 1. `PROJECT_STATE.md`
 2. `DECISIONS_AND_CONVENTIONS.md`
-3. `WORKSPACE_DIFFS.md`
-4. `GIT_AND_TRANSFER.md`
-5. `HANDOFF_PROMPT.md`
+3. `DEVELOPMENT_PLAN.md`
+4. `WORKSPACE_DIFFS.md`
+5. `GIT_AND_TRANSFER.md`
+6. `HANDOFF_PROMPT.md`
 
 Primary source-of-truth documents already in the repo:
 
 - `docs/cppbridge/API_MAPPING_STATUS.md`
+- `docs/cppbridge/API_PARITY_GAP_REPORT.md`
 - `docs/cppbridge/API_MAPPING_QUICK_REFERENCE.md`
 - `docs/cppbridge/DATA_STRUCTURE_MAPPING.md`
 - `docs/cppbridge/DATA_STRUCTURE_QUICK_REFERENCE.md`

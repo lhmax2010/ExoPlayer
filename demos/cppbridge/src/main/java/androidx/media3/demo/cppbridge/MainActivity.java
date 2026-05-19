@@ -64,7 +64,11 @@ public final class MainActivity extends AppCompatActivity {
 
   static {
     System.loadLibrary("exoplayer_cppbridge_jni");
-    System.loadLibrary("exoplayer_cppbridge_jni_testhooks");
+    try {
+      System.loadLibrary("exoplayer_cppbridge_jni_testhooks");
+    } catch (UnsatisfiedLinkError ignored) {
+      // Test hooks are optional for production-only demo builds.
+    }
   }
 
   private long nativePlayerHandle;
@@ -148,7 +152,9 @@ public final class MainActivity extends AppCompatActivity {
     setSelectedSourceType(SOURCE_PROGRESSIVE);
 
     nativePlayerHandle = nativeCreatePlayer(this, playerView);
-    if (!applyLaunchIntent(getIntent())) {
+    if (nativePlayerHandle == 0L) {
+      showStatus("Failed to create the native player.");
+    } else if (!applyLaunchIntent(getIntent())) {
       loadCurrentSource(
           "Default HTTP progressive sample loaded.\n"
               + nativeLoadMedia(

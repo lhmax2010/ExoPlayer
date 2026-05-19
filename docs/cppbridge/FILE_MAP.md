@@ -1,6 +1,6 @@
 # File Map
 
-Last updated: 2026-03-16
+Last updated: 2026-05-19
 
 This is the current file-to-responsibility map for the C++ bridge work. Use it to find the right
 place to read or modify code.
@@ -35,6 +35,25 @@ If you have a Java DTO name such as `CppMediaItem`, `CppMediaMetadata`, or `CppT
 3. then find the JNI create/parse helper in
    `libraries/exoplayer_cppbridge/src/main/jni/exoplayer_cppbridge_jni_common.cpp`
 
+Special current exception:
+
+- `CppCodecParameter.java` is created from C++ by
+  `JniExoPlayerBridge::CreateJavaCodecParameterArray` in
+  `exoplayer_cppbridge_jni_bridge.cpp`, because it is only used for C++ to Java codec parameter
+  setter transport.
+- `CppBundleValue.java` is shared by `MediaItem.RequestMetadata.extras` and
+  `MediaMetadata.extras`; its C++ partner is `BundleValueInfo`, and the JNI helpers are
+  `CreateJavaBundleValueArray` / `FromJavaBundleValueArray` in
+  `exoplayer_cppbridge_jni_common.cpp`.
+- `CppObjectValue.java` is the reusable Java DTO for reduced Java `Object` metadata when an object
+  travels through a DTO path. It is currently used by `MediaItem` tag/adsId and representative
+  `MediaMetadata` text/`CharSequence` fields. Its C++ partner is `ObjectValueInfo`, and the JNI
+  helpers are `CreateJavaObjectValueInfo` / `FromJavaObjectValueInfo` in
+  `exoplayer_cppbridge_jni_common.cpp`.
+- Timeline window/period Java object identity fields use row-string transport rather than a Java
+  DTO. Their C++ partner is `ObjectValueInfo`, parsed by `ParseObjectValueInfo` in
+  `exoplayer_cppbridge_jni_bridge.cpp`.
+
 If you have a callback name such as `onTracksChanged`, `onMediaMetadataChanged`, or
 `onDroppedVideoFrames`:
 
@@ -43,6 +62,12 @@ If you have a callback name such as `onTracksChanged`, `onMediaMetadataChanged`,
 3. jump to the matching JNI callback entry in
    `exoplayer_cppbridge_jni_bridge.cpp`
 4. if needed, continue into listener forwarding in `exoplayer_sdk.cpp`
+
+If you are checking full Java API parity:
+
+1. read `docs/cppbridge/API_PARITY_GAP_REPORT.md`
+2. regenerate it with `python3 scripts/cppbridge/api_parity_inventory.py --write`
+3. verify it is current with `python3 scripts/cppbridge/api_parity_inventory.py --check`
 
 ### Common Search Patterns
 
@@ -104,18 +129,22 @@ If you need JNI implementation:
 | `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativeSmokeTestHelper.java` | Java loader for JNI/value smoke helpers | maps directly to `exoplayer_cppbridge_jni_smoke_tests.cpp` |
 | `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativePlayerTestHelper.java` | Java loader for player/runtime smoke helpers | maps directly to `exoplayer_cppbridge_jni_player_tests.cpp` |
 | `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/Cpp*.java` DTO files | Java transport/value objects used across JNI | inspect when adding/removing fields |
+| `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppCodecParameter.java` | Java transport object for typed `CodecParameters` entries | inspect with `CodecParameterDescriptor`, `CodecParametersDescriptor`, and `CreateJavaCodecParameterArray` |
+| `libraries/exoplayer_cppbridge/src/main/java/androidx/media3/exoplayer/cppbridge/CppBundleValue.java` | Java transport object for decoded stable `Bundle` extras entries | inspect with `BundleValueInfo`, `MediaItem.RequestMetadata`, `MediaMetadataSnapshot`, and `CreateJavaBundleValueArray` |
 
 ## 4. Validation And Demo Files
 
 | File | Responsibility | How to read it |
 | --- | --- | --- |
-| `libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativeSmokeTest.java` | asserts JNI/value smoke outputs | read for low-level bridge expectations |
+| `libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativeSmokeTest.java` | asserts JNI/value smoke outputs, including full `TrackInfo` payload round-trip markers | read for low-level bridge expectations |
 | `libraries/exoplayer_cppbridge/src/androidTest/java/androidx/media3/exoplayer/cppbridge/CppBridgeNativePlayerInstrumentationTest.java` | asserts player/runtime smoke outputs | read for functional bridge expectations |
 | `demos/cppbridge/src/main/java/androidx/media3/demo/cppbridge/MainActivity.java` | manual end-to-end demo using C++ bridge APIs | read for demo workflow and manual QA |
 | `scripts/cppbridge/run_validation.sh` | one-command Linux validation runner | use first on a healthy machine |
 | `scripts/cppbridge/run_validation.py` | Python validation runner for Linux environments | use when Python entrypoint is preferred |
+| `scripts/cppbridge/api_parity_inventory.py` | deterministic API parity inventory and report generator | run after changing public Java/C++ bridge surfaces |
 | `scripts/cppbridge/launch_demo.sh` | Linux demo install/launch helper | use for manual demo QA |
 | `scripts/cppbridge/launch_demo.py` | Python demo install/launch helper | use when Python entrypoint is preferred |
+| `docs/cppbridge/API_PARITY_GAP_REPORT.md` | generated method/callback/builder/object parity report | read before choosing the next full-parity slice |
 | `docs/cppbridge/API_MAPPING_QUICK_REFERENCE.md` | direct lookup sheet in `Java API / C++ API / JNI API / SmokeTest / 功能描述` format | use first when you already know the API name |
 | `docs/cppbridge/DATA_STRUCTURE_QUICK_REFERENCE.md` | direct lookup sheet in `Java 数据结构 / C++ 数据结构 / JNI Create API / JNI Parse API / SmokeTest / 功能描述` format | use first when you already know the DTO or reduced struct name |
 | `docs/cppbridge/TEST_RESULTS_TEMPLATE.md` | validation result write-back template | fill after running in the new environment |
@@ -145,6 +174,26 @@ If you need JNI implementation:
 1. `demos/cppbridge/.../MainActivity.java`
 2. `exoplayer_cppbridge_jni_callbacks_demo.cpp`
 3. `exoplayer_sdk.cpp`
+
+### Add scalar runtime setter/getter parity
+
+1. `include/exoplayer_bridge.h`
+2. `include/exoplayer_sdk.h`
+3. `CppExoPlayerBridge.java`
+4. `exoplayer_cppbridge_jni_bridge.cpp`
+5. `exoplayer_sdk.cpp`
+6. `CppBridgeNativePlayerTestHelper.java`
+7. `exoplayer_cppbridge_jni_player_tests.cpp`
+8. `CppBridgeNativePlayerInstrumentationTest.java`
+
+### Add callback-style ExoPlayer parity
+
+1. Java listener registration/lifecycle in `CppExoPlayerBridge.java`
+2. native callback contracts in `include/exoplayer_bridge.h`
+3. SDK listener forwarding in `exoplayer_sdk.cpp`
+4. JNI callback entrypoints in `exoplayer_cppbridge_jni_bridge.cpp` or
+   `exoplayer_cppbridge_jni_callbacks_demo.cpp`
+5. targeted instrumentation tests before broadening the surface
 
 ## 6. Current File Size Notes
 

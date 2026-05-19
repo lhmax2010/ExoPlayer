@@ -338,6 +338,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnIsPlayingCha
 }
 
 JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnIsLoadingChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jboolean is_loading) {
+  BridgeOnIsLoadingChanged(native_handle, JNI_FALSE != is_loading);
+}
+
+JNIEXPORT void JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnMediaItemTransition(
     JNIEnv*,
     jclass,
@@ -779,6 +788,25 @@ Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAud
 }
 
 JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioAttributesChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint content_type,
+    jint usage,
+    jint flags,
+    jint allowed_capture_policy,
+    jint spatialization_behavior) {
+  BridgeOnAnalyticsAudioAttributesChanged(
+      native_handle,
+      content_type,
+      usage,
+      flags,
+      allowed_capture_policy,
+      spatialization_behavior);
+}
+
+JNIEXPORT void JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsSkipSilenceEnabledChanged(
     JNIEnv*,
     jclass,
@@ -1073,6 +1101,469 @@ Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsVid
 }
 
 JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsPlayerStateChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jboolean play_when_ready,
+    jint playback_state) {
+  BridgeOnAnalyticsPlayerStateChanged(native_handle, play_when_ready, playback_state);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsLoadingChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jboolean is_loading) {
+  BridgeOnAnalyticsLoadingChanged(native_handle, is_loading);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsTrackSelectionParametersChanged(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jobject parameters) {
+  BridgeOnAnalyticsTrackSelectionParametersChanged(env, native_handle, parameters);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsLoadCanceled(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jstring uri,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    jlong media_start_time_ms,
+    jlong media_end_time_ms) {
+  BridgeOnAnalyticsLoadCanceled(
+      env,
+      native_handle,
+      uri,
+      data_type,
+      track_type,
+      sample_mime_type,
+      track_selection_reason,
+      media_start_time_ms,
+      media_end_time_ms);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDownstreamFormatChanged(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    jlong media_start_time_ms,
+    jlong media_end_time_ms) {
+  BridgeOnAnalyticsDownstreamFormatChanged(
+      env,
+      native_handle,
+      data_type,
+      track_type,
+      sample_mime_type,
+      track_selection_reason,
+      media_start_time_ms,
+      media_end_time_ms);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsUpstreamDiscarded(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    jlong media_start_time_ms,
+    jlong media_end_time_ms) {
+  BridgeOnAnalyticsUpstreamDiscarded(
+      env,
+      native_handle,
+      data_type,
+      track_type,
+      sample_mime_type,
+      track_selection_reason,
+      media_start_time_ms,
+      media_end_time_ms);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioEnabled(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    jlong total_video_frame_processing_offset_us) {
+  BridgeOnAnalyticsAudioEnabled(
+      native_handle,
+      decoder_init_count,
+      decoder_release_count,
+      queued_input_buffer_count,
+      rendered_output_buffer_count,
+      dropped_buffer_count,
+      skipped_output_buffer_count,
+      video_frame_processing_offset_count,
+      total_video_frame_processing_offset_us);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioDisabled(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    jlong total_video_frame_processing_offset_us) {
+  BridgeOnAnalyticsAudioDisabled(
+      native_handle,
+      decoder_init_count,
+      decoder_release_count,
+      queued_input_buffer_count,
+      rendered_output_buffer_count,
+      dropped_buffer_count,
+      skipped_output_buffer_count,
+      video_frame_processing_offset_count,
+      total_video_frame_processing_offset_us);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioSinkError(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  BridgeOnAnalyticsAudioSinkError(env, native_handle, class_name, message);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioCodecError(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  BridgeOnAnalyticsAudioCodecError(env, native_handle, class_name, message);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioTrackInitialized(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint encoding,
+    jint sample_rate,
+    jint channel_config,
+    jboolean tunneling,
+    jboolean offload,
+    jint buffer_size) {
+  BridgeOnAnalyticsAudioTrackInitialized(
+      native_handle, encoding, sample_rate, channel_config, tunneling, offload, buffer_size);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsAudioTrackReleased(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint encoding,
+    jint sample_rate,
+    jint channel_config,
+    jboolean tunneling,
+    jboolean offload,
+    jint buffer_size) {
+  BridgeOnAnalyticsAudioTrackReleased(
+      native_handle, encoding, sample_rate, channel_config, tunneling, offload, buffer_size);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsVideoEnabled(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    jlong total_video_frame_processing_offset_us) {
+  BridgeOnAnalyticsVideoEnabled(
+      native_handle,
+      decoder_init_count,
+      decoder_release_count,
+      queued_input_buffer_count,
+      rendered_output_buffer_count,
+      dropped_buffer_count,
+      skipped_output_buffer_count,
+      video_frame_processing_offset_count,
+      total_video_frame_processing_offset_us);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsVideoDisabled(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    jlong total_video_frame_processing_offset_us) {
+  BridgeOnAnalyticsVideoDisabled(
+      native_handle,
+      decoder_init_count,
+      decoder_release_count,
+      queued_input_buffer_count,
+      rendered_output_buffer_count,
+      dropped_buffer_count,
+      skipped_output_buffer_count,
+      video_frame_processing_offset_count,
+      total_video_frame_processing_offset_us);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsVideoCodecError(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  BridgeOnAnalyticsVideoCodecError(env, native_handle, class_name, message);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsSurfaceSizeChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint width,
+    jint height) {
+  BridgeOnAnalyticsSurfaceSizeChanged(native_handle, width, height);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDrmSessionAcquired(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jboolean has_state,
+    jint state) {
+  BridgeOnAnalyticsDrmSessionAcquired(native_handle, has_state, state);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDrmKeysLoaded(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jboolean has_key_request_info,
+    jint load_info_count,
+    jint scheme_data_count) {
+  BridgeOnAnalyticsDrmKeysLoaded(
+      native_handle, has_key_request_info, load_info_count, scheme_data_count);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDrmSessionManagerError(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  BridgeOnAnalyticsDrmSessionManagerError(env, native_handle, class_name, message);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDrmKeysRestored(
+    JNIEnv*,
+    jclass,
+    jlong native_handle) {
+  BridgeOnAnalyticsDrmKeysRestored(native_handle);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDrmKeysRemoved(
+    JNIEnv*,
+    jclass,
+    jlong native_handle) {
+  BridgeOnAnalyticsDrmKeysRemoved(native_handle);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDrmSessionReleased(
+    JNIEnv*,
+    jclass,
+    jlong native_handle) {
+  BridgeOnAnalyticsDrmSessionReleased(native_handle);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsRendererReadyChanged(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint renderer_index,
+    jint renderer_track_type,
+    jboolean is_renderer_ready) {
+  BridgeOnAnalyticsRendererReadyChanged(
+      native_handle, renderer_index, renderer_track_type, is_renderer_ready);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsDroppedSeeksWhileScrubbing(
+    JNIEnv*,
+    jclass,
+    jlong native_handle,
+    jint dropped_seeks) {
+  BridgeOnAnalyticsDroppedSeeksWhileScrubbing(native_handle, dropped_seeks);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAnalyticsPlayerReleased(
+    JNIEnv*,
+    jclass,
+    jlong native_handle) {
+  BridgeOnAnalyticsPlayerReleased(native_handle);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnAudioCodecParametersChanged(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jobjectArray codec_parameters) {
+  BridgeOnAudioCodecParametersChanged(env, native_handle, codec_parameters);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnVideoCodecParametersChanged(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jobjectArray codec_parameters) {
+  BridgeOnVideoCodecParametersChanged(env, native_handle, codec_parameters);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnVideoFrameAboutToBeRendered(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jlong presentation_time_us,
+    jlong release_time_ns,
+    jstring format_id,
+    jstring sample_mime_type,
+    jstring codecs,
+    jint width,
+    jint height,
+    jfloat frame_rate,
+    jstring format_label,
+    jstring format_language,
+    jstring format_container_mime_type,
+    jint format_bitrate,
+    jint format_average_bitrate,
+    jint format_peak_bitrate,
+    jint format_rotation_degrees,
+    jfloat format_pixel_width_height_ratio,
+    jint format_color_standard,
+    jint format_color_range,
+    jint format_color_transfer,
+    jint format_channel_count,
+    jint format_sample_rate,
+    jint format_role_flags,
+    jint format_selection_flags,
+    jboolean media_format_present,
+    jstring media_format_summary,
+    jstring media_format_mime_type,
+    jint media_format_width,
+    jint media_format_height,
+    jfloat media_format_frame_rate,
+    jint media_format_rotation_degrees,
+    jint media_format_color_standard,
+    jint media_format_color_range,
+    jint media_format_color_transfer) {
+  BridgeOnVideoFrameAboutToBeRendered(
+      env,
+      native_handle,
+      presentation_time_us,
+      release_time_ns,
+      format_id,
+      sample_mime_type,
+      codecs,
+      width,
+      height,
+      frame_rate,
+      format_label,
+      format_language,
+      format_container_mime_type,
+      format_bitrate,
+      format_average_bitrate,
+      format_peak_bitrate,
+      format_rotation_degrees,
+      format_pixel_width_height_ratio,
+      format_color_standard,
+      format_color_range,
+      format_color_transfer,
+      format_channel_count,
+      format_sample_rate,
+      format_role_flags,
+      format_selection_flags,
+      media_format_present == JNI_TRUE,
+      media_format_summary,
+      media_format_mime_type,
+      media_format_width,
+      media_format_height,
+      media_format_frame_rate,
+      media_format_rotation_degrees,
+      media_format_color_standard,
+      media_format_color_range,
+      media_format_color_transfer);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnCameraMotion(
+    JNIEnv* env,
+    jclass,
+    jlong native_handle,
+    jlong time_us,
+    jfloatArray rotation) {
+  BridgeOnCameraMotion(env, native_handle, time_us, rotation);
+}
+
+JNIEXPORT void JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnCameraMotionReset(
+    JNIEnv*,
+    jclass,
+    jlong native_handle) {
+  BridgeOnCameraMotionReset(native_handle);
+}
+
+JNIEXPORT void JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppExoPlayerBridge_nativeOnImageOutputAvailable(
     JNIEnv* env,
     jclass,
@@ -1118,6 +1609,9 @@ Java_androidx_media3_demo_cppbridge_MainActivity_nativeCreatePlayer(
     jobject player_view) {
   PlayerConfig config;
   std::unique_ptr<ExoPlayerSdkPlayer> bridge = ExoPlayerSdkPlayer::Create(env, context, config);
+  if (bridge == nullptr) {
+    return 0;
+  }
   bridge->SetListener(&GetDemoLoggingPlayerListener());
   bridge->BindPlayerView(player_view);
   ExoPlayerSdkPlayer* released_bridge = bridge.release();

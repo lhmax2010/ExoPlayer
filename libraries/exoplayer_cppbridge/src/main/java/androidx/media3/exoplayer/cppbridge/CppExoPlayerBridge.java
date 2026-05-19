@@ -2,7 +2,9 @@ package androidx.media3.exoplayer.cppbridge;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
+import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -12,8 +14,11 @@ import android.view.SurfaceView;
 import android.view.TextureView;
 import androidx.annotation.Nullable;
 import androidx.media3.common.AudioAttributes;
+import androidx.media3.common.AuxEffectInfo;
 import androidx.media3.common.C;
+import androidx.media3.common.ColorInfo;
 import androidx.media3.common.DeviceInfo;
+import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Metadata;
 import androidx.media3.common.MediaMetadata;
@@ -22,6 +27,7 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.PriorityTaskManager;
 import androidx.media3.common.Timeline;
+import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.text.Cue;
 import androidx.media3.common.text.CueGroup;
@@ -32,23 +38,34 @@ import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.ExoPlaybackException;
+import androidx.media3.exoplayer.CodecParameters;
+import androidx.media3.exoplayer.CodecParametersChangeListener;
+import androidx.media3.exoplayer.DecoderCounters;
 import androidx.media3.exoplayer.PlayerMessage;
 import androidx.media3.exoplayer.Renderer;
+import androidx.media3.exoplayer.ScrubbingModeParameters;
 import androidx.media3.exoplayer.SeekParameters;
 import java.util.Arrays;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
+import androidx.media3.exoplayer.audio.AudioSink;
+import androidx.media3.exoplayer.drm.DrmSession;
+import androidx.media3.exoplayer.drm.KeyRequestInfo;
 import androidx.media3.exoplayer.image.ImageOutput;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.LoadEventInfo;
 import androidx.media3.exoplayer.source.MediaSource;
 import androidx.media3.exoplayer.source.MediaLoadData;
+import androidx.media3.exoplayer.video.VideoFrameMetadataListener;
+import androidx.media3.exoplayer.video.spherical.CameraMotionListener;
 import androidx.media3.ui.PlayerView;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,6 +79,12 @@ import java.util.concurrent.TimeoutException;
 public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListener {
 
   private static final String TAG = "cppbridge";
+  private static final int OBJECT_VALUE_NULL = 0;
+  private static final int OBJECT_VALUE_STRING = 1;
+  private static final int OBJECT_VALUE_LONG = 2;
+  private static final int OBJECT_VALUE_DOUBLE = 3;
+  private static final int OBJECT_VALUE_BOOLEAN = 4;
+  private static final int OBJECT_VALUE_OTHER = 5;
 
   private final ExoPlayer player;
   private final Handler playerHandler;
@@ -75,11 +98,23 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   @Nullable private volatile CppCue[] currentCuesForTest;
   private volatile long currentCuesPresentationTimeUsForTest;
   private final boolean configuredHandleAudioFocusForTest;
-  private final boolean configuredHandleAudioBecomingNoisyForTest;
+  private volatile boolean configuredHandleAudioBecomingNoisyForTest;
   private final boolean configuredUseLazyPreparationForTest;
   private final long configuredSeekBackIncrementMsForTest;
   private final long configuredSeekForwardIncrementMsForTest;
-  private final int configuredWakeModeForTest;
+  private volatile int configuredWakeModeForTest;
+  private volatile boolean configuredForegroundModeForTest;
+  private volatile int configuredAudioSessionIdForTest = C.AUDIO_SESSION_ID_UNSET;
+  private volatile int configuredAuxEffectIdForTest = AuxEffectInfo.NO_AUX_EFFECT_ID;
+  private volatile float configuredAuxEffectSendLevelForTest = 0f;
+  private volatile boolean configuredPreferredAudioDeviceForTest;
+  private volatile int configuredVirtualDeviceIdForTest = C.INDEX_UNSET;
+  private volatile String latestAudioCodecParametersSummaryForTest = "";
+  private volatile String latestVideoCodecParametersSummaryForTest = "";
+  @Nullable private volatile CodecParametersChangeListener audioCodecParametersChangeListenerForTest;
+  @Nullable private volatile CodecParametersChangeListener videoCodecParametersChangeListenerForTest;
+  @Nullable private volatile VideoFrameMetadataListener videoFrameMetadataListenerForTest;
+  @Nullable private volatile CameraMotionListener cameraMotionListenerForTest;
   private final CppMediaSourceFactoryConfig mediaSourceFactoryConfig;
   private final String injectedMediaSourceFactoryTokenForTest;
   private final boolean injectedMediaSourceFactoryUsedForTest;
@@ -234,6 +269,73 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   private long getNativeHandle() {
     return nativeHandle.get();
+  }
+
+  private static String joinEscapedRowFields(Object... fields) {
+    StringBuilder row = new StringBuilder();
+    for (int i = 0; i < fields.length; i++) {
+      if (i > 0) {
+        row.append('|');
+      }
+      row.append(escapeRowField(fields[i]));
+    }
+    return row.toString();
+  }
+
+  private static String escapeRowField(@Nullable Object field) {
+    if (field == null) {
+      return "";
+    }
+    String value = String.valueOf(field);
+    return value.replace("\\", "\\\\").replace("|", "\\|");
+  }
+
+  private static int objectValuePresent(@Nullable Object value) {
+    return value != null ? 1 : 0;
+  }
+
+  private static String objectValueClassName(@Nullable Object value) {
+    return value != null ? value.getClass().getName() : "";
+  }
+
+  private static int objectValueType(@Nullable Object value) {
+    if (value == null) {
+      return OBJECT_VALUE_NULL;
+    } else if (value instanceof CharSequence) {
+      return OBJECT_VALUE_STRING;
+    } else if (value instanceof Byte
+        || value instanceof Short
+        || value instanceof Integer
+        || value instanceof Long) {
+      return OBJECT_VALUE_LONG;
+    } else if (value instanceof Float || value instanceof Double) {
+      return OBJECT_VALUE_DOUBLE;
+    } else if (value instanceof Boolean) {
+      return OBJECT_VALUE_BOOLEAN;
+    }
+    return OBJECT_VALUE_OTHER;
+  }
+
+  private static String objectValueString(@Nullable Object value) {
+    if (value == null) {
+      return "";
+    }
+    int valueType = objectValueType(value);
+    return valueType == OBJECT_VALUE_STRING || valueType == OBJECT_VALUE_OTHER
+        ? String.valueOf(value)
+        : "";
+  }
+
+  private static long objectValueLong(@Nullable Object value) {
+    return objectValueType(value) == OBJECT_VALUE_LONG ? ((Number) value).longValue() : 0L;
+  }
+
+  private static double objectValueDouble(@Nullable Object value) {
+    return objectValueType(value) == OBJECT_VALUE_DOUBLE ? ((Number) value).doubleValue() : 0.0;
+  }
+
+  private static int objectValueBoolean(@Nullable Object value) {
+    return value instanceof Boolean && (Boolean) value ? 1 : 0;
   }
 
   private static void debugLog(String message) {
@@ -476,8 +578,15 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   public void setImageOutputObject(@Nullable ImageOutput imageOutput) {
+    ImageOutput previousImageOutput = imageOutputForTest;
     imageOutputForTest = imageOutput;
-    runOnPlayerThread(() -> player.setImageOutput(imageOutput));
+    runOnPlayerThread(
+        () -> {
+          player.setImageOutput(imageOutput);
+          if (imageOutput == null && previousImageOutput != null) {
+            previousImageOutput.onDisabled();
+          }
+        });
   }
 
   public void setMediaItem(CppMediaItem mediaItem) {
@@ -639,7 +748,13 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   public void setWakeMode(int wakeMode) {
+    configuredWakeModeForTest = wakeMode;
     runOnPlayerThread(() -> player.setWakeMode(wakeMode));
+  }
+
+  public void setHandleAudioBecomingNoisy(boolean handleAudioBecomingNoisy) {
+    configuredHandleAudioBecomingNoisyForTest = handleAudioBecomingNoisy;
+    runOnPlayerThread(() -> player.setHandleAudioBecomingNoisy(handleAudioBecomingNoisy));
   }
 
   public void setPriority(int priority) {
@@ -656,6 +771,11 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
         () ->
             player.setPreloadConfiguration(
                 new ExoPlayer.PreloadConfiguration(targetPreloadDurationUs)));
+  }
+
+  public void setForegroundMode(boolean foregroundMode) {
+    configuredForegroundModeForTest = foregroundMode;
+    runOnPlayerThread(() -> player.setForegroundMode(foregroundMode));
   }
 
   public String[] sendPlayerMessageForTest(
@@ -877,6 +997,419 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     };
   }
 
+  public void setAudioSessionId(int audioSessionId) {
+    runOnPlayerThread(
+        () -> {
+          player.setAudioSessionId(audioSessionId);
+          configuredAudioSessionIdForTest = audioSessionId;
+        });
+  }
+
+  public void setAuxEffectInfoConfig(int effectId, float sendLevel) {
+    AuxEffectInfo auxEffectInfo = new AuxEffectInfo(effectId, sendLevel);
+    runOnPlayerThread(
+        () -> {
+          player.setAuxEffectInfo(auxEffectInfo);
+          configuredAuxEffectIdForTest = effectId;
+          configuredAuxEffectSendLevelForTest = sendLevel;
+        });
+  }
+
+  public void clearAuxEffectInfo() {
+    runOnPlayerThread(
+        () -> {
+          player.clearAuxEffectInfo();
+          configuredAuxEffectIdForTest = AuxEffectInfo.NO_AUX_EFFECT_ID;
+          configuredAuxEffectSendLevelForTest = 0f;
+        });
+  }
+
+  public void setPreferredAudioDeviceObject(@Nullable AudioDeviceInfo audioDeviceInfo) {
+    runOnPlayerThread(
+        () -> {
+          player.setPreferredAudioDevice(audioDeviceInfo);
+          configuredPreferredAudioDeviceForTest = audioDeviceInfo != null;
+        });
+  }
+
+  public void setVirtualDeviceId(int virtualDeviceId) {
+    runOnPlayerThread(
+        () -> {
+          player.setVirtualDeviceId(virtualDeviceId);
+          configuredVirtualDeviceIdForTest = virtualDeviceId;
+        });
+  }
+
+  public void setAudioCodecParametersConfig(CppCodecParameter[] codecParameters) {
+    runOnPlayerThread(
+        () -> {
+          player.setAudioCodecParameters(toCodecParameters(codecParameters));
+          latestAudioCodecParametersSummaryForTest = summarizeCodecParameters(codecParameters);
+        });
+  }
+
+  public void setVideoCodecParametersConfig(CppCodecParameter[] codecParameters) {
+    runOnPlayerThread(
+        () -> {
+          player.setVideoCodecParameters(toCodecParameters(codecParameters));
+          latestVideoCodecParametersSummaryForTest = summarizeCodecParameters(codecParameters);
+        });
+  }
+
+  public void setAudioCodecParametersChangeListenerKeys(String[] keys) {
+    runOnPlayerThread(
+        () -> {
+          CodecParametersChangeListener previous = audioCodecParametersChangeListenerForTest;
+          if (previous != null) {
+            player.removeAudioCodecParametersChangeListener(previous);
+          }
+          CodecParametersChangeListener listener =
+              codecParameters -> {
+                long handle = getNativeHandle();
+                if (handle != 0L) {
+                  nativeOnAudioCodecParametersChanged(
+                      handle, fromCodecParameters(codecParameters));
+                }
+              };
+          audioCodecParametersChangeListenerForTest = listener;
+          player.addAudioCodecParametersChangeListener(listener, toStringList(keys));
+        });
+  }
+
+  public void clearAudioCodecParametersChangeListener() {
+    runOnPlayerThread(
+        () -> {
+          CodecParametersChangeListener listener = audioCodecParametersChangeListenerForTest;
+          if (listener != null) {
+            player.removeAudioCodecParametersChangeListener(listener);
+            audioCodecParametersChangeListenerForTest = null;
+          }
+        });
+  }
+
+  public void setVideoCodecParametersChangeListenerKeys(String[] keys) {
+    runOnPlayerThread(
+        () -> {
+          CodecParametersChangeListener previous = videoCodecParametersChangeListenerForTest;
+          if (previous != null) {
+            player.removeVideoCodecParametersChangeListener(previous);
+          }
+          CodecParametersChangeListener listener =
+              codecParameters -> {
+                long handle = getNativeHandle();
+                if (handle != 0L) {
+                  nativeOnVideoCodecParametersChanged(
+                      handle, fromCodecParameters(codecParameters));
+                }
+              };
+          videoCodecParametersChangeListenerForTest = listener;
+          player.addVideoCodecParametersChangeListener(listener, toStringList(keys));
+        });
+  }
+
+  public void clearVideoCodecParametersChangeListener() {
+    runOnPlayerThread(
+        () -> {
+          CodecParametersChangeListener listener = videoCodecParametersChangeListenerForTest;
+          if (listener != null) {
+            player.removeVideoCodecParametersChangeListener(listener);
+            videoCodecParametersChangeListenerForTest = null;
+          }
+        });
+  }
+
+  public void setNativeVideoFrameMetadataListener() {
+    runOnPlayerThread(
+        () -> {
+          VideoFrameMetadataListener previous = videoFrameMetadataListenerForTest;
+          if (previous != null) {
+            player.clearVideoFrameMetadataListener(previous);
+          }
+          VideoFrameMetadataListener listener =
+              (presentationTimeUs, releaseTimeNs, format, mediaFormat) -> {
+                long handle = getNativeHandle();
+                if (handle != 0L) {
+                  nativeOnVideoFrameAboutToBeRendered(
+                      handle,
+                      presentationTimeUs,
+                      releaseTimeNs,
+                      format.id != null ? format.id : "",
+                      format.sampleMimeType != null ? format.sampleMimeType : "",
+                      format.codecs != null ? format.codecs : "",
+                      format.width,
+                      format.height,
+                      format.frameRate,
+                      format.label != null ? format.label : "",
+                      format.language != null ? format.language : "",
+                      format.containerMimeType != null ? format.containerMimeType : "",
+                      format.bitrate,
+                      format.averageBitrate,
+                      format.peakBitrate,
+                      format.rotationDegrees,
+                      format.pixelWidthHeightRatio,
+                      format.colorInfo != null ? format.colorInfo.colorSpace : Format.NO_VALUE,
+                      format.colorInfo != null ? format.colorInfo.colorRange : Format.NO_VALUE,
+                      format.colorInfo != null ? format.colorInfo.colorTransfer : Format.NO_VALUE,
+                      format.channelCount,
+                      format.sampleRate,
+                      format.roleFlags,
+                      format.selectionFlags,
+                      mediaFormat != null,
+                      mediaFormat != null ? mediaFormat.toString() : "",
+                      readMediaFormatString(mediaFormat, MediaFormat.KEY_MIME),
+                      readMediaFormatInt(mediaFormat, MediaFormat.KEY_WIDTH),
+                      readMediaFormatInt(mediaFormat, MediaFormat.KEY_HEIGHT),
+                      readMediaFormatFloat(mediaFormat, MediaFormat.KEY_FRAME_RATE),
+                      readMediaFormatInt(mediaFormat, MediaFormat.KEY_ROTATION),
+                      readMediaFormatInt(mediaFormat, MediaFormat.KEY_COLOR_STANDARD),
+                      readMediaFormatInt(mediaFormat, MediaFormat.KEY_COLOR_RANGE),
+                      readMediaFormatInt(mediaFormat, MediaFormat.KEY_COLOR_TRANSFER));
+                }
+              };
+          videoFrameMetadataListenerForTest = listener;
+          player.setVideoFrameMetadataListener(listener);
+        });
+  }
+
+  public void clearNativeVideoFrameMetadataListener() {
+    runOnPlayerThread(
+        () -> {
+          VideoFrameMetadataListener listener = videoFrameMetadataListenerForTest;
+          if (listener != null) {
+            player.clearVideoFrameMetadataListener(listener);
+            videoFrameMetadataListenerForTest = null;
+          }
+        });
+  }
+
+  private static String readMediaFormatString(@Nullable MediaFormat mediaFormat, String key) {
+    if (mediaFormat == null || !mediaFormat.containsKey(key)) {
+      return "";
+    }
+    try {
+      String value = mediaFormat.getString(key);
+      return value != null ? value : "";
+    } catch (RuntimeException e) {
+      return "";
+    }
+  }
+
+  private static int readMediaFormatInt(@Nullable MediaFormat mediaFormat, String key) {
+    if (mediaFormat == null || !mediaFormat.containsKey(key)) {
+      return 0;
+    }
+    try {
+      return mediaFormat.getInteger(key);
+    } catch (RuntimeException e) {
+      return 0;
+    }
+  }
+
+  private static float readMediaFormatFloat(@Nullable MediaFormat mediaFormat, String key) {
+    if (mediaFormat == null || !mediaFormat.containsKey(key)) {
+      return 0.0f;
+    }
+    try {
+      return mediaFormat.getFloat(key);
+    } catch (RuntimeException e) {
+      try {
+        return mediaFormat.getInteger(key);
+      } catch (RuntimeException nested) {
+        return 0.0f;
+      }
+    }
+  }
+
+  public void setNativeCameraMotionListener() {
+    runOnPlayerThread(
+        () -> {
+          CameraMotionListener previous = cameraMotionListenerForTest;
+          if (previous != null) {
+            player.clearCameraMotionListener(previous);
+          }
+          CameraMotionListener listener =
+              new CameraMotionListener() {
+                @Override
+                public void onCameraMotion(long timeUs, float[] rotation) {
+                  long handle = getNativeHandle();
+                  if (handle != 0L) {
+                    nativeOnCameraMotion(handle, timeUs, rotation);
+                  }
+                }
+
+                @Override
+                public void onCameraMotionReset() {
+                  long handle = getNativeHandle();
+                  if (handle != 0L) {
+                    nativeOnCameraMotionReset(handle);
+                  }
+                }
+              };
+          cameraMotionListenerForTest = listener;
+          player.setCameraMotionListener(listener);
+        });
+  }
+
+  public void clearNativeCameraMotionListener() {
+    runOnPlayerThread(
+        () -> {
+          CameraMotionListener listener = cameraMotionListenerForTest;
+          if (listener != null) {
+            player.clearCameraMotionListener(listener);
+            cameraMotionListenerForTest = null;
+          }
+        });
+  }
+
+  private static List<String> toStringList(@Nullable String[] values) {
+    ArrayList<String> result = new ArrayList<>();
+    if (values == null) {
+      return result;
+    }
+    for (String value : values) {
+      if (value != null) {
+        result.add(value);
+      }
+    }
+    return result;
+  }
+
+  private static CodecParameters toCodecParameters(CppCodecParameter[] codecParameters) {
+    CodecParameters.Builder builder = new CodecParameters.Builder();
+    for (CppCodecParameter parameter : codecParameters) {
+      switch (parameter.type) {
+        case CppCodecParameter.TYPE_INTEGER:
+          builder.setInteger(parameter.key, parameter.intValue);
+          break;
+        case CppCodecParameter.TYPE_LONG:
+          builder.setLong(parameter.key, parameter.longValue);
+          break;
+        case CppCodecParameter.TYPE_FLOAT:
+          builder.setFloat(parameter.key, parameter.floatValue);
+          break;
+        case CppCodecParameter.TYPE_STRING:
+          builder.setString(parameter.key, parameter.stringValue);
+          break;
+        case CppCodecParameter.TYPE_BYTE_BUFFER:
+          builder.setByteBuffer(
+              parameter.key,
+              parameter.byteBufferValue != null ? ByteBuffer.wrap(parameter.byteBufferValue) : null);
+          break;
+        case CppCodecParameter.TYPE_NULL:
+          builder.setString(parameter.key, null);
+          break;
+        default:
+          throw new IllegalArgumentException("Unknown codec parameter type: " + parameter.type);
+      }
+    }
+    return builder.build();
+  }
+
+  private static CppCodecParameter[] fromCodecParameters(CodecParameters codecParameters) {
+    ArrayList<String> keys = new ArrayList<>(codecParameters.keySet());
+    Collections.sort(keys);
+    CppCodecParameter[] result = new CppCodecParameter[keys.size()];
+    for (int i = 0; i < keys.size(); i++) {
+      String key = keys.get(i);
+      Object value = codecParameters.get(key);
+      if (value instanceof Integer) {
+        result[i] =
+            new CppCodecParameter(
+                key, CppCodecParameter.TYPE_INTEGER, (Integer) value, 0L, 0f, null, null);
+      } else if (value instanceof Long) {
+        result[i] =
+            new CppCodecParameter(
+                key, CppCodecParameter.TYPE_LONG, 0, (Long) value, 0f, null, null);
+      } else if (value instanceof Float) {
+        result[i] =
+            new CppCodecParameter(
+                key, CppCodecParameter.TYPE_FLOAT, 0, 0L, (Float) value, null, null);
+      } else if (value instanceof String) {
+        result[i] =
+            new CppCodecParameter(
+                key, CppCodecParameter.TYPE_STRING, 0, 0L, 0f, (String) value, null);
+      } else if (value instanceof ByteBuffer) {
+        result[i] =
+            new CppCodecParameter(
+                key,
+                CppCodecParameter.TYPE_BYTE_BUFFER,
+                0,
+                0L,
+                0f,
+                null,
+                copyByteBuffer((ByteBuffer) value));
+      } else if (value == null) {
+        result[i] =
+            new CppCodecParameter(
+                key, CppCodecParameter.TYPE_NULL, 0, 0L, 0f, null, null);
+      } else {
+        result[i] =
+            new CppCodecParameter(
+                key,
+                CppCodecParameter.TYPE_STRING,
+                0,
+                0L,
+                0f,
+                String.valueOf(value),
+                null);
+      }
+    }
+    return result;
+  }
+
+  private static byte[] copyByteBuffer(ByteBuffer byteBuffer) {
+    ByteBuffer duplicate = byteBuffer.duplicate();
+    byte[] bytes = new byte[duplicate.remaining()];
+    duplicate.get(bytes);
+    return bytes;
+  }
+
+  private static String summarizeCodecParameters(CppCodecParameter[] codecParameters) {
+    StringBuilder summary = new StringBuilder();
+    for (int i = 0; i < codecParameters.length; i++) {
+      CppCodecParameter parameter = codecParameters[i];
+      if (i > 0) {
+        summary.append(';');
+      }
+      summary.append(parameter.key).append('=');
+      switch (parameter.type) {
+        case CppCodecParameter.TYPE_INTEGER:
+          summary.append("int:").append(parameter.intValue);
+          break;
+        case CppCodecParameter.TYPE_LONG:
+          summary.append("long:").append(parameter.longValue);
+          break;
+        case CppCodecParameter.TYPE_FLOAT:
+          summary.append("float:").append(parameter.floatValue);
+          break;
+        case CppCodecParameter.TYPE_STRING:
+          summary.append("string:").append(parameter.stringValue != null ? parameter.stringValue : "null");
+          break;
+        case CppCodecParameter.TYPE_BYTE_BUFFER:
+          summary.append("bytes:");
+          if (parameter.byteBufferValue == null) {
+            summary.append("null");
+          } else {
+            summary.append(parameter.byteBufferValue.length).append(':');
+            for (byte value : parameter.byteBufferValue) {
+              int unsignedValue = value & 0xFF;
+              if (unsignedValue < 16) {
+                summary.append('0');
+              }
+              summary.append(Integer.toHexString(unsignedValue));
+            }
+          }
+          break;
+        case CppCodecParameter.TYPE_NULL:
+          summary.append("null");
+          break;
+        default:
+          summary.append("unknown:").append(parameter.type);
+      }
+    }
+    return summary.toString();
+  }
+
   public void setDeviceVolumeWithFlags(int volume, int flags) {
     runOnPlayerThread(() -> player.setDeviceVolume(volume, flags));
   }
@@ -918,6 +1451,71 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     return queryOnPlayerThread(player::getSkipSilenceEnabled);
   }
 
+  public void setScrubbingModeEnabled(boolean scrubbingModeEnabled) {
+    runOnPlayerThread(() -> player.setScrubbingModeEnabled(scrubbingModeEnabled));
+  }
+
+  public boolean isScrubbingModeEnabledValue() {
+    return queryOnPlayerThread(player::isScrubbingModeEnabled);
+  }
+
+  public void setScrubbingModeParametersConfig(
+      int[] disabledTrackTypes,
+      boolean hasFractionalSeekTolerance,
+      double fractionalSeekToleranceBefore,
+      double fractionalSeekToleranceAfter,
+      boolean shouldIncreaseCodecOperatingRate,
+      boolean allowSkippingMediaCodecFlush,
+      boolean allowSkippingKeyFrameReset,
+      boolean shouldEnableDynamicScheduling,
+      boolean useDecodeOnlyFlag) {
+    LinkedHashSet<Integer> disabledTrackTypeSet = new LinkedHashSet<>();
+    for (int disabledTrackType : disabledTrackTypes) {
+      disabledTrackTypeSet.add(disabledTrackType);
+    }
+    ScrubbingModeParameters parameters =
+        new ScrubbingModeParameters.Builder()
+            .setDisabledTrackTypes(disabledTrackTypeSet)
+            .setFractionalSeekTolerance(
+                hasFractionalSeekTolerance ? fractionalSeekToleranceBefore : null,
+                hasFractionalSeekTolerance ? fractionalSeekToleranceAfter : null)
+            .setShouldIncreaseCodecOperatingRate(shouldIncreaseCodecOperatingRate)
+            .setAllowSkippingMediaCodecFlush(allowSkippingMediaCodecFlush)
+            .setAllowSkippingKeyFrameReset(allowSkippingKeyFrameReset)
+            .setShouldEnableDynamicScheduling(shouldEnableDynamicScheduling)
+            .setUseDecodeOnlyFlag(useDecodeOnlyFlag)
+            .build();
+    runOnPlayerThread(() -> player.setScrubbingModeParameters(parameters));
+  }
+
+  public String[] getScrubbingModeParametersConfig() {
+    return queryOnPlayerThread(
+        () -> {
+          ScrubbingModeParameters parameters = player.getScrubbingModeParameters();
+          String[] values = new String[9 + parameters.disabledTrackTypes.size()];
+          values[0] = Integer.toString(parameters.disabledTrackTypes.size());
+          values[1] = parameters.fractionalSeekToleranceBefore != null ? "1" : "0";
+          values[2] =
+              parameters.fractionalSeekToleranceBefore != null
+                  ? Double.toString(parameters.fractionalSeekToleranceBefore)
+                  : "";
+          values[3] =
+              parameters.fractionalSeekToleranceAfter != null
+                  ? Double.toString(parameters.fractionalSeekToleranceAfter)
+                  : "";
+          values[4] = parameters.shouldIncreaseCodecOperatingRate ? "1" : "0";
+          values[5] = parameters.allowSkippingMediaCodecFlush ? "1" : "0";
+          values[6] = parameters.allowSkippingKeyFrameReset ? "1" : "0";
+          values[7] = parameters.shouldEnableDynamicScheduling ? "1" : "0";
+          values[8] = parameters.useDecodeOnlyFlag ? "1" : "0";
+          int valueIndex = 9;
+          for (int disabledTrackType : parameters.disabledTrackTypes) {
+            values[valueIndex++] = Integer.toString(disabledTrackType);
+          }
+          return values;
+        });
+  }
+
   public CppDeviceInfo getDeviceInfo() {
     DeviceInfo deviceInfo = queryOnPlayerThread(player::getDeviceInfo);
     return new CppDeviceInfo(
@@ -942,6 +1540,33 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
         videoSize.height,
         videoSize.unappliedRotationDegrees,
         videoSize.pixelWidthHeightRatio);
+  }
+
+  public int getRendererCountValue() {
+    return queryOnPlayerThread(player::getRendererCount);
+  }
+
+  public int getRendererTypeValue(int index) {
+    return queryOnPlayerThread(
+        () -> {
+          int rendererCount = player.getRendererCount();
+          if (index < 0 || index >= rendererCount) {
+            return C.TRACK_TYPE_UNKNOWN;
+          }
+          return player.getRendererType(index);
+        });
+  }
+
+  public boolean isSleepingForOffloadValue() {
+    return queryOnPlayerThread(player::isSleepingForOffload);
+  }
+
+  public boolean isTunnelingEnabledValue() {
+    return queryOnPlayerThread(player::isTunnelingEnabled);
+  }
+
+  public boolean isReleasedValue() {
+    return released.get() || queryOnPlayerThread(player::isReleased);
   }
 
   public CppMediaMetadata getMediaMetadata() {
@@ -1075,6 +1700,18 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     runOnPlayerThread(() -> dispatchAudioSessionIdChanged(audioSessionId));
   }
 
+  public void simulateAnalyticsAudioAttributesChangedForTest(
+      int contentType,
+      int usage,
+      int flags,
+      int allowedCapturePolicy,
+      int spatializationBehavior) {
+    runOnPlayerThread(
+        () ->
+            dispatchAnalyticsAudioAttributesChanged(
+                contentType, usage, flags, allowedCapturePolicy, spatializationBehavior));
+  }
+
   public void simulateAnalyticsSkipSilenceEnabledChangedForTest(boolean skipSilenceEnabled) {
     runOnPlayerThread(() -> dispatchAnalyticsSkipSilenceEnabledChanged(skipSilenceEnabled));
   }
@@ -1124,6 +1761,10 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   public void simulateAnalyticsEventsForTest(int[] eventCodes) {
     runOnPlayerThread(() -> dispatchAnalyticsEvents(new CppPlayerEvents(eventCodes)));
+  }
+
+  public void simulateIsLoadingChangedForTest(boolean isLoading) {
+    runOnPlayerThread(() -> dispatchIsLoadingChanged(isLoading));
   }
 
   public void simulateSeekBackIncrementChangedForTest(long seekBackIncrementMs) {
@@ -1250,6 +1891,224 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
                 sampleMimeType, codecs, width, height, frameRate));
   }
 
+  public void simulateAnalyticsStage4RemainingEventsForTest() {
+    runOnPlayerThread(
+        () -> {
+          dispatchAnalyticsPlayerStateChanged(true, 3);
+          dispatchAnalyticsLoadingChanged(true);
+          dispatchAnalyticsTrackSelectionParametersChanged(
+              new CppTrackSelectionParameters(
+                  "stage4-audio",
+                  "stage4-text",
+                  new String[] {"stage4-audio"},
+                  new String[] {"stage4-text"},
+                  11,
+                  12,
+                  6,
+                  128000,
+                  1920,
+                  1080,
+                  4000000,
+                  1280,
+                  720,
+                  true,
+                  true,
+                  13,
+                  true,
+                  false,
+                  true,
+                  false,
+                  false,
+                  true,
+                  new int[] {C.TRACK_TYPE_TEXT},
+                  new CppTrackSelectionOverride[0]));
+          dispatchAnalyticsLoadCanceled(
+              "https://example.com/stage4-canceled.m4s",
+              1,
+              C.TRACK_TYPE_AUDIO,
+              "audio/mp4",
+              2,
+              1111,
+              2222);
+          dispatchAnalyticsDownstreamFormatChanged(
+              2, C.TRACK_TYPE_VIDEO, "video/avc", 3, 3333, 4444);
+          dispatchAnalyticsUpstreamDiscarded(
+              3, C.TRACK_TYPE_TEXT, "text/vtt", 4, 5555, 6666);
+          dispatchAnalyticsAudioEnabled(1, 2, 3, 4, 5, 6, 7, 8000);
+          dispatchAnalyticsAudioDisabled(8, 9, 10, 11, 12, 13, 14, 15000);
+          dispatchAnalyticsAudioSinkError("AudioSinkException", "stage4 audio sink");
+          dispatchAnalyticsAudioCodecError("AudioCodecException", "stage4 audio codec");
+          dispatchAnalyticsAudioTrackInitialized(2, 48000, 12, true, false, 4096);
+          dispatchAnalyticsAudioTrackReleased(3, 44100, 3, false, true, 2048);
+          dispatchAnalyticsVideoEnabled(15, 16, 17, 18, 19, 20, 21, 22000);
+          dispatchAnalyticsVideoDisabled(22, 23, 24, 25, 26, 27, 28, 29000);
+          dispatchAnalyticsVideoCodecError("VideoCodecException", "stage4 video codec");
+          dispatchAnalyticsSurfaceSizeChanged(1280, 720);
+          dispatchAnalyticsDrmSessionAcquired(true, 4);
+          dispatchAnalyticsDrmKeysLoaded(true, 5, 6);
+          dispatchAnalyticsDrmSessionManagerError("DrmException", "stage4 drm");
+          dispatchAnalyticsDrmKeysRestored();
+          dispatchAnalyticsDrmKeysRemoved();
+          dispatchAnalyticsDrmSessionReleased();
+          dispatchAnalyticsRendererReadyChanged(2, C.TRACK_TYPE_VIDEO, true);
+          dispatchAnalyticsDroppedSeeksWhileScrubbing(7);
+          dispatchAnalyticsPlayerReleased();
+        });
+  }
+
+  public void simulateAudioCodecParametersChangedForTest(
+      CppCodecParameter[] codecParameters) {
+    runOnPlayerThread(
+        () -> {
+          CodecParametersChangeListener listener = audioCodecParametersChangeListenerForTest;
+          if (listener != null) {
+            listener.onCodecParametersChanged(toCodecParameters(codecParameters));
+          }
+        });
+  }
+
+  public void simulateVideoCodecParametersChangedForTest(
+      CppCodecParameter[] codecParameters) {
+    runOnPlayerThread(
+        () -> {
+          CodecParametersChangeListener listener = videoCodecParametersChangeListenerForTest;
+          if (listener != null) {
+            listener.onCodecParametersChanged(toCodecParameters(codecParameters));
+          }
+        });
+  }
+
+  public void simulateVideoFrameAboutToBeRenderedForTest(
+      long presentationTimeUs,
+      long releaseTimeNs,
+      String formatId,
+      String sampleMimeType,
+      String codecs,
+      int width,
+      int height,
+      float frameRate,
+      String formatLabel,
+      String formatLanguage,
+      String formatContainerMimeType,
+      int formatBitrate,
+      int formatAverageBitrate,
+      int formatPeakBitrate,
+      int formatRotationDegrees,
+      float formatPixelWidthHeightRatio,
+      int formatColorStandard,
+      int formatColorRange,
+      int formatColorTransfer,
+      int formatChannelCount,
+      int formatSampleRate,
+      int formatRoleFlags,
+      int formatSelectionFlags,
+      boolean mediaFormatPresent,
+      String mediaFormatSummary,
+      String mediaFormatMimeType,
+      int mediaFormatWidth,
+      int mediaFormatHeight,
+      float mediaFormatFrameRate,
+      int mediaFormatRotationDegrees,
+      int mediaFormatColorStandard,
+      int mediaFormatColorRange,
+      int mediaFormatColorTransfer) {
+    runOnPlayerThread(
+        () -> {
+          VideoFrameMetadataListener listener = videoFrameMetadataListenerForTest;
+          if (listener == null) {
+            return;
+          }
+          int effectiveAverageBitrate = formatAverageBitrate;
+          int effectivePeakBitrate = formatPeakBitrate;
+          if (formatBitrate != Format.NO_VALUE
+              && effectiveAverageBitrate == Format.NO_VALUE
+              && effectivePeakBitrate == Format.NO_VALUE) {
+            effectiveAverageBitrate = formatBitrate;
+          }
+          Format.Builder formatBuilder =
+              new Format.Builder()
+                  .setId(formatId)
+                  .setLabel(formatLabel)
+                  .setLanguage(formatLanguage)
+                  .setSelectionFlags(formatSelectionFlags)
+                  .setRoleFlags(formatRoleFlags)
+                  .setAverageBitrate(effectiveAverageBitrate)
+                  .setPeakBitrate(effectivePeakBitrate)
+                  .setCodecs(codecs)
+                  .setContainerMimeType(formatContainerMimeType)
+                  .setSampleMimeType(sampleMimeType)
+                  .setWidth(width)
+                  .setHeight(height)
+                  .setFrameRate(frameRate)
+                  .setRotationDegrees(formatRotationDegrees)
+                  .setPixelWidthHeightRatio(formatPixelWidthHeightRatio)
+                  .setChannelCount(formatChannelCount)
+                  .setSampleRate(formatSampleRate);
+          if (formatColorStandard != Format.NO_VALUE
+              || formatColorRange != Format.NO_VALUE
+              || formatColorTransfer != Format.NO_VALUE) {
+            formatBuilder.setColorInfo(
+                new ColorInfo.Builder()
+                    .setColorSpace(formatColorStandard)
+                    .setColorRange(formatColorRange)
+                    .setColorTransfer(formatColorTransfer)
+                    .build());
+          }
+          Format format = formatBuilder.build();
+          MediaFormat mediaFormat = null;
+          if (mediaFormatPresent) {
+            mediaFormat = new MediaFormat();
+            mediaFormat.setString("cppbridge-summary", mediaFormatSummary);
+            if (!mediaFormatMimeType.isEmpty()) {
+              mediaFormat.setString(MediaFormat.KEY_MIME, mediaFormatMimeType);
+            }
+            if (mediaFormatWidth > 0) {
+              mediaFormat.setInteger(MediaFormat.KEY_WIDTH, mediaFormatWidth);
+            }
+            if (mediaFormatHeight > 0) {
+              mediaFormat.setInteger(MediaFormat.KEY_HEIGHT, mediaFormatHeight);
+            }
+            if (mediaFormatFrameRate > 0.0f) {
+              mediaFormat.setFloat(MediaFormat.KEY_FRAME_RATE, mediaFormatFrameRate);
+            }
+            if (mediaFormatRotationDegrees != 0) {
+              mediaFormat.setInteger(MediaFormat.KEY_ROTATION, mediaFormatRotationDegrees);
+            }
+            if (mediaFormatColorStandard != 0) {
+              mediaFormat.setInteger(MediaFormat.KEY_COLOR_STANDARD, mediaFormatColorStandard);
+            }
+            if (mediaFormatColorRange != 0) {
+              mediaFormat.setInteger(MediaFormat.KEY_COLOR_RANGE, mediaFormatColorRange);
+            }
+            if (mediaFormatColorTransfer != 0) {
+              mediaFormat.setInteger(MediaFormat.KEY_COLOR_TRANSFER, mediaFormatColorTransfer);
+            }
+          }
+          listener.onVideoFrameAboutToBeRendered(
+              presentationTimeUs, releaseTimeNs, format, mediaFormat);
+        });
+  }
+
+  public void simulateCameraMotionForTest(long timeUs, float[] rotation) {
+    runOnPlayerThread(
+        () -> {
+          CameraMotionListener listener = cameraMotionListenerForTest;
+          if (listener != null) {
+            listener.onCameraMotion(timeUs, rotation);
+          }
+        });
+  }
+
+  public void simulateCameraMotionResetForTest() {
+    runOnPlayerThread(
+        () -> {
+          CameraMotionListener listener = cameraMotionListenerForTest;
+          if (listener != null) {
+            listener.onCameraMotionReset();
+          }
+        });
+  }
+
   public void simulateImageOutputForTest(long presentationTimeUs, int width, int height) {
     ImageOutput imageOutput = imageOutputForTest;
     if (imageOutput == null) {
@@ -1286,12 +2145,25 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
               configuredHandleAudioFocusForTest ? "1" : "0",
               configuredHandleAudioBecomingNoisyForTest ? "1" : "0",
               configuredUseLazyPreparationForTest ? "1" : "0",
-              Long.toString(configuredSeekBackIncrementMsForTest),
-              Long.toString(configuredSeekForwardIncrementMsForTest),
+              Long.toString(player.getSeekBackIncrement()),
+              Long.toString(player.getSeekForwardIncrement()),
               Integer.toString(configuredWakeModeForTest),
               Integer.toString(configuredPriorityForTest),
               priorityTaskManagerForTest != null ? "1" : "0",
-              Long.toString(player.getPreloadConfiguration().targetPreloadDurationUs)
+              Long.toString(player.getPreloadConfiguration().targetPreloadDurationUs),
+              Long.toString(player.getMaxSeekToPreviousPosition()),
+              player.getPauseAtEndOfMediaItems() ? "1" : "0",
+              Integer.toString(player.getVideoScalingMode()),
+              Integer.toString(player.getVideoChangeFrameRateStrategy()),
+              configuredForegroundModeForTest ? "1" : "0",
+              Integer.toString(configuredAudioSessionIdForTest),
+              Integer.toString(configuredAuxEffectIdForTest),
+              Float.toString(configuredAuxEffectSendLevelForTest),
+              configuredPreferredAudioDeviceForTest ? "1" : "0",
+              Integer.toString(configuredVirtualDeviceIdForTest),
+              player.isScrubbingModeEnabled() ? "1" : "0",
+              latestAudioCodecParametersSummaryForTest,
+              latestVideoCodecParametersSummaryForTest
             });
   }
 
@@ -1450,6 +2322,40 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   public void setPauseAtEndOfMediaItems(boolean pauseAtEndOfMediaItems) {
     runOnPlayerThread(() -> player.setPauseAtEndOfMediaItems(pauseAtEndOfMediaItems));
+  }
+
+  public boolean getPauseAtEndOfMediaItems() {
+    return queryOnPlayerThread(player::getPauseAtEndOfMediaItems);
+  }
+
+  public void setSeekBackIncrementMs(long seekBackIncrementMs) {
+    runOnPlayerThread(() -> player.setSeekBackIncrementMs(seekBackIncrementMs));
+  }
+
+  public void setSeekForwardIncrementMs(long seekForwardIncrementMs) {
+    runOnPlayerThread(() -> player.setSeekForwardIncrementMs(seekForwardIncrementMs));
+  }
+
+  public void setMaxSeekToPreviousPositionMs(long maxSeekToPreviousPositionMs) {
+    runOnPlayerThread(
+        () -> player.setMaxSeekToPreviousPositionMs(maxSeekToPreviousPositionMs));
+  }
+
+  public void setVideoScalingMode(int videoScalingMode) {
+    runOnPlayerThread(() -> player.setVideoScalingMode(videoScalingMode));
+  }
+
+  public int getVideoScalingMode() {
+    return queryOnPlayerThread(player::getVideoScalingMode);
+  }
+
+  public void setVideoChangeFrameRateStrategy(int videoChangeFrameRateStrategy) {
+    runOnPlayerThread(
+        () -> player.setVideoChangeFrameRateStrategy(videoChangeFrameRateStrategy));
+  }
+
+  public int getVideoChangeFrameRateStrategy() {
+    return queryOnPlayerThread(player::getVideoChangeFrameRateStrategy);
   }
 
   public boolean getIsLoading() {
@@ -1625,96 +2531,82 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
           String[] rows = new String[timeline.getWindowCount()];
           for (int i = 0; i < rows.length; i++) {
             timeline.getWindow(i, window);
+            @Nullable Object windowUid = window.uid;
+            @Nullable Object windowManifest = window.manifest;
             rows[i] =
-                i
-                    + "|"
-                    + (window.mediaItem != null ? window.mediaItem.mediaId : "")
-                    + "|"
-                    + (window.mediaItem != null
+                joinEscapedRowFields(
+                    i,
+                    window.mediaItem != null ? window.mediaItem.mediaId : "",
+                    window.mediaItem != null
                             && window.mediaItem.localConfiguration != null
                             && window.mediaItem.localConfiguration.uri != null
                         ? window.mediaItem.localConfiguration.uri.toString()
-                        : "")
-                    + "|"
-                    + (window.mediaItem != null
+                        : "",
+                    window.mediaItem != null
                             && window.mediaItem.localConfiguration != null
                             && window.mediaItem.localConfiguration.tag != null
                         ? 1
-                        : 0)
-                    + "|"
-                    + (window.mediaItem != null
+                        : 0,
+                    window.mediaItem != null
                             && window.mediaItem.localConfiguration != null
                             && window.mediaItem.localConfiguration.tag != null
                         ? window.mediaItem.localConfiguration.tag.toString()
-                        : "")
-                    + "|"
-                    + (window.mediaItem != null
+                        : "",
+                    window.mediaItem != null
                             && window.mediaItem.localConfiguration != null
                             && window.mediaItem.localConfiguration.tag != null
                         ? CppOpaqueObjectRegistry.register(window.mediaItem.localConfiguration.tag)
-                        : "")
-                    + "|"
-                    + String.valueOf(window.uid)
-                    + "|"
-                    + (window.uid != null ? CppOpaqueObjectRegistry.register(window.uid) : "")
-                    + "|"
-                    + (window.liveConfiguration != null ? 1 : 0)
-                    + "|"
-                    + (window.liveConfiguration != null
+                        : "",
+                    String.valueOf(windowUid),
+                    windowUid != null ? CppOpaqueObjectRegistry.register(windowUid) : "",
+                    window.liveConfiguration != null ? 1 : 0,
+                    window.liveConfiguration != null
                         ? window.liveConfiguration.targetOffsetMs
-                        : C.TIME_UNSET)
-                    + "|"
-                    + (window.liveConfiguration != null
+                        : C.TIME_UNSET,
+                    window.liveConfiguration != null
                         ? window.liveConfiguration.minOffsetMs
-                        : C.TIME_UNSET)
-                    + "|"
-                    + (window.liveConfiguration != null
+                        : C.TIME_UNSET,
+                    window.liveConfiguration != null
                         ? window.liveConfiguration.maxOffsetMs
-                        : C.TIME_UNSET)
-                    + "|"
-                    + (window.liveConfiguration != null
+                        : C.TIME_UNSET,
+                    window.liveConfiguration != null
                         ? window.liveConfiguration.minPlaybackSpeed
-                        : C.RATE_UNSET)
-                    + "|"
-                    + (window.liveConfiguration != null
+                        : C.RATE_UNSET,
+                    window.liveConfiguration != null
                         ? window.liveConfiguration.maxPlaybackSpeed
-                        : C.RATE_UNSET)
-                    + "|"
-                    + (window.manifest != null ? 1 : 0)
-                    + "|"
-                    + (window.manifest != null ? String.valueOf(window.manifest) : "")
-                    + "|"
-                    + (window.manifest != null ? CppOpaqueObjectRegistry.register(window.manifest) : "")
-                    + "|"
-                    + window.firstPeriodIndex
-                    + "|"
-                    + window.lastPeriodIndex
-                    + "|"
-                    + window.presentationStartTimeMs
-                    + "|"
-                    + window.windowStartTimeMs
-                    + "|"
-                    + window.elapsedRealtimeEpochOffsetMs
-                    + "|"
-                    + window.getDurationMs()
-                    + "|"
-                    + window.getDurationUs()
-                    + "|"
-                    + window.getDefaultPositionMs()
-                    + "|"
-                    + window.getDefaultPositionUs()
-                    + "|"
-                    + window.getPositionInFirstPeriodMs()
-                    + "|"
-                    + window.getPositionInFirstPeriodUs()
-                    + "|"
-                    + (window.isSeekable ? 1 : 0)
-                    + "|"
-                    + (window.isDynamic ? 1 : 0)
-                    + "|"
-                    + (window.isLive() ? 1 : 0)
-                    + "|"
-                    + (window.isPlaceholder ? 1 : 0);
+                        : C.RATE_UNSET,
+                    windowManifest != null ? 1 : 0,
+                    windowManifest != null ? String.valueOf(windowManifest) : "",
+                    windowManifest != null ? CppOpaqueObjectRegistry.register(windowManifest) : "",
+                    window.firstPeriodIndex,
+                    window.lastPeriodIndex,
+                    window.presentationStartTimeMs,
+                    window.windowStartTimeMs,
+                    window.elapsedRealtimeEpochOffsetMs,
+                    window.getDurationMs(),
+                    window.getDurationUs(),
+                    window.getDefaultPositionMs(),
+                    window.getDefaultPositionUs(),
+                    window.getPositionInFirstPeriodMs(),
+                    window.getPositionInFirstPeriodUs(),
+                    window.isSeekable ? 1 : 0,
+                    window.isDynamic ? 1 : 0,
+                    window.isLive() ? 1 : 0,
+                    window.isPlaceholder ? 1 : 0,
+                    objectValuePresent(windowUid),
+                    objectValueClassName(windowUid),
+                    objectValueType(windowUid),
+                    objectValueString(windowUid),
+                    objectValueLong(windowUid),
+                    objectValueDouble(windowUid),
+                    objectValueBoolean(windowUid),
+                    objectValuePresent(windowManifest),
+                    objectValueClassName(windowManifest),
+                    objectValueType(windowManifest),
+                    objectValueString(windowManifest),
+                    objectValueLong(windowManifest),
+                    objectValueDouble(windowManifest),
+                    objectValueBoolean(windowManifest));
           }
           return rows;
         });
@@ -1728,34 +2620,45 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
           String[] rows = new String[timeline.getPeriodCount()];
           for (int i = 0; i < rows.length; i++) {
             timeline.getPeriod(i, period);
+            @Nullable Object periodId = period.id;
+            @Nullable Object periodUid = period.uid;
+            @Nullable Object periodAdsId = period.getAdsId();
             rows[i] =
-                String.valueOf(period.id)
-                    + "|"
-                    + (period.id != null ? CppOpaqueObjectRegistry.register(period.id) : "")
-                    + "|"
-                    + String.valueOf(period.uid)
-                    + "|"
-                    + (period.uid != null ? CppOpaqueObjectRegistry.register(period.uid) : "")
-                    + "|"
-                    + String.valueOf(period.getAdsId())
-                    + "|"
-                    + (period.getAdsId() != null
-                        ? CppOpaqueObjectRegistry.register(period.getAdsId())
-                        : "")
-                    + "|"
-                    + period.windowIndex
-                    + "|"
-                    + period.getAdGroupCount()
-                    + "|"
-                    + period.getDurationMs()
-                    + "|"
-                    + period.getDurationUs()
-                    + "|"
-                    + period.getPositionInWindowMs()
-                    + "|"
-                    + period.getPositionInWindowUs()
-                    + "|"
-                    + (period.isPlaceholder ? 1 : 0);
+                joinEscapedRowFields(
+                    String.valueOf(periodId),
+                    periodId != null ? CppOpaqueObjectRegistry.register(periodId) : "",
+                    String.valueOf(periodUid),
+                    periodUid != null ? CppOpaqueObjectRegistry.register(periodUid) : "",
+                    String.valueOf(periodAdsId),
+                    periodAdsId != null ? CppOpaqueObjectRegistry.register(periodAdsId) : "",
+                    period.windowIndex,
+                    period.getAdGroupCount(),
+                    period.getDurationMs(),
+                    period.getDurationUs(),
+                    period.getPositionInWindowMs(),
+                    period.getPositionInWindowUs(),
+                    period.isPlaceholder ? 1 : 0,
+                    objectValuePresent(periodId),
+                    objectValueClassName(periodId),
+                    objectValueType(periodId),
+                    objectValueString(periodId),
+                    objectValueLong(periodId),
+                    objectValueDouble(periodId),
+                    objectValueBoolean(periodId),
+                    objectValuePresent(periodUid),
+                    objectValueClassName(periodUid),
+                    objectValueType(periodUid),
+                    objectValueString(periodUid),
+                    objectValueLong(periodUid),
+                    objectValueDouble(periodUid),
+                    objectValueBoolean(periodUid),
+                    objectValuePresent(periodAdsId),
+                    objectValueClassName(periodAdsId),
+                    objectValueType(periodAdsId),
+                    objectValueString(periodAdsId),
+                    objectValueLong(periodAdsId),
+                    objectValueDouble(periodAdsId),
+                    objectValueBoolean(periodAdsId));
           }
           return rows;
         });
@@ -1963,6 +2866,8 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       return;
     }
     addOpaqueToken(tokens, trackInfo.labelToken);
+    addOpaqueToken(tokens, trackInfo.metadataToken);
+    addOpaqueToken(tokens, trackInfo.customDataToken);
   }
 
   private static void collectOpaqueTokens(
@@ -2164,6 +3069,28 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     runOnPlayerThread(
         "release",
         () -> {
+          CodecParametersChangeListener audioCodecListener =
+              audioCodecParametersChangeListenerForTest;
+          if (audioCodecListener != null) {
+            player.removeAudioCodecParametersChangeListener(audioCodecListener);
+            audioCodecParametersChangeListenerForTest = null;
+          }
+          CodecParametersChangeListener videoCodecListener =
+              videoCodecParametersChangeListenerForTest;
+          if (videoCodecListener != null) {
+            player.removeVideoCodecParametersChangeListener(videoCodecListener);
+            videoCodecParametersChangeListenerForTest = null;
+          }
+          VideoFrameMetadataListener videoFrameListener = videoFrameMetadataListenerForTest;
+          if (videoFrameListener != null) {
+            player.clearVideoFrameMetadataListener(videoFrameListener);
+            videoFrameMetadataListenerForTest = null;
+          }
+          CameraMotionListener cameraListener = cameraMotionListenerForTest;
+          if (cameraListener != null) {
+            player.clearCameraMotionListener(cameraListener);
+            cameraMotionListenerForTest = null;
+          }
           debugLog("release task removeListener");
           player.removeListener(this);
           debugLog("release task removeAnalyticsListener");
@@ -2201,6 +3128,15 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       return;
     }
     nativeOnIsPlayingChanged(handle, isPlaying);
+  }
+
+  @Override
+  public void onIsLoadingChanged(boolean isLoading) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnIsLoadingChanged(handle, isLoading);
   }
 
   @Override
@@ -2523,6 +3459,21 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   @Override
+  public void onLoadCanceled(
+      EventTime eventTime, LoadEventInfo loadEventInfo, MediaLoadData mediaLoadData) {
+    dispatchAnalyticsLoadCanceled(
+        loadEventInfo.uri != null ? loadEventInfo.uri.toString() : "",
+        mediaLoadData.dataType,
+        mediaLoadData.trackType,
+        mediaLoadData.trackFormat != null && mediaLoadData.trackFormat.sampleMimeType != null
+            ? mediaLoadData.trackFormat.sampleMimeType
+            : "",
+        mediaLoadData.trackSelectionReason,
+        mediaLoadData.mediaStartTimeMs,
+        mediaLoadData.mediaEndTimeMs);
+  }
+
+  @Override
   public void onAudioInputFormatChanged(
       EventTime eventTime,
       androidx.media3.common.Format format,
@@ -2539,6 +3490,46 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
         format.codecs != null ? format.codecs : "",
         format.channelCount,
         format.sampleRate);
+  }
+
+  @Override
+  public void onDownstreamFormatChanged(EventTime eventTime, MediaLoadData mediaLoadData) {
+    dispatchAnalyticsDownstreamFormatChanged(
+        mediaLoadData.dataType,
+        mediaLoadData.trackType,
+        mediaLoadData.trackFormat != null && mediaLoadData.trackFormat.sampleMimeType != null
+            ? mediaLoadData.trackFormat.sampleMimeType
+            : "",
+        mediaLoadData.trackSelectionReason,
+        mediaLoadData.mediaStartTimeMs,
+        mediaLoadData.mediaEndTimeMs);
+  }
+
+  @Override
+  public void onUpstreamDiscarded(EventTime eventTime, MediaLoadData mediaLoadData) {
+    dispatchAnalyticsUpstreamDiscarded(
+        mediaLoadData.dataType,
+        mediaLoadData.trackType,
+        mediaLoadData.trackFormat != null && mediaLoadData.trackFormat.sampleMimeType != null
+            ? mediaLoadData.trackFormat.sampleMimeType
+            : "",
+        mediaLoadData.trackSelectionReason,
+        mediaLoadData.mediaStartTimeMs,
+        mediaLoadData.mediaEndTimeMs);
+  }
+
+  @Override
+  public void onAudioEnabled(EventTime eventTime, DecoderCounters decoderCounters) {
+    decoderCounters.ensureUpdated();
+    dispatchAnalyticsAudioEnabled(
+        decoderCounters.decoderInitCount,
+        decoderCounters.decoderReleaseCount,
+        decoderCounters.queuedInputBufferCount,
+        decoderCounters.renderedOutputBufferCount,
+        decoderCounters.droppedBufferCount,
+        decoderCounters.skippedOutputBufferCount,
+        decoderCounters.videoFrameProcessingOffsetCount,
+        decoderCounters.totalVideoFrameProcessingOffsetUs);
   }
 
   @Override
@@ -2567,8 +3558,95 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   @Override
+  public void onAudioDisabled(EventTime eventTime, DecoderCounters decoderCounters) {
+    decoderCounters.ensureUpdated();
+    dispatchAnalyticsAudioDisabled(
+        decoderCounters.decoderInitCount,
+        decoderCounters.decoderReleaseCount,
+        decoderCounters.queuedInputBufferCount,
+        decoderCounters.renderedOutputBufferCount,
+        decoderCounters.droppedBufferCount,
+        decoderCounters.skippedOutputBufferCount,
+        decoderCounters.videoFrameProcessingOffsetCount,
+        decoderCounters.totalVideoFrameProcessingOffsetUs);
+  }
+
+  @Override
+  public void onAudioSinkError(EventTime eventTime, Exception audioSinkError) {
+    dispatchAnalyticsAudioSinkError(
+        audioSinkError.getClass().getSimpleName(),
+        audioSinkError.getMessage() != null ? audioSinkError.getMessage() : "");
+  }
+
+  @Override
+  public void onAudioCodecError(EventTime eventTime, Exception audioCodecError) {
+    dispatchAnalyticsAudioCodecError(
+        audioCodecError.getClass().getSimpleName(),
+        audioCodecError.getMessage() != null ? audioCodecError.getMessage() : "");
+  }
+
+  @Override
+  public void onAudioTrackInitialized(
+      EventTime eventTime, AudioSink.AudioTrackConfig audioTrackConfig) {
+    dispatchAnalyticsAudioTrackInitialized(
+        audioTrackConfig.encoding,
+        audioTrackConfig.sampleRate,
+        audioTrackConfig.channelConfig,
+        audioTrackConfig.tunneling,
+        audioTrackConfig.offload,
+        audioTrackConfig.bufferSize);
+  }
+
+  @Override
+  public void onAudioTrackReleased(
+      EventTime eventTime, AudioSink.AudioTrackConfig audioTrackConfig) {
+    dispatchAnalyticsAudioTrackReleased(
+        audioTrackConfig.encoding,
+        audioTrackConfig.sampleRate,
+        audioTrackConfig.channelConfig,
+        audioTrackConfig.tunneling,
+        audioTrackConfig.offload,
+        audioTrackConfig.bufferSize);
+  }
+
+  @Override
+  public void onVideoEnabled(EventTime eventTime, DecoderCounters decoderCounters) {
+    decoderCounters.ensureUpdated();
+    dispatchAnalyticsVideoEnabled(
+        decoderCounters.decoderInitCount,
+        decoderCounters.decoderReleaseCount,
+        decoderCounters.queuedInputBufferCount,
+        decoderCounters.renderedOutputBufferCount,
+        decoderCounters.droppedBufferCount,
+        decoderCounters.skippedOutputBufferCount,
+        decoderCounters.videoFrameProcessingOffsetCount,
+        decoderCounters.totalVideoFrameProcessingOffsetUs);
+  }
+
+  @Override
   public void onVideoDecoderReleased(EventTime eventTime, String decoderName) {
     dispatchVideoDecoderReleased(decoderName);
+  }
+
+  @Override
+  public void onVideoDisabled(EventTime eventTime, DecoderCounters decoderCounters) {
+    decoderCounters.ensureUpdated();
+    dispatchAnalyticsVideoDisabled(
+        decoderCounters.decoderInitCount,
+        decoderCounters.decoderReleaseCount,
+        decoderCounters.queuedInputBufferCount,
+        decoderCounters.renderedOutputBufferCount,
+        decoderCounters.droppedBufferCount,
+        decoderCounters.skippedOutputBufferCount,
+        decoderCounters.videoFrameProcessingOffsetCount,
+        decoderCounters.totalVideoFrameProcessingOffsetUs);
+  }
+
+  @Override
+  public void onVideoCodecError(EventTime eventTime, Exception videoCodecError) {
+    dispatchAnalyticsVideoCodecError(
+        videoCodecError.getClass().getSimpleName(),
+        videoCodecError.getMessage() != null ? videoCodecError.getMessage() : "");
   }
 
   @Override
@@ -2604,6 +3682,16 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   }
 
   @Override
+  public void onAudioAttributesChanged(EventTime eventTime, AudioAttributes audioAttributes) {
+    dispatchAnalyticsAudioAttributesChanged(
+        audioAttributes.contentType,
+        audioAttributes.usage,
+        audioAttributes.flags,
+        audioAttributes.allowedCapturePolicy,
+        audioAttributes.spatializationBehavior);
+  }
+
+  @Override
   public void onSkipSilenceEnabledChanged(EventTime eventTime, boolean skipSilenceEnabled) {
     dispatchAnalyticsSkipSilenceEnabledChanged(skipSilenceEnabled);
   }
@@ -2616,6 +3704,12 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   @Override
   public void onPlaybackStateChanged(EventTime eventTime, int state) {
     dispatchAnalyticsPlaybackStateChanged(state);
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public void onPlayerStateChanged(EventTime eventTime, boolean playWhenReady, int playbackState) {
+    dispatchAnalyticsPlayerStateChanged(playWhenReady, playbackState);
   }
 
   @Override
@@ -2640,6 +3734,12 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     dispatchAnalyticsIsLoadingChanged(isLoading);
   }
 
+  @SuppressWarnings("deprecation")
+  @Override
+  public void onLoadingChanged(EventTime eventTime, boolean isLoading) {
+    dispatchAnalyticsLoadingChanged(isLoading);
+  }
+
   @Override
   public void onRepeatModeChanged(EventTime eventTime, int repeatMode) {
     dispatchAnalyticsRepeatModeChanged(repeatMode);
@@ -2658,6 +3758,13 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   @Override
   public void onAvailableCommandsChanged(EventTime eventTime, Player.Commands availableCommands) {
     dispatchAnalyticsAvailableCommandsChanged(new CppCommands(getCommandCodes(availableCommands)));
+  }
+
+  @Override
+  public void onTrackSelectionParametersChanged(
+      EventTime eventTime, TrackSelectionParameters trackSelectionParameters) {
+    dispatchAnalyticsTrackSelectionParametersChanged(
+        CppBridgeConverters.fromTrackSelectionParameters(trackSelectionParameters));
   }
 
   @Override
@@ -2782,6 +3889,76 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
         mediaLoadData.trackType,
         error.getMessage() != null ? error.getMessage() : "",
         wasCanceled);
+  }
+
+  @Override
+  public void onSurfaceSizeChanged(EventTime eventTime, int width, int height) {
+    dispatchAnalyticsSurfaceSizeChanged(width, height);
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public void onDrmSessionAcquired(EventTime eventTime) {
+    dispatchAnalyticsDrmSessionAcquired(false, 0);
+  }
+
+  @Override
+  public void onDrmSessionAcquired(EventTime eventTime, @DrmSession.State int state) {
+    dispatchAnalyticsDrmSessionAcquired(true, state);
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public void onDrmKeysLoaded(EventTime eventTime) {
+    dispatchAnalyticsDrmKeysLoaded(false, 0, 0);
+  }
+
+  @Override
+  public void onDrmKeysLoaded(EventTime eventTime, KeyRequestInfo keyRequestInfo) {
+    dispatchAnalyticsDrmKeysLoaded(
+        true,
+        keyRequestInfo.loadInfos.size(),
+        keyRequestInfo.schemeDatas != null ? keyRequestInfo.schemeDatas.size() : 0);
+  }
+
+  @Override
+  public void onDrmSessionManagerError(EventTime eventTime, Exception error) {
+    dispatchAnalyticsDrmSessionManagerError(
+        error.getClass().getSimpleName(), error.getMessage() != null ? error.getMessage() : "");
+  }
+
+  @Override
+  public void onDrmKeysRestored(EventTime eventTime) {
+    dispatchAnalyticsDrmKeysRestored();
+  }
+
+  @Override
+  public void onDrmKeysRemoved(EventTime eventTime) {
+    dispatchAnalyticsDrmKeysRemoved();
+  }
+
+  @Override
+  public void onDrmSessionReleased(EventTime eventTime) {
+    dispatchAnalyticsDrmSessionReleased();
+  }
+
+  @Override
+  public void onRendererReadyChanged(
+      EventTime eventTime,
+      int rendererIndex,
+      @C.TrackType int rendererTrackType,
+      boolean isRendererReady) {
+    dispatchAnalyticsRendererReadyChanged(rendererIndex, rendererTrackType, isRendererReady);
+  }
+
+  @Override
+  public void onDroppedSeeksWhileScrubbing(EventTime eventTime, int droppedSeeks) {
+    dispatchAnalyticsDroppedSeeksWhileScrubbing(droppedSeeks);
+  }
+
+  @Override
+  public void onPlayerReleased(EventTime eventTime) {
+    dispatchAnalyticsPlayerReleased();
   }
 
   @Override
@@ -2964,6 +4141,20 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
     nativeOnAnalyticsAudioSessionIdChanged(handle, audioSessionId);
   }
 
+  private void dispatchAnalyticsAudioAttributesChanged(
+      int contentType,
+      int usage,
+      int flags,
+      int allowedCapturePolicy,
+      int spatializationBehavior) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioAttributesChanged(
+        handle, contentType, usage, flags, allowedCapturePolicy, spatializationBehavior);
+  }
+
   private void dispatchAnalyticsSkipSilenceEnabledChanged(boolean skipSilenceEnabled) {
     long handle = getNativeHandle();
     if (handle == 0L) {
@@ -3059,6 +4250,14 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       return;
     }
     nativeOnAnalyticsEvents(handle, events);
+  }
+
+  private void dispatchIsLoadingChanged(boolean isLoading) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnIsLoadingChanged(handle, isLoading);
   }
 
   private void dispatchSeekBackIncrementChanged(long seekBackIncrementMs) {
@@ -3244,12 +4443,346 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
         frameRate);
   }
 
+  private void dispatchAnalyticsPlayerStateChanged(boolean playWhenReady, int playbackState) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsPlayerStateChanged(handle, playWhenReady, playbackState);
+  }
+
+  private void dispatchAnalyticsLoadingChanged(boolean isLoading) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsLoadingChanged(handle, isLoading);
+  }
+
+  private void dispatchAnalyticsTrackSelectionParametersChanged(
+      CppTrackSelectionParameters parameters) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsTrackSelectionParametersChanged(handle, parameters);
+  }
+
+  private void dispatchAnalyticsLoadCanceled(
+      String uri,
+      int dataType,
+      int trackType,
+      String sampleMimeType,
+      int trackSelectionReason,
+      long mediaStartTimeMs,
+      long mediaEndTimeMs) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsLoadCanceled(
+        handle,
+        uri != null ? uri : "",
+        dataType,
+        trackType,
+        sampleMimeType != null ? sampleMimeType : "",
+        trackSelectionReason,
+        mediaStartTimeMs,
+        mediaEndTimeMs);
+  }
+
+  private void dispatchAnalyticsDownstreamFormatChanged(
+      int dataType,
+      int trackType,
+      String sampleMimeType,
+      int trackSelectionReason,
+      long mediaStartTimeMs,
+      long mediaEndTimeMs) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDownstreamFormatChanged(
+        handle,
+        dataType,
+        trackType,
+        sampleMimeType != null ? sampleMimeType : "",
+        trackSelectionReason,
+        mediaStartTimeMs,
+        mediaEndTimeMs);
+  }
+
+  private void dispatchAnalyticsUpstreamDiscarded(
+      int dataType,
+      int trackType,
+      String sampleMimeType,
+      int trackSelectionReason,
+      long mediaStartTimeMs,
+      long mediaEndTimeMs) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsUpstreamDiscarded(
+        handle,
+        dataType,
+        trackType,
+        sampleMimeType != null ? sampleMimeType : "",
+        trackSelectionReason,
+        mediaStartTimeMs,
+        mediaEndTimeMs);
+  }
+
+  private void dispatchAnalyticsAudioEnabled(
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioEnabled(
+        handle,
+        decoderInitCount,
+        decoderReleaseCount,
+        queuedInputBufferCount,
+        renderedOutputBufferCount,
+        droppedBufferCount,
+        skippedOutputBufferCount,
+        videoFrameProcessingOffsetCount,
+        totalVideoFrameProcessingOffsetUs);
+  }
+
+  private void dispatchAnalyticsAudioDisabled(
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioDisabled(
+        handle,
+        decoderInitCount,
+        decoderReleaseCount,
+        queuedInputBufferCount,
+        renderedOutputBufferCount,
+        droppedBufferCount,
+        skippedOutputBufferCount,
+        videoFrameProcessingOffsetCount,
+        totalVideoFrameProcessingOffsetUs);
+  }
+
+  private void dispatchAnalyticsAudioSinkError(String className, String message) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioSinkError(
+        handle, className != null ? className : "", message != null ? message : "");
+  }
+
+  private void dispatchAnalyticsAudioCodecError(String className, String message) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioCodecError(
+        handle, className != null ? className : "", message != null ? message : "");
+  }
+
+  private void dispatchAnalyticsAudioTrackInitialized(
+      int encoding,
+      int sampleRate,
+      int channelConfig,
+      boolean tunneling,
+      boolean offload,
+      int bufferSize) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioTrackInitialized(
+        handle, encoding, sampleRate, channelConfig, tunneling, offload, bufferSize);
+  }
+
+  private void dispatchAnalyticsAudioTrackReleased(
+      int encoding,
+      int sampleRate,
+      int channelConfig,
+      boolean tunneling,
+      boolean offload,
+      int bufferSize) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsAudioTrackReleased(
+        handle, encoding, sampleRate, channelConfig, tunneling, offload, bufferSize);
+  }
+
+  private void dispatchAnalyticsVideoEnabled(
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsVideoEnabled(
+        handle,
+        decoderInitCount,
+        decoderReleaseCount,
+        queuedInputBufferCount,
+        renderedOutputBufferCount,
+        droppedBufferCount,
+        skippedOutputBufferCount,
+        videoFrameProcessingOffsetCount,
+        totalVideoFrameProcessingOffsetUs);
+  }
+
+  private void dispatchAnalyticsVideoDisabled(
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsVideoDisabled(
+        handle,
+        decoderInitCount,
+        decoderReleaseCount,
+        queuedInputBufferCount,
+        renderedOutputBufferCount,
+        droppedBufferCount,
+        skippedOutputBufferCount,
+        videoFrameProcessingOffsetCount,
+        totalVideoFrameProcessingOffsetUs);
+  }
+
+  private void dispatchAnalyticsVideoCodecError(String className, String message) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsVideoCodecError(
+        handle, className != null ? className : "", message != null ? message : "");
+  }
+
+  private void dispatchAnalyticsSurfaceSizeChanged(int width, int height) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsSurfaceSizeChanged(handle, width, height);
+  }
+
+  private void dispatchAnalyticsDrmSessionAcquired(boolean hasState, int state) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDrmSessionAcquired(handle, hasState, state);
+  }
+
+  private void dispatchAnalyticsDrmKeysLoaded(
+      boolean hasKeyRequestInfo, int loadInfoCount, int schemeDataCount) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDrmKeysLoaded(
+        handle, hasKeyRequestInfo, loadInfoCount, schemeDataCount);
+  }
+
+  private void dispatchAnalyticsDrmSessionManagerError(String className, String message) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDrmSessionManagerError(
+        handle, className != null ? className : "", message != null ? message : "");
+  }
+
+  private void dispatchAnalyticsDrmKeysRestored() {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDrmKeysRestored(handle);
+  }
+
+  private void dispatchAnalyticsDrmKeysRemoved() {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDrmKeysRemoved(handle);
+  }
+
+  private void dispatchAnalyticsDrmSessionReleased() {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDrmSessionReleased(handle);
+  }
+
+  private void dispatchAnalyticsRendererReadyChanged(
+      int rendererIndex, int rendererTrackType, boolean isRendererReady) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsRendererReadyChanged(
+        handle, rendererIndex, rendererTrackType, isRendererReady);
+  }
+
+  private void dispatchAnalyticsDroppedSeeksWhileScrubbing(int droppedSeeks) {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsDroppedSeeksWhileScrubbing(handle, droppedSeeks);
+  }
+
+  private void dispatchAnalyticsPlayerReleased() {
+    long handle = getNativeHandle();
+    if (handle == 0L) {
+      return;
+    }
+    nativeOnAnalyticsPlayerReleased(handle);
+  }
+
   private static native void nativeOnPlaybackStateChanged(long nativeHandle, int playbackState);
 
   private static native void nativeOnPlayWhenReadyChanged(
       long nativeHandle, boolean playWhenReady, int reason);
 
   private static native void nativeOnIsPlayingChanged(long nativeHandle, boolean isPlaying);
+
+  private static native void nativeOnIsLoadingChanged(long nativeHandle, boolean isLoading);
 
   private static native void nativeOnMediaItemTransition(
       long nativeHandle, int mediaItemIndex, int reason);
@@ -3392,6 +4925,14 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   private static native void nativeOnAnalyticsAudioSessionIdChanged(
       long nativeHandle, int audioSessionId);
 
+  private static native void nativeOnAnalyticsAudioAttributesChanged(
+      long nativeHandle,
+      int contentType,
+      int usage,
+      int flags,
+      int allowedCapturePolicy,
+      int spatializationBehavior);
+
   private static native void nativeOnAnalyticsSkipSilenceEnabledChanged(
       long nativeHandle, boolean skipSilenceEnabled);
 
@@ -3488,6 +5029,187 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       int height,
       float frameRate);
 
+  private static native void nativeOnAnalyticsPlayerStateChanged(
+      long nativeHandle, boolean playWhenReady, int playbackState);
+
+  private static native void nativeOnAnalyticsLoadingChanged(
+      long nativeHandle, boolean isLoading);
+
+  private static native void nativeOnAnalyticsTrackSelectionParametersChanged(
+      long nativeHandle, CppTrackSelectionParameters parameters);
+
+  private static native void nativeOnAnalyticsLoadCanceled(
+      long nativeHandle,
+      String uri,
+      int dataType,
+      int trackType,
+      String sampleMimeType,
+      int trackSelectionReason,
+      long mediaStartTimeMs,
+      long mediaEndTimeMs);
+
+  private static native void nativeOnAnalyticsDownstreamFormatChanged(
+      long nativeHandle,
+      int dataType,
+      int trackType,
+      String sampleMimeType,
+      int trackSelectionReason,
+      long mediaStartTimeMs,
+      long mediaEndTimeMs);
+
+  private static native void nativeOnAnalyticsUpstreamDiscarded(
+      long nativeHandle,
+      int dataType,
+      int trackType,
+      String sampleMimeType,
+      int trackSelectionReason,
+      long mediaStartTimeMs,
+      long mediaEndTimeMs);
+
+  private static native void nativeOnAnalyticsAudioEnabled(
+      long nativeHandle,
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs);
+
+  private static native void nativeOnAnalyticsAudioDisabled(
+      long nativeHandle,
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs);
+
+  private static native void nativeOnAnalyticsAudioSinkError(
+      long nativeHandle, String className, String message);
+
+  private static native void nativeOnAnalyticsAudioCodecError(
+      long nativeHandle, String className, String message);
+
+  private static native void nativeOnAnalyticsAudioTrackInitialized(
+      long nativeHandle,
+      int encoding,
+      int sampleRate,
+      int channelConfig,
+      boolean tunneling,
+      boolean offload,
+      int bufferSize);
+
+  private static native void nativeOnAnalyticsAudioTrackReleased(
+      long nativeHandle,
+      int encoding,
+      int sampleRate,
+      int channelConfig,
+      boolean tunneling,
+      boolean offload,
+      int bufferSize);
+
+  private static native void nativeOnAnalyticsVideoEnabled(
+      long nativeHandle,
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs);
+
+  private static native void nativeOnAnalyticsVideoDisabled(
+      long nativeHandle,
+      int decoderInitCount,
+      int decoderReleaseCount,
+      int queuedInputBufferCount,
+      int renderedOutputBufferCount,
+      int droppedBufferCount,
+      int skippedOutputBufferCount,
+      int videoFrameProcessingOffsetCount,
+      long totalVideoFrameProcessingOffsetUs);
+
+  private static native void nativeOnAnalyticsVideoCodecError(
+      long nativeHandle, String className, String message);
+
+  private static native void nativeOnAnalyticsSurfaceSizeChanged(
+      long nativeHandle, int width, int height);
+
+  private static native void nativeOnAnalyticsDrmSessionAcquired(
+      long nativeHandle, boolean hasState, int state);
+
+  private static native void nativeOnAnalyticsDrmKeysLoaded(
+      long nativeHandle, boolean hasKeyRequestInfo, int loadInfoCount, int schemeDataCount);
+
+  private static native void nativeOnAnalyticsDrmSessionManagerError(
+      long nativeHandle, String className, String message);
+
+  private static native void nativeOnAnalyticsDrmKeysRestored(long nativeHandle);
+
+  private static native void nativeOnAnalyticsDrmKeysRemoved(long nativeHandle);
+
+  private static native void nativeOnAnalyticsDrmSessionReleased(long nativeHandle);
+
+  private static native void nativeOnAnalyticsRendererReadyChanged(
+      long nativeHandle, int rendererIndex, int rendererTrackType, boolean isRendererReady);
+
+  private static native void nativeOnAnalyticsDroppedSeeksWhileScrubbing(
+      long nativeHandle, int droppedSeeks);
+
+  private static native void nativeOnAnalyticsPlayerReleased(long nativeHandle);
+
+  private static native void nativeOnAudioCodecParametersChanged(
+      long nativeHandle, CppCodecParameter[] codecParameters);
+
+  private static native void nativeOnVideoCodecParametersChanged(
+      long nativeHandle, CppCodecParameter[] codecParameters);
+
+  private static native void nativeOnVideoFrameAboutToBeRendered(
+      long nativeHandle,
+      long presentationTimeUs,
+      long releaseTimeNs,
+      String formatId,
+      String sampleMimeType,
+      String codecs,
+      int width,
+      int height,
+      float frameRate,
+      String formatLabel,
+      String formatLanguage,
+      String formatContainerMimeType,
+      int formatBitrate,
+      int formatAverageBitrate,
+      int formatPeakBitrate,
+      int formatRotationDegrees,
+      float formatPixelWidthHeightRatio,
+      int formatColorStandard,
+      int formatColorRange,
+      int formatColorTransfer,
+      int formatChannelCount,
+      int formatSampleRate,
+      int formatRoleFlags,
+      int formatSelectionFlags,
+      boolean mediaFormatPresent,
+      String mediaFormatSummary,
+      String mediaFormatMimeType,
+      int mediaFormatWidth,
+      int mediaFormatHeight,
+      float mediaFormatFrameRate,
+      int mediaFormatRotationDegrees,
+      int mediaFormatColorStandard,
+      int mediaFormatColorRange,
+      int mediaFormatColorTransfer);
+
+  private static native void nativeOnCameraMotion(
+      long nativeHandle, long timeUs, float[] rotation);
+
+  private static native void nativeOnCameraMotionReset(long nativeHandle);
+
   private static native void nativeOnImageOutputAvailable(
       long nativeHandle,
       long presentationTimeUs,
@@ -3503,5 +5225,3 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   private static native void nativeOnImageOutputDisabled(long nativeHandle);
 }
-
-

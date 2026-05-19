@@ -2,32 +2,29 @@
 
 ## Current local state
 
-- The workspace is not a git repository.
-- There is no local commit history to preserve from this folder as-is.
+- The workspace is a live git repository at `/home/linhao/Toolchain/development/ExoPlayer`.
+- There is local commit history plus a dirty worktree with prior bridge/demo/script edits.
 - The target URL provided by the user is:
   `https://github.com/lhmax2010/ExoPlayer.git`
 
 ## Safe interpretation
 
-Uploading this project means one of these:
+Uploading this project now means one of these:
 
-1. Initialize this snapshot as a new git repo and push it as the first history.
-2. Clone the target repo, copy this workspace into it, then commit and push.
+1. Commit the current intended changes on the active branch and push.
+2. Create a new branch from the current dirty workspace, commit, then push that branch.
+3. If the remote history differs, clone/compare separately before pushing anything.
 
-Because this local folder has no `.git`, option 2 is safer if the remote already has meaningful history.
-Because `git ls-remote` returned no visible refs during this session, the remote may be empty, but that has not been fully proven as a policy-safe assumption.
+Because the worktree is dirty, do not assume all changes belong to a single commit. Review the diff
+scope before staging.
 
 ## Recommended transfer procedure
 
-1. Clone the target repo to a fresh directory.
-2. Check whether it is truly empty or already has content/history.
-3. If empty:
-   - copy the current workspace contents in
-   - create an initial commit
-   - push to `main`
-4. If non-empty:
-   - compare top-level layout before overwriting
-   - merge deliberately rather than replacing blindly
+1. Run `git status --short`.
+2. Review current branch and remotes with `git branch --show-current` and `git remote -v`.
+3. Review staged/unstaged scope before committing.
+4. Commit only the intended bridge/docs/test changes.
+5. Push the active branch or a new review branch, depending on user preference.
 
 ## Authentication caveat
 
@@ -35,4 +32,4 @@ Even if the repo is reachable, push will still require valid GitHub auth in this
 
 ## Suggested commit message
 
-`Add current exoplayer_cppbridge reduced-endpoint workspace and handoff memory`
+`Expand exoplayer cppbridge runtime parity`

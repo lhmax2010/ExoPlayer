@@ -49,6 +49,18 @@ class ExoPlayerSdkPlayer {
   // listening to both should deduplicate at a higher level if they merge them.
   virtual void AddAnalyticsListener(PlayerListener* listener) = 0;
   virtual void RemoveAnalyticsListener(PlayerListener* listener) = 0;
+  virtual void AddAudioCodecParametersChangeListener(
+      PlayerListener* listener,
+      const std::vector<std::string>& keys) = 0;
+  virtual void RemoveAudioCodecParametersChangeListener(PlayerListener* listener) = 0;
+  virtual void AddVideoCodecParametersChangeListener(
+      PlayerListener* listener,
+      const std::vector<std::string>& keys) = 0;
+  virtual void RemoveVideoCodecParametersChangeListener(PlayerListener* listener) = 0;
+  virtual void SetVideoFrameMetadataListener(PlayerListener* listener) = 0;
+  virtual void ClearVideoFrameMetadataListener(PlayerListener* listener) = 0;
+  virtual void SetCameraMotionListener(PlayerListener* listener) = 0;
+  virtual void ClearCameraMotionListener(PlayerListener* listener) = 0;
   virtual void BindPlayerView(jobject player_view) = 0;
   virtual void UnbindPlayerView(jobject player_view) = 0;
   virtual void SetVideoSurface(jobject surface) = 0;
@@ -106,22 +118,39 @@ class ExoPlayerSdkPlayer {
   virtual void SeekToNextMediaItem() = 0;
   virtual void SeekToPreviousMediaItem() = 0;
   virtual void SetWakeMode(int wake_mode) = 0;
+  virtual void SetHandleAudioBecomingNoisy(bool handle_audio_becoming_noisy) = 0;
   virtual void SetPriority(int priority) = 0;
   virtual void SetPriorityTaskManager(ExoPlayerSdkPriorityTaskManager* priority_task_manager) = 0;
   virtual void ClearPriorityTaskManager() = 0;
   virtual void SetPriorityTaskManagerEnabled(bool enabled) = 0;
   virtual void SetPreloadConfiguration(int64_t target_preload_duration_us) = 0;
+  virtual void SetForegroundMode(bool foreground_mode) = 0;
   virtual PlayerMessageResult SendPlayerMessage(const PlayerMessageDescriptor& message) = 0;
   virtual void SetImageOutputEnabled(bool enabled) = 0;
   virtual void SetAudioAttributes(
       const AudioAttributesDescriptor& attributes,
       bool handle_audio_focus) = 0;
+  virtual void SetAudioSessionId(int audio_session_id) = 0;
+  virtual void SetAuxEffectInfo(const AuxEffectInfoDescriptor& aux_effect_info) = 0;
+  virtual void ClearAuxEffectInfo() = 0;
+  virtual void SetPreferredAudioDevice(jobject audio_device_info) = 0;
+  virtual void ClearPreferredAudioDevice() = 0;
+  virtual void SetVirtualDeviceId(int virtual_device_id) = 0;
+  virtual void SetAudioCodecParameters(
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SetVideoCodecParameters(
+      const CodecParametersDescriptor& codec_parameters) = 0;
   virtual void SetDeviceVolume(int volume, int flags) = 0;
   virtual void AdjustDeviceVolume(int direction, int flags) = 0;
   virtual void IncreaseDeviceVolume(int flags) = 0;
   virtual void DecreaseDeviceVolume(int flags) = 0;
   virtual void SetDeviceMuted(bool muted, int flags) = 0;
   virtual void SetSkipSilenceEnabled(bool skip_silence_enabled) = 0;
+  virtual void SetScrubbingModeEnabled(bool scrubbing_mode_enabled) = 0;
+  virtual bool IsScrubbingModeEnabled() = 0;
+  virtual void SetScrubbingModeParameters(
+      const ScrubbingModeParametersDescriptor& parameters) = 0;
+  virtual ScrubbingModeParametersDescriptor GetScrubbingModeParameters() = 0;
   virtual void SetPlayWhenReady(bool play_when_ready) = 0;
   virtual void SetRepeatMode(RepeatMode repeat_mode) = 0;
   virtual void SetShuffleModeEnabled(bool shuffle_mode_enabled) = 0;
@@ -129,9 +158,19 @@ class ExoPlayerSdkPlayer {
   virtual void SetPlaybackSpeed(float speed) = 0;
   virtual void SetPlaybackParameters(const PlaybackParametersSnapshot& parameters) = 0;
   virtual void SetPauseAtEndOfMediaItems(bool pause_at_end_of_media_items) = 0;
+  virtual bool GetPauseAtEndOfMediaItems() = 0;
+  virtual void SetSeekBackIncrementMs(int64_t seek_back_increment_ms) = 0;
+  virtual void SetSeekForwardIncrementMs(int64_t seek_forward_increment_ms) = 0;
+  virtual void SetMaxSeekToPreviousPositionMs(int64_t max_seek_to_previous_position_ms) = 0;
+  virtual void SetVideoScalingMode(int video_scaling_mode) = 0;
+  virtual int GetVideoScalingMode() = 0;
+  virtual void SetVideoChangeFrameRateStrategy(int video_change_frame_rate_strategy) = 0;
+  virtual int GetVideoChangeFrameRateStrategy() = 0;
   virtual void SetTrackSelectionParameters(
       const TrackSelectionParametersDescriptor& parameters) = 0;
   virtual TrackSelectionParametersDescriptor GetTrackSelectionParameters() = 0;
+  virtual int GetRendererCount() = 0;
+  virtual int GetRendererType(int index) = 0;
   virtual TracksSnapshot GetTracks() = 0;
   virtual std::vector<TrackGroupSnapshot> GetTrackGroups() = 0;
   virtual PlaybackState GetPlaybackState() = 0;
@@ -172,6 +211,9 @@ class ExoPlayerSdkPlayer {
   virtual bool IsCommandAvailable(int command_code) = 0;
   virtual bool CanAdvertiseSession() = 0;
   virtual ApplicationLooperDescriptor GetApplicationLooper() = 0;
+  virtual bool IsSleepingForOffload() = 0;
+  virtual bool IsTunnelingEnabled() = 0;
+  virtual bool IsReleased() = 0;
   virtual int GetCurrentAdGroupIndex() = 0;
   virtual int GetCurrentAdIndexInAdGroup() = 0;
   virtual bool IsCurrentMediaItemDynamic() = 0;
@@ -224,6 +266,8 @@ class ExoPlayerSdkPlayer {
       const VolumeChangedEvent& volume_changed) = 0;
   virtual void SimulateAudioSessionIdChangedForTest(
       const AudioSessionIdChangedEvent& audio_session_id_changed) = 0;
+  virtual void SimulateAnalyticsAudioAttributesChangedForTest(
+      const AudioAttributesDescriptor& attributes) = 0;
   virtual void SimulateAnalyticsSkipSilenceEnabledChangedForTest(
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) = 0;
   virtual void SimulateAnalyticsDeviceVolumeChangedForTest(
@@ -248,6 +292,7 @@ class ExoPlayerSdkPlayer {
       const AnalyticsAvailableCommandsChangedEvent& available_commands_changed) = 0;
   virtual void SimulateAnalyticsEventsForTest(
       const AnalyticsEventsEvent& analytics_events) = 0;
+  virtual void SimulateIsLoadingChangedForTest(bool is_loading) = 0;
   virtual void SimulateSeekBackIncrementChangedForTest(
       int64_t seek_back_increment_ms) = 0;
   virtual void SimulateSeekForwardIncrementChangedForTest(
@@ -289,6 +334,16 @@ class ExoPlayerSdkPlayer {
       const MediaMetadataSnapshot& metadata) = 0;
   virtual void SimulateVideoInputFormatChangedForTest(
       const VideoInputFormatChangedEvent& video_input_format_changed) = 0;
+  virtual void SimulateAnalyticsStage4RemainingEventsForTest() = 0;
+  virtual void SimulateAudioCodecParametersChangedForTest(
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SimulateVideoCodecParametersChangedForTest(
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SimulateVideoFrameAboutToBeRenderedForTest(
+      const VideoFrameMetadataSnapshot& video_frame_metadata) = 0;
+  virtual void SimulateCameraMotionForTest(
+      const CameraMotionSnapshot& camera_motion) = 0;
+  virtual void SimulateCameraMotionResetForTest() = 0;
   virtual void SimulateImageOutputForTest(const ImageFrameSnapshot& image_frame) = 0;
   virtual PlayerConfig::MediaSourceFactoryConfig GetMediaSourceFactoryConfig() = 0;
   virtual int GetAvailableCommandCount() = 0;

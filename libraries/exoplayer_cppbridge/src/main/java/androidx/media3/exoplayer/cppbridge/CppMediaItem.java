@@ -12,6 +12,7 @@ public final class CppMediaItem {
   public final boolean tagPresent;
   @Nullable public final String tagString;
   @Nullable public final String tagToken;
+  public final CppObjectValue tagValue;
   @Nullable public final CppMediaMetadata mediaMetadata;
   @Nullable public final CppRequestMetadata requestMetadata;
   @Nullable public final CppAdsConfiguration adsConfiguration;
@@ -35,6 +36,40 @@ public final class CppMediaItem {
       @Nullable CppClippingConfiguration clippingConfiguration,
       @Nullable CppLiveConfiguration liveConfiguration,
       @Nullable CppDrmConfiguration drmConfiguration) {
+    this(
+        uri,
+        mediaId,
+        mimeType,
+        sourceType,
+        tagPresent,
+        tagString,
+        tagToken,
+        null,
+        mediaMetadata,
+        requestMetadata,
+        adsConfiguration,
+        subtitleConfigurations,
+        clippingConfiguration,
+        liveConfiguration,
+        drmConfiguration);
+  }
+
+  public CppMediaItem(
+      String uri,
+      @Nullable String mediaId,
+      @Nullable String mimeType,
+      int sourceType,
+      boolean tagPresent,
+      @Nullable String tagString,
+      @Nullable String tagToken,
+      @Nullable CppObjectValue tagValue,
+      @Nullable CppMediaMetadata mediaMetadata,
+      @Nullable CppRequestMetadata requestMetadata,
+      @Nullable CppAdsConfiguration adsConfiguration,
+      CppSubtitleConfiguration[] subtitleConfigurations,
+      @Nullable CppClippingConfiguration clippingConfiguration,
+      @Nullable CppLiveConfiguration liveConfiguration,
+      @Nullable CppDrmConfiguration drmConfiguration) {
     this.uri = uri;
     this.mediaId = mediaId;
     this.mimeType = mimeType;
@@ -42,6 +77,7 @@ public final class CppMediaItem {
     this.tagPresent = tagPresent;
     this.tagString = tagString;
     this.tagToken = tagToken;
+    this.tagValue = tagValue != null ? tagValue : CppObjectValue.nullValue();
     this.mediaMetadata = mediaMetadata;
     this.requestMetadata = requestMetadata;
     this.adsConfiguration = adsConfiguration;

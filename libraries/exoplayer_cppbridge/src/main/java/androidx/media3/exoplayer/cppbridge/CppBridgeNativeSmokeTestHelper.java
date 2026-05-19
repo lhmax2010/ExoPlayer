@@ -15,7 +15,15 @@ public final class CppBridgeNativeSmokeTestHelper {
 
   public static native String nativeBuildTrackSummaryForTest();
 
+  public static native String nativeObjectValueInfoParsingSmokeTest();
+
+  public static native String nativeMediaItemObjectValueConversionSmokeTest();
+
+  public static native String nativeMediaMetadataObjectValueConversionSmokeTest();
+
   public static native String nativeTracksSnapshotConversionSmokeTest();
+
+  public static native String nativeTracksFullPayloadConversionSmokeTest();
 
   public static native String nativeCueSnapshotConversionSmokeTest();
 

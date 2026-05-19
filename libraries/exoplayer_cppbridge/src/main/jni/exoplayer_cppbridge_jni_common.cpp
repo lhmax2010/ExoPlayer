@@ -3,12 +3,15 @@
 #include <android/log.h>
 
 #include <algorithm>
+#include <array>
 #include <cstring>
+#include <exception>
 #include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace androidx::media3::cppbridge::internal {
@@ -296,6 +299,24 @@ float GetFloatFieldValue(
   return static_cast<float>(value);
 }
 
+double GetDoubleFieldValue(
+    JNIEnv* env,
+    jobject object,
+    jclass clazz,
+    const char* class_name,
+    const char* field_name) {
+  jfieldID field = GetFieldChecked(env, clazz, class_name, field_name, "D");
+  if (field == nullptr) {
+    return 0.0;
+  }
+  jdouble value = env->GetDoubleField(object, field);
+  if (ClearJniExceptionIfPresent(
+          env, std::string("GetDoubleField(") + class_name + "." + field_name + ")")) {
+    return 0.0;
+  }
+  return static_cast<double>(value);
+}
+
 bool GetBooleanFieldValue(
     JNIEnv* env,
     jobject object,
@@ -418,6 +439,44 @@ std::vector<uint8_t> JByteArrayToVector(JNIEnv* env, jbyteArray values) {
   return result;
 }
 
+std::vector<std::vector<uint8_t>> JByteArrayArrayToVector(JNIEnv* env, jobjectArray values) {
+  std::vector<std::vector<uint8_t>> result;
+  if (values == nullptr) {
+    return result;
+  }
+  jsize length = env->GetArrayLength(values);
+  result.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    jbyteArray value = static_cast<jbyteArray>(env->GetObjectArrayElement(values, i));
+    if (ClearJniExceptionIfPresent(env, "GetObjectArrayElement(byte[])") || value == nullptr) {
+      DeleteLocalRefIfNotNull(env, value);
+      result.emplace_back();
+      continue;
+    }
+    result.push_back(JByteArrayToVector(env, value));
+    env->DeleteLocalRef(value);
+  }
+  return result;
+}
+
+std::vector<float> JFloatArrayToVector(JNIEnv* env, jfloatArray values) {
+  std::vector<float> result;
+  if (values == nullptr) {
+    return result;
+  }
+  jsize length = env->GetArrayLength(values);
+  jfloat* raw = env->GetFloatArrayElements(values, nullptr);
+  if (ClearJniExceptionIfPresent(env, "GetFloatArrayElements(float[])") || raw == nullptr) {
+    return result;
+  }
+  result.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    result.push_back(static_cast<float>(raw[i]));
+  }
+  env->ReleaseFloatArrayElements(values, raw, JNI_ABORT);
+  return result;
+}
+
 jintArray CreateJavaIntArray(JNIEnv* env, const std::vector<int>& values) {
   jintArray array = env->NewIntArray(static_cast<jsize>(values.size()));
   if (ClearJniExceptionIfPresent(env, "NewIntArray(int[])") || array == nullptr) {
@@ -427,6 +486,25 @@ jintArray CreateJavaIntArray(JNIEnv* env, const std::vector<int>& values) {
     env->SetIntArrayRegion(
         array, 0, static_cast<jsize>(values.size()), reinterpret_cast<const jint*>(values.data()));
     if (ClearJniExceptionIfPresent(env, "SetIntArrayRegion(int[])")) {
+      env->DeleteLocalRef(array);
+      return nullptr;
+    }
+  }
+  return array;
+}
+
+jfloatArray CreateJavaFloatArray(JNIEnv* env, const std::vector<float>& values) {
+  jfloatArray array = env->NewFloatArray(static_cast<jsize>(values.size()));
+  if (ClearJniExceptionIfPresent(env, "NewFloatArray(float[])") || array == nullptr) {
+    return nullptr;
+  }
+  if (!values.empty()) {
+    env->SetFloatArrayRegion(
+        array,
+        0,
+        static_cast<jsize>(values.size()),
+        reinterpret_cast<const jfloat*>(values.data()));
+    if (ClearJniExceptionIfPresent(env, "SetFloatArrayRegion(float[])")) {
       env->DeleteLocalRef(array);
       return nullptr;
     }
@@ -567,34 +645,202 @@ jbyteArray CreateJavaByteArray(JNIEnv* env, const std::vector<uint8_t>& values) 
   return array;
 }
 
+jobjectArray CreateJavaByteArrayArray(
+    JNIEnv* env,
+    const std::vector<std::vector<uint8_t>>& values) {
+  jclass byte_array_class = FindClassChecked(env, "[B");
+  if (byte_array_class == nullptr) {
+    return nullptr;
+  }
+  jobjectArray array =
+      env->NewObjectArray(static_cast<jsize>(values.size()), byte_array_class, nullptr);
+  if (ClearJniExceptionIfPresent(env, "NewObjectArray(byte[][])") || array == nullptr) {
+    env->DeleteLocalRef(byte_array_class);
+    DeleteLocalRefIfNotNull(env, array);
+    return nullptr;
+  }
+  for (size_t i = 0; i < values.size(); ++i) {
+    jbyteArray value = CreateJavaByteArray(env, values[i]);
+    if (value == nullptr) {
+      env->DeleteLocalRef(byte_array_class);
+      DeleteLocalRefIfNotNull(env, array);
+      return nullptr;
+    }
+    env->SetObjectArrayElement(array, static_cast<jsize>(i), value);
+    if (ClearJniExceptionIfPresent(env, "SetObjectArrayElement(byte[][] item)")) {
+      env->DeleteLocalRef(value);
+      env->DeleteLocalRef(byte_array_class);
+      DeleteLocalRefIfNotNull(env, array);
+      return nullptr;
+    }
+    env->DeleteLocalRef(value);
+  }
+  env->DeleteLocalRef(byte_array_class);
+  return array;
+}
+
+CodecParametersDescriptor FromJavaCodecParameterArray(JNIEnv* env, jobjectArray values) {
+  CodecParametersDescriptor descriptor;
+  if (values == nullptr) {
+    return descriptor;
+  }
+  jsize length = env->GetArrayLength(values);
+  if (ClearJniExceptionIfPresent(env, "GetArrayLength(CppCodecParameter[])")) {
+    return descriptor;
+  }
+  descriptor.parameters.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    jobject object = env->GetObjectArrayElement(values, i);
+    if (ClearJniExceptionIfPresent(env, "GetObjectArrayElement(CppCodecParameter)") ||
+        object == nullptr) {
+      DeleteLocalRefIfNotNull(env, object);
+      continue;
+    }
+    jclass clazz = GetObjectClassChecked(env, object, "CppCodecParameter");
+    if (clazz == nullptr) {
+      env->DeleteLocalRef(object);
+      continue;
+    }
+    CodecParameterDescriptor parameter;
+    parameter.key =
+        GetStringFieldValue(env, object, clazz, "CppCodecParameter", "key");
+    int type = GetIntFieldValue(env, object, clazz, "CppCodecParameter", "type");
+    switch (type) {
+      case 0:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kInteger;
+        break;
+      case 1:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kLong;
+        break;
+      case 2:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kFloat;
+        break;
+      case 3:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kString;
+        break;
+      case 4:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kByteBuffer;
+        break;
+      case 5:
+      default:
+        parameter.value_type = CodecParameterDescriptor::ValueType::kNull;
+        break;
+    }
+    parameter.int_value =
+        GetIntFieldValue(env, object, clazz, "CppCodecParameter", "intValue");
+    parameter.long_value =
+        GetLongFieldValue(env, object, clazz, "CppCodecParameter", "longValue");
+    parameter.float_value =
+        GetFloatFieldValue(env, object, clazz, "CppCodecParameter", "floatValue");
+    parameter.string_value =
+        GetStringFieldValue(env, object, clazz, "CppCodecParameter", "stringValue");
+    jbyteArray byte_buffer_value = static_cast<jbyteArray>(GetObjectFieldValue(
+        env,
+        object,
+        clazz,
+        "CppCodecParameter",
+        "byteBufferValue",
+        "[B"));
+    parameter.byte_buffer_value = JByteArrayToVector(env, byte_buffer_value);
+    DeleteLocalRefIfNotNull(env, byte_buffer_value);
+    env->DeleteLocalRef(clazz);
+    env->DeleteLocalRef(object);
+    descriptor.parameters.push_back(std::move(parameter));
+  }
+  return descriptor;
+}
+
 int ParseIntOrDefault(const std::string& value, int fallback) {
   if (value.empty()) {
     return fallback;
   }
-  return std::stoi(value);
+  try {
+    size_t parsed_length = 0;
+    int parsed_value = std::stoi(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
 }
 
 int64_t ParseLongOrDefault(const std::string& value, int64_t fallback) {
   if (value.empty()) {
     return fallback;
   }
-  return std::stoll(value);
+  try {
+    size_t parsed_length = 0;
+    int64_t parsed_value = std::stoll(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
 }
 
 float ParseFloatOrDefault(const std::string& value, float fallback) {
   if (value.empty()) {
     return fallback;
   }
-  return std::stof(value);
+  try {
+    size_t parsed_length = 0;
+    float parsed_value = std::stof(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
+}
+
+double ParseDoubleOrDefault(const std::string& value, double fallback) {
+  if (value.empty()) {
+    return fallback;
+  }
+  try {
+    size_t parsed_length = 0;
+    double parsed_value = std::stod(value, &parsed_length);
+    return parsed_length == value.size() ? parsed_value : fallback;
+  } catch (const std::exception&) {
+    return fallback;
+  }
+}
+
+ObjectValueInfo ParseObjectValueInfo(
+    const std::vector<std::string>& fields,
+    size_t field_offset) {
+  ObjectValueInfo info;
+  if (fields.size() < field_offset + 7) {
+    return info;
+  }
+  info.present = fields[field_offset] == "1";
+  info.class_name = fields[field_offset + 1];
+  info.value_type =
+      ParseIntOrDefault(fields[field_offset + 2], ObjectValueInfo::kNull);
+  info.string_value = fields[field_offset + 3];
+  info.long_value = ParseLongOrDefault(fields[field_offset + 4], 0);
+  info.double_value = ParseDoubleOrDefault(fields[field_offset + 5], 0.0);
+  info.boolean_value = fields[field_offset + 6] == "1";
+  return info;
 }
 
 std::vector<std::string> SplitString(const std::string& value, char delimiter) {
   std::vector<std::string> parts;
-  std::stringstream stream(value);
   std::string part;
-  while (std::getline(stream, part, delimiter)) {
-    parts.push_back(part);
+  bool escaping = false;
+  for (char c : value) {
+    if (escaping) {
+      part.push_back(c);
+      escaping = false;
+    } else if (c == '\\') {
+      escaping = true;
+    } else if (c == delimiter) {
+      parts.push_back(part);
+      part.clear();
+    } else {
+      part.push_back(c);
+    }
   }
+  if (escaping) {
+    part.push_back('\\');
+  }
+  parts.push_back(part);
   return parts;
 }
 
@@ -634,6 +880,207 @@ jint ToJavaSourceType(androidx::media3::cppbridge::MediaSourceType source_type) 
   return static_cast<jint>(source_type);
 }
 
+jobjectArray CreateJavaBundleValueArray(
+    JNIEnv* env,
+    const std::vector<BundleValueInfo>& values) {
+  jclass value_class =
+      FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppBundleValue");
+  if (value_class == nullptr) {
+    return nullptr;
+  }
+  jmethodID ctor = GetMethodChecked(
+      env,
+      value_class,
+      "CppBundleValue",
+      "<init>",
+      "(Ljava/lang/String;ILjava/lang/String;JDZ[B)V");
+  if (ctor == nullptr) {
+    DeleteLocalRefIfNotNull(env, value_class);
+    return nullptr;
+  }
+  jobjectArray array =
+      env->NewObjectArray(static_cast<jsize>(values.size()), value_class, nullptr);
+  if (ClearJniExceptionIfPresent(env, "NewObjectArray(CppBundleValue)") || array == nullptr) {
+    DeleteLocalRefIfNotNull(env, value_class);
+    DeleteLocalRefIfNotNull(env, array);
+    return nullptr;
+  }
+  for (jsize i = 0; i < static_cast<jsize>(values.size()); ++i) {
+    const BundleValueInfo& value = values[static_cast<size_t>(i)];
+    jstring key = NewStringUtfChecked(env, value.key, "CppBundleValue.key");
+    jstring string_value =
+        value.value_type == BundleValueInfo::kString || !value.string_value.empty()
+            ? NewStringUtfChecked(env, value.string_value, "CppBundleValue.stringValue")
+            : nullptr;
+    jbyteArray byte_array_value =
+        value.value_type == BundleValueInfo::kByteArray
+            ? CreateJavaByteArray(env, value.byte_array_value)
+            : nullptr;
+    if (key == nullptr ||
+        ((value.value_type == BundleValueInfo::kString || !value.string_value.empty()) &&
+         string_value == nullptr) ||
+        (value.value_type == BundleValueInfo::kByteArray && byte_array_value == nullptr)) {
+      DeleteLocalRefIfNotNull(env, key);
+      DeleteLocalRefIfNotNull(env, string_value);
+      DeleteLocalRefIfNotNull(env, byte_array_value);
+      DeleteLocalRefIfNotNull(env, array);
+      DeleteLocalRefIfNotNull(env, value_class);
+      return nullptr;
+    }
+    jobject object = NewObjectChecked(
+        env,
+        value_class,
+        ctor,
+        "CppBundleValue",
+        key,
+        static_cast<jint>(value.value_type),
+        string_value,
+        static_cast<jlong>(value.long_value),
+        static_cast<jdouble>(value.double_value),
+        static_cast<jboolean>(value.boolean_value),
+        byte_array_value);
+    DeleteLocalRefIfNotNull(env, key);
+    DeleteLocalRefIfNotNull(env, string_value);
+    DeleteLocalRefIfNotNull(env, byte_array_value);
+    if (object == nullptr) {
+      DeleteLocalRefIfNotNull(env, array);
+      DeleteLocalRefIfNotNull(env, value_class);
+      return nullptr;
+    }
+    env->SetObjectArrayElement(array, i, object);
+    if (ClearJniExceptionIfPresent(env, "SetObjectArrayElement(CppBundleValue)")) {
+      DeleteLocalRefIfNotNull(env, object);
+      DeleteLocalRefIfNotNull(env, array);
+      DeleteLocalRefIfNotNull(env, value_class);
+      return nullptr;
+    }
+    DeleteLocalRefIfNotNull(env, object);
+  }
+  DeleteLocalRefIfNotNull(env, value_class);
+  return array;
+}
+
+std::vector<BundleValueInfo> FromJavaBundleValueArray(JNIEnv* env, jobjectArray values) {
+  std::vector<BundleValueInfo> result;
+  if (values == nullptr) {
+    return result;
+  }
+  jsize length = env->GetArrayLength(values);
+  result.reserve(static_cast<size_t>(length));
+  for (jsize i = 0; i < length; ++i) {
+    jobject value = env->GetObjectArrayElement(values, i);
+    if (ClearJniExceptionIfPresent(env, "GetObjectArrayElement(CppBundleValue)") ||
+        value == nullptr) {
+      DeleteLocalRefIfNotNull(env, value);
+      continue;
+    }
+    jclass value_class = GetObjectClassChecked(env, value, "CppBundleValue");
+    if (value_class == nullptr) {
+      DeleteLocalRefIfNotNull(env, value);
+      continue;
+    }
+    BundleValueInfo info;
+    info.key = GetStringFieldValue(env, value, value_class, "CppBundleValue", "key");
+    info.value_type = GetIntFieldValue(env, value, value_class, "CppBundleValue", "valueType");
+    info.string_value =
+        GetStringFieldValue(env, value, value_class, "CppBundleValue", "stringValue");
+    info.long_value =
+        GetLongFieldValue(env, value, value_class, "CppBundleValue", "longValue");
+    info.double_value =
+        GetDoubleFieldValue(env, value, value_class, "CppBundleValue", "doubleValue");
+    info.boolean_value =
+        GetBooleanFieldValue(env, value, value_class, "CppBundleValue", "booleanValue");
+    jbyteArray byte_array_value = static_cast<jbyteArray>(GetObjectFieldValue(
+        env, value, value_class, "CppBundleValue", "byteArrayValue", "[B"));
+    info.byte_array_value = JByteArrayToVector(env, byte_array_value);
+    DeleteLocalRefIfNotNull(env, byte_array_value);
+    result.push_back(std::move(info));
+    DeleteLocalRefIfNotNull(env, value_class);
+    DeleteLocalRefIfNotNull(env, value);
+  }
+  return result;
+}
+
+jobject CreateJavaObjectValueInfo(JNIEnv* env, const ObjectValueInfo& value) {
+  jclass value_class =
+      FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppObjectValue");
+  if (value_class == nullptr) {
+    return nullptr;
+  }
+  jmethodID ctor = GetMethodChecked(
+      env,
+      value_class,
+      "CppObjectValue",
+      "<init>",
+      "(ZLjava/lang/String;ILjava/lang/String;JDZ)V");
+  if (ctor == nullptr) {
+    DeleteLocalRefIfNotNull(env, value_class);
+    return nullptr;
+  }
+  jstring class_name =
+      value.class_name.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, value.class_name, "CppObjectValue.className");
+  const bool needs_string_value =
+      value.value_type == ObjectValueInfo::kString ||
+      value.value_type == ObjectValueInfo::kOther ||
+      !value.string_value.empty();
+  jstring string_value =
+      needs_string_value
+          ? NewStringUtfChecked(env, value.string_value, "CppObjectValue.stringValue")
+          : nullptr;
+  if ((!value.class_name.empty() && class_name == nullptr) ||
+      (needs_string_value && string_value == nullptr)) {
+    DeleteLocalRefIfNotNull(env, class_name);
+    DeleteLocalRefIfNotNull(env, string_value);
+    DeleteLocalRefIfNotNull(env, value_class);
+    return nullptr;
+  }
+  jobject object = NewObjectChecked(
+      env,
+      value_class,
+      ctor,
+      "CppObjectValue",
+      static_cast<jboolean>(value.present),
+      class_name,
+      static_cast<jint>(value.value_type),
+      string_value,
+      static_cast<jlong>(value.long_value),
+      static_cast<jdouble>(value.double_value),
+      static_cast<jboolean>(value.boolean_value));
+  DeleteLocalRefIfNotNull(env, class_name);
+  DeleteLocalRefIfNotNull(env, string_value);
+  DeleteLocalRefIfNotNull(env, value_class);
+  return object;
+}
+
+ObjectValueInfo FromJavaObjectValueInfo(JNIEnv* env, jobject object) {
+  ObjectValueInfo value;
+  if (object == nullptr) {
+    return value;
+  }
+  jclass value_class = GetObjectClassChecked(env, object, "CppObjectValue");
+  if (value_class == nullptr) {
+    return value;
+  }
+  value.present =
+      GetBooleanFieldValue(env, object, value_class, "CppObjectValue", "present");
+  value.class_name =
+      GetStringFieldValue(env, object, value_class, "CppObjectValue", "className");
+  value.value_type =
+      GetIntFieldValue(env, object, value_class, "CppObjectValue", "valueType");
+  value.string_value =
+      GetStringFieldValue(env, object, value_class, "CppObjectValue", "stringValue");
+  value.long_value =
+      GetLongFieldValue(env, object, value_class, "CppObjectValue", "longValue");
+  value.double_value =
+      GetDoubleFieldValue(env, object, value_class, "CppObjectValue", "doubleValue");
+  value.boolean_value =
+      GetBooleanFieldValue(env, object, value_class, "CppObjectValue", "booleanValue");
+  DeleteLocalRefIfNotNull(env, value_class);
+  return value;
+}
+
 jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) {
   jclass item_class =
       FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppMediaItem");
@@ -671,6 +1118,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       "CppMediaItem",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IZLjava/lang/String;Ljava/lang/String;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
       "Landroidx/media3/exoplayer/cppbridge/CppMediaMetadata;"
       "Landroidx/media3/exoplayer/cppbridge/CppRequestMetadata;"
       "Landroidx/media3/exoplayer/cppbridge/CppAdsConfiguration;"
@@ -683,13 +1131,14 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       request_metadata_class,
       "CppRequestMetadata",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;)V");
+      "(Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;)V");
   jmethodID ads_ctor = GetMethodChecked(
       env,
       ads_class,
       "CppAdsConfiguration",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;)V");
   jmethodID subtitle_ctor = GetMethodChecked(
       env,
       subtitle_class,
@@ -760,7 +1209,8 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
   jobject request_metadata = nullptr;
   if (!media_item.request_metadata.media_uri.empty() ||
       !media_item.request_metadata.search_query.empty() ||
-      media_item.request_metadata.extras_present) {
+      media_item.request_metadata.extras_present ||
+      !media_item.request_metadata.extras_values.empty()) {
     jstring request_media_uri =
         media_item.request_metadata.media_uri.empty()
             ? nullptr
@@ -780,14 +1230,18 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
                   env,
                   media_item.request_metadata.extras_token,
                   "CppRequestMetadata.extrasToken");
+    jobjectArray request_extras_values =
+        CreateJavaBundleValueArray(env, media_item.request_metadata.extras_values);
     if ((!media_item.request_metadata.media_uri.empty() && request_media_uri == nullptr) ||
         (!media_item.request_metadata.search_query.empty() &&
          request_search_query == nullptr) ||
         (!media_item.request_metadata.extras_token.empty() &&
-         request_extras_token == nullptr)) {
+         request_extras_token == nullptr) ||
+        request_extras_values == nullptr) {
       DeleteLocalRefIfNotNull(env, request_media_uri);
       DeleteLocalRefIfNotNull(env, request_search_query);
       DeleteLocalRefIfNotNull(env, request_extras_token);
+      DeleteLocalRefIfNotNull(env, request_extras_values);
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
@@ -802,6 +1256,12 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       env->DeleteLocalRef(item_class);
       return nullptr;
     }
+    const int request_extras_key_count =
+        media_item.request_metadata.extras_values.empty()
+            ? media_item.request_metadata.extras_key_count
+            : std::max(
+                  media_item.request_metadata.extras_key_count,
+                  static_cast<int>(media_item.request_metadata.extras_values.size()));
     request_metadata = NewObjectChecked(
         env,
         request_metadata_class,
@@ -809,12 +1269,16 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
         "CppRequestMetadata",
         request_media_uri,
         request_search_query,
-        static_cast<jboolean>(media_item.request_metadata.extras_present),
-        static_cast<jint>(media_item.request_metadata.extras_key_count),
-        request_extras_token);
+        static_cast<jboolean>(
+            media_item.request_metadata.extras_present ||
+            !media_item.request_metadata.extras_values.empty()),
+        static_cast<jint>(request_extras_key_count),
+        request_extras_token,
+        request_extras_values);
     DeleteLocalRefIfNotNull(env, request_media_uri);
     DeleteLocalRefIfNotNull(env, request_search_query);
     DeleteLocalRefIfNotNull(env, request_extras_token);
+    DeleteLocalRefIfNotNull(env, request_extras_values);
     if (request_metadata == nullptr) {
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
@@ -845,12 +1309,18 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
             ? nullptr
             : NewStringUtfChecked(
                   env, media_item.ads_configuration.ads_id_token, "CppAdsConfiguration.adsIdToken");
+    jobject ads_id_value =
+        media_item.ads_configuration.ads_id_value.present
+            ? CreateJavaObjectValueInfo(env, media_item.ads_configuration.ads_id_value)
+            : nullptr;
     if (ad_tag_uri == nullptr ||
         (!media_item.ads_configuration.ads_id.empty() && ads_id == nullptr) ||
-        (!media_item.ads_configuration.ads_id_token.empty() && ads_id_token == nullptr)) {
+        (!media_item.ads_configuration.ads_id_token.empty() && ads_id_token == nullptr) ||
+        (media_item.ads_configuration.ads_id_value.present && ads_id_value == nullptr)) {
       DeleteLocalRefIfNotNull(env, ad_tag_uri);
       DeleteLocalRefIfNotNull(env, ads_id);
       DeleteLocalRefIfNotNull(env, ads_id_token);
+      DeleteLocalRefIfNotNull(env, ads_id_value);
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
@@ -867,10 +1337,18 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       return nullptr;
     }
     ads = NewObjectChecked(
-        env, ads_class, ads_ctor, "CppAdsConfiguration", ad_tag_uri, ads_id, ads_id_token);
+        env,
+        ads_class,
+        ads_ctor,
+        "CppAdsConfiguration",
+        ad_tag_uri,
+        ads_id,
+        ads_id_token,
+        ads_id_value);
     DeleteLocalRefIfNotNull(env, ad_tag_uri);
     DeleteLocalRefIfNotNull(env, ads_id);
     DeleteLocalRefIfNotNull(env, ads_id_token);
+    DeleteLocalRefIfNotNull(env, ads_id_value);
     if (ads == nullptr) {
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
@@ -1186,6 +1664,31 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
     DeleteLocalRefIfNotNull(env, forced_session_track_types);
     DeleteLocalRefIfNotNull(env, key_set_id);
   }
+  jobject tag_value =
+      media_item.tag_value.present ? CreateJavaObjectValueInfo(env, media_item.tag_value) : nullptr;
+  if (media_item.tag_value.present && tag_value == nullptr) {
+    DeleteLocalRefIfNotNull(env, uri);
+    DeleteLocalRefIfNotNull(env, media_id);
+    DeleteLocalRefIfNotNull(env, mime_type);
+    DeleteLocalRefIfNotNull(env, tag_string);
+    DeleteLocalRefIfNotNull(env, tag_token);
+    DeleteLocalRefIfNotNull(env, metadata);
+    DeleteLocalRefIfNotNull(env, request_metadata);
+    DeleteLocalRefIfNotNull(env, ads);
+    DeleteLocalRefIfNotNull(env, subtitles);
+    DeleteLocalRefIfNotNull(env, clipping);
+    DeleteLocalRefIfNotNull(env, live);
+    DeleteLocalRefIfNotNull(env, drm);
+    env->DeleteLocalRef(subtitle_class);
+    env->DeleteLocalRef(clipping_class);
+    env->DeleteLocalRef(live_class);
+    env->DeleteLocalRef(drm_class);
+    env->DeleteLocalRef(ads_class);
+    env->DeleteLocalRef(request_metadata_class);
+    env->DeleteLocalRef(metadata_class);
+    env->DeleteLocalRef(item_class);
+    return nullptr;
+  }
   jobject item = NewObjectChecked(env,
                                   item_class,
                                   item_ctor,
@@ -1197,6 +1700,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
                                   static_cast<jboolean>(media_item.tag_present),
                                   tag_string,
                                   tag_token,
+                                  tag_value,
                                   metadata,
                                   request_metadata,
                                   ads,
@@ -1214,6 +1718,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
   }
   DeleteLocalRefIfNotNull(env, tag_string);
   DeleteLocalRefIfNotNull(env, tag_token);
+  DeleteLocalRefIfNotNull(env, tag_value);
   DeleteLocalRefIfNotNull(env, metadata);
   DeleteLocalRefIfNotNull(env, request_metadata);
   DeleteLocalRefIfNotNull(env, ads);
@@ -1459,31 +1964,50 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object) {
     DeleteLocalRefIfNotNull(env, clazz);
     return snapshot;
   }
+  auto read_object_value = [&](const char* field_name) {
+    jobject value = GetObjectFieldValue(
+        env,
+        object,
+        clazz,
+        "CppMediaMetadata",
+        field_name,
+        "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;");
+    ObjectValueInfo info = FromJavaObjectValueInfo(env, value);
+    DeleteLocalRefIfNotNull(env, value);
+    return info;
+  };
   snapshot.title = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "title");
   snapshot.title_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "titleToken");
+  snapshot.title_value = read_object_value("titleValue");
   snapshot.artist = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "artist");
   snapshot.artist_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "artistToken");
+  snapshot.artist_value = read_object_value("artistValue");
   snapshot.album_title =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumTitle");
   snapshot.album_title_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumTitleToken");
+  snapshot.album_title_value = read_object_value("albumTitleValue");
   snapshot.album_artist =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumArtist");
   snapshot.album_artist_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "albumArtistToken");
+  snapshot.album_artist_value = read_object_value("albumArtistValue");
   snapshot.display_title =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "displayTitle");
   snapshot.display_title_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "displayTitleToken");
+  snapshot.display_title_value = read_object_value("displayTitleValue");
   snapshot.subtitle = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "subtitle");
   snapshot.subtitle_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "subtitleToken");
+  snapshot.subtitle_value = read_object_value("subtitleValue");
   snapshot.description =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "description");
   snapshot.description_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "descriptionToken");
+  snapshot.description_value = read_object_value("descriptionValue");
   snapshot.artwork_uri =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "artworkUri");
   jbyteArray artwork_data = static_cast<jbyteArray>(
@@ -1517,16 +2041,20 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object) {
   snapshot.writer = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "writer");
   snapshot.writer_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "writerToken");
+  snapshot.writer_value = read_object_value("writerValue");
   snapshot.author = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "author");
   snapshot.author_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "authorToken");
+  snapshot.author_value = read_object_value("authorValue");
   snapshot.composer = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "composer");
   snapshot.composer_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "composerToken");
+  snapshot.composer_value = read_object_value("composerValue");
   snapshot.conductor =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "conductor");
   snapshot.conductor_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "conductorToken");
+  snapshot.conductor_value = read_object_value("conductorValue");
   snapshot.disc_number =
       GetIntFieldValue(env, object, clazz, "CppMediaMetadata", "discNumber");
   snapshot.total_disc_count =
@@ -1534,20 +2062,38 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object) {
   snapshot.genre = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "genre");
   snapshot.genre_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "genreToken");
+  snapshot.genre_value = read_object_value("genreValue");
   snapshot.compilation =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "compilation");
   snapshot.compilation_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "compilationToken");
+  snapshot.compilation_value = read_object_value("compilationValue");
   snapshot.media_type = GetIntFieldValue(env, object, clazz, "CppMediaMetadata", "mediaType");
   snapshot.station = GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "station");
   snapshot.station_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "stationToken");
+  snapshot.station_value = read_object_value("stationValue");
   snapshot.extras_present =
       GetBooleanFieldValue(env, object, clazz, "CppMediaMetadata", "extrasPresent");
   snapshot.extras_key_count =
       GetIntFieldValue(env, object, clazz, "CppMediaMetadata", "extrasKeyCount");
   snapshot.extras_token =
       GetStringFieldValue(env, object, clazz, "CppMediaMetadata", "extrasToken");
+  jobjectArray extras_values = static_cast<jobjectArray>(GetObjectFieldValue(
+      env,
+      object,
+      clazz,
+      "CppMediaMetadata",
+      "extrasValues",
+      "[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;"));
+  snapshot.extras_values = FromJavaBundleValueArray(env, extras_values);
+  DeleteLocalRefIfNotNull(env, extras_values);
+  if (!snapshot.extras_values.empty()) {
+    snapshot.extras_present = true;
+    if (snapshot.extras_key_count == 0) {
+      snapshot.extras_key_count = static_cast<int>(snapshot.extras_values.size());
+    }
+  }
   env->DeleteLocalRef(clazz);
   return snapshot;
 }
@@ -1628,6 +2174,130 @@ ApplicationLooperDescriptor FromJavaApplicationLooper(JNIEnv* env, jobject objec
   return descriptor;
 }
 
+int TotalByteArrayBytes(const std::vector<std::vector<uint8_t>>& values) {
+  int total_bytes = 0;
+  for (const auto& value : values) {
+    total_bytes += static_cast<int>(value.size());
+  }
+  return total_bytes;
+}
+
+std::vector<std::string> TrackLabelLanguages(const std::vector<FormatLabelInfo>& labels) {
+  std::vector<std::string> languages;
+  languages.reserve(labels.size());
+  for (const FormatLabelInfo& label : labels) {
+    languages.push_back(label.language);
+  }
+  return languages;
+}
+
+std::vector<std::string> TrackLabelValues(const std::vector<FormatLabelInfo>& labels) {
+  std::vector<std::string> values;
+  values.reserve(labels.size());
+  for (const FormatLabelInfo& label : labels) {
+    values.push_back(label.value);
+  }
+  return values;
+}
+
+std::vector<std::string> DrmSchemeUuids(const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::string> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.uuid);
+  }
+  return values;
+}
+
+std::vector<std::string> DrmSchemeLicenseServerUrls(
+    const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::string> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.license_server_url);
+  }
+  return values;
+}
+
+std::vector<std::string> DrmSchemeMimeTypes(const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::string> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.mime_type);
+  }
+  return values;
+}
+
+std::vector<std::vector<uint8_t>> DrmSchemeDataBytes(
+    const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<std::vector<uint8_t>> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.data);
+  }
+  return values;
+}
+
+std::vector<int> DrmSchemeDataHasData(const std::vector<DrmSchemeDataInfo>& scheme_data) {
+  std::vector<int> values;
+  values.reserve(scheme_data.size());
+  for (const DrmSchemeDataInfo& data : scheme_data) {
+    values.push_back(data.has_data || !data.data.empty() ? 1 : 0);
+  }
+  return values;
+}
+
+void PopulateLabelsFromArrays(
+    TrackInfo* track,
+    const std::vector<std::string>& languages,
+    const std::vector<std::string>& values) {
+  if (track == nullptr) {
+    return;
+  }
+  const size_t count = std::min(languages.size(), values.size());
+  track->labels.reserve(count);
+  for (size_t i = 0; i < count; ++i) {
+    track->labels.push_back({languages[i], values[i]});
+  }
+}
+
+void PopulateDrmSchemeDataFromArrays(
+    TrackInfo* track,
+    const std::vector<std::string>& uuids,
+    const std::vector<std::string>& license_server_urls,
+    const std::vector<std::string>& mime_types,
+    const std::vector<std::vector<uint8_t>>& data_values,
+    const std::vector<int>& has_data_values) {
+  if (track == nullptr) {
+    return;
+  }
+  size_t count = std::max({
+      uuids.size(),
+      license_server_urls.size(),
+      mime_types.size(),
+      data_values.size(),
+      has_data_values.size(),
+  });
+  track->drm_scheme_data.reserve(count);
+  for (size_t i = 0; i < count; ++i) {
+    DrmSchemeDataInfo data;
+    if (i < uuids.size()) {
+      data.uuid = uuids[i];
+    }
+    if (i < license_server_urls.size()) {
+      data.license_server_url = license_server_urls[i];
+    }
+    if (i < mime_types.size()) {
+      data.mime_type = mime_types[i];
+    }
+    if (i < data_values.size()) {
+      data.data = data_values[i];
+    }
+    data.has_data = i < has_data_values.size() ? has_data_values[i] != 0 : !data.data.empty();
+    track->drm_scheme_data.push_back(std::move(data));
+  }
+}
+
 jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
   jclass track_info_class =
       FindClassChecked(env, "androidx/media3/exoplayer/cppbridge/CppTrackInfo");
@@ -1646,7 +2316,10 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
       "CppTrackInfo",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-      "Ljava/lang/String;IIIFIIIIIIZZZ)V");
+      "Ljava/lang/String;IIIIIIIIIJZIIIIFIF"
+      "IIIIIIIIIIIIIIIIIIIZZZLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "Ljava/lang/String;[[BLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "[Ljava/lang/String;[[B[BII[BI[I)V");
   jmethodID track_group_ctor = GetMethodChecked(
       env,
       track_group_class,
@@ -1707,6 +2380,87 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           : NewStringUtfChecked(env, track.container_mime_type, "CppTrackInfo.containerMimeType");
       jstring codecs =
           track.codecs.empty() ? nullptr : NewStringUtfChecked(env, track.codecs, "CppTrackInfo.codecs");
+      jstring metadata_token = track.metadata_token.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, track.metadata_token, "CppTrackInfo.metadataToken");
+      jobjectArray label_languages = CreateJavaStringArray(env, TrackLabelLanguages(track.labels));
+      jobjectArray label_values = CreateJavaStringArray(env, TrackLabelValues(track.labels));
+      jstring custom_data_token = track.custom_data_token.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, track.custom_data_token, "CppTrackInfo.customDataToken");
+      jobjectArray initialization_data =
+          CreateJavaByteArrayArray(env, track.initialization_data);
+      jstring drm_scheme_type = track.drm_scheme_type.empty()
+          ? nullptr
+          : NewStringUtfChecked(env, track.drm_scheme_type, "CppTrackInfo.drmSchemeType");
+      jobjectArray drm_scheme_uuids =
+          CreateJavaStringArray(env, DrmSchemeUuids(track.drm_scheme_data));
+      jobjectArray drm_scheme_license_server_urls =
+          CreateJavaStringArray(env, DrmSchemeLicenseServerUrls(track.drm_scheme_data));
+      jobjectArray drm_scheme_mime_types =
+          CreateJavaStringArray(env, DrmSchemeMimeTypes(track.drm_scheme_data));
+      jobjectArray drm_scheme_data =
+          CreateJavaByteArrayArray(env, DrmSchemeDataBytes(track.drm_scheme_data));
+      jintArray drm_scheme_data_has_data =
+          CreateJavaIntArray(env, DrmSchemeDataHasData(track.drm_scheme_data));
+      jbyteArray color_hdr_static_info = track.color_hdr_static_info.empty()
+          ? nullptr
+          : CreateJavaByteArray(env, track.color_hdr_static_info);
+      jbyteArray projection_data = track.projection_data.empty()
+          ? nullptr
+          : CreateJavaByteArray(env, track.projection_data);
+      if (label_languages == nullptr || label_values == nullptr || initialization_data == nullptr ||
+          drm_scheme_uuids == nullptr || drm_scheme_license_server_urls == nullptr ||
+          drm_scheme_mime_types == nullptr || drm_scheme_data == nullptr ||
+          drm_scheme_data_has_data == nullptr ||
+          (!track.metadata_token.empty() && metadata_token == nullptr) ||
+          (!track.custom_data_token.empty() && custom_data_token == nullptr) ||
+          (!track.drm_scheme_type.empty() && drm_scheme_type == nullptr) ||
+          (!track.color_hdr_static_info.empty() && color_hdr_static_info == nullptr) ||
+          (!track.projection_data.empty() && projection_data == nullptr)) {
+        DeleteLocalRefIfNotNull(env, id);
+        DeleteLocalRefIfNotNull(env, language);
+        DeleteLocalRefIfNotNull(env, label);
+        DeleteLocalRefIfNotNull(env, label_token);
+        DeleteLocalRefIfNotNull(env, mime_type);
+        DeleteLocalRefIfNotNull(env, container_mime_type);
+        DeleteLocalRefIfNotNull(env, codecs);
+        DeleteLocalRefIfNotNull(env, metadata_token);
+        DeleteLocalRefIfNotNull(env, label_languages);
+        DeleteLocalRefIfNotNull(env, label_values);
+        DeleteLocalRefIfNotNull(env, custom_data_token);
+        DeleteLocalRefIfNotNull(env, initialization_data);
+        DeleteLocalRefIfNotNull(env, drm_scheme_type);
+        DeleteLocalRefIfNotNull(env, drm_scheme_uuids);
+        DeleteLocalRefIfNotNull(env, drm_scheme_license_server_urls);
+        DeleteLocalRefIfNotNull(env, drm_scheme_mime_types);
+        DeleteLocalRefIfNotNull(env, drm_scheme_data);
+        DeleteLocalRefIfNotNull(env, drm_scheme_data_has_data);
+        DeleteLocalRefIfNotNull(env, color_hdr_static_info);
+        DeleteLocalRefIfNotNull(env, projection_data);
+        DeleteLocalRefIfNotNull(env, track_array);
+        DeleteLocalRefIfNotNull(env, groups);
+        DeleteLocalRefIfNotNull(env, track_info_class);
+        DeleteLocalRefIfNotNull(env, track_group_class);
+        DeleteLocalRefIfNotNull(env, tracks_class);
+        return nullptr;
+      }
+      const int initialization_data_count =
+          track.initialization_data.empty()
+              ? track.initialization_data_count
+              : static_cast<int>(track.initialization_data.size());
+      const int initialization_data_total_bytes =
+          track.initialization_data.empty()
+              ? track.initialization_data_total_bytes
+              : TotalByteArrayBytes(track.initialization_data);
+      const int drm_scheme_data_count =
+          track.drm_scheme_data.empty()
+              ? track.drm_scheme_data_count
+              : static_cast<int>(track.drm_scheme_data.size());
+      const int projection_data_length =
+          track.projection_data.empty()
+              ? track.projection_data_length
+              : static_cast<int>(track.projection_data.size());
       jobject track_object = NewObjectChecked(
           env,
           track_info_class,
@@ -1720,18 +2474,61 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
           container_mime_type,
           codecs,
           static_cast<jint>(track.bitrate),
+          static_cast<jint>(track.average_bitrate),
+          static_cast<jint>(track.peak_bitrate),
+          static_cast<jint>(track.metadata_entry_count),
+          static_cast<jint>(track.max_input_size),
+          static_cast<jint>(track.max_num_reorder_samples),
+          static_cast<jint>(initialization_data_count),
+          static_cast<jint>(initialization_data_total_bytes),
+          static_cast<jint>(drm_scheme_data_count),
+          static_cast<jlong>(track.subsample_offset_us),
+          static_cast<jboolean>(track.has_preroll_samples),
           static_cast<jint>(track.width),
           static_cast<jint>(track.height),
+          static_cast<jint>(track.decoded_width),
+          static_cast<jint>(track.decoded_height),
           static_cast<jfloat>(track.frame_rate),
+          static_cast<jint>(track.rotation_degrees),
+          static_cast<jfloat>(track.pixel_width_height_ratio),
+          static_cast<jint>(projection_data_length),
+          static_cast<jint>(track.stereo_mode),
+          static_cast<jint>(track.color_standard),
+          static_cast<jint>(track.color_range),
+          static_cast<jint>(track.color_transfer),
+          static_cast<jint>(track.max_sub_layers),
           static_cast<jint>(track.sample_rate),
           static_cast<jint>(track.channel_count),
+          static_cast<jint>(track.pcm_encoding),
+          static_cast<jint>(track.encoder_delay),
+          static_cast<jint>(track.encoder_padding),
           static_cast<jint>(track.accessibility_channel),
+          static_cast<jint>(track.cue_replacement_behavior),
+          static_cast<jint>(track.tile_count_horizontal),
+          static_cast<jint>(track.tile_count_vertical),
+          static_cast<jint>(track.crypto_type),
           static_cast<jint>(track.role_flags),
           static_cast<jint>(track.selection_flags),
           static_cast<jint>(track.format_support),
           static_cast<jboolean>(track.selected),
           static_cast<jboolean>(track.supported),
-          static_cast<jboolean>(track.supported_within_capabilities));
+          static_cast<jboolean>(track.supported_within_capabilities),
+          metadata_token,
+          label_languages,
+          label_values,
+          custom_data_token,
+          initialization_data,
+          drm_scheme_type,
+          drm_scheme_uuids,
+          drm_scheme_license_server_urls,
+          drm_scheme_mime_types,
+          drm_scheme_data,
+          color_hdr_static_info,
+          static_cast<jint>(track.color_luma_bitdepth),
+          static_cast<jint>(track.color_chroma_bitdepth),
+          projection_data,
+          static_cast<jint>(track.auxiliary_track_type),
+          drm_scheme_data_has_data);
       DeleteLocalRefIfNotNull(env, id);
       DeleteLocalRefIfNotNull(env, language);
       DeleteLocalRefIfNotNull(env, label);
@@ -1739,6 +2536,19 @@ jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks) {
       DeleteLocalRefIfNotNull(env, mime_type);
       DeleteLocalRefIfNotNull(env, container_mime_type);
       DeleteLocalRefIfNotNull(env, codecs);
+      DeleteLocalRefIfNotNull(env, metadata_token);
+      DeleteLocalRefIfNotNull(env, label_languages);
+      DeleteLocalRefIfNotNull(env, label_values);
+      DeleteLocalRefIfNotNull(env, custom_data_token);
+      DeleteLocalRefIfNotNull(env, initialization_data);
+      DeleteLocalRefIfNotNull(env, drm_scheme_type);
+      DeleteLocalRefIfNotNull(env, drm_scheme_uuids);
+      DeleteLocalRefIfNotNull(env, drm_scheme_license_server_urls);
+      DeleteLocalRefIfNotNull(env, drm_scheme_mime_types);
+      DeleteLocalRefIfNotNull(env, drm_scheme_data);
+      DeleteLocalRefIfNotNull(env, drm_scheme_data_has_data);
+      DeleteLocalRefIfNotNull(env, color_hdr_static_info);
+      DeleteLocalRefIfNotNull(env, projection_data);
       if (track_object == nullptr) {
         DeleteLocalRefIfNotNull(env, track_array);
         DeleteLocalRefIfNotNull(env, groups);
@@ -1914,21 +2724,155 @@ TracksSnapshot FromJavaTracks(JNIEnv* env, jobject object) {
               GetStringFieldValue(env, track, track_class, "CppTrackInfo", "codecs");
           track_info.bitrate =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "bitrate");
+          track_info.average_bitrate =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "averageBitrate");
+          track_info.peak_bitrate =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "peakBitrate");
+          track_info.metadata_entry_count =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "metadataEntryCount");
+          track_info.metadata_token =
+              GetStringFieldValue(env, track, track_class, "CppTrackInfo", "metadataToken");
+          jobjectArray label_languages = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "labelLanguages", "[Ljava/lang/String;"));
+          jobjectArray label_values = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "labelValues", "[Ljava/lang/String;"));
+          PopulateLabelsFromArrays(
+              &track_info,
+              JStringArrayToVector(env, label_languages),
+              JStringArrayToVector(env, label_values));
+          DeleteLocalRefIfNotNull(env, label_languages);
+          DeleteLocalRefIfNotNull(env, label_values);
+          track_info.custom_data_token =
+              GetStringFieldValue(env, track, track_class, "CppTrackInfo", "customDataToken");
+          track_info.max_input_size =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxInputSize");
+          track_info.max_num_reorder_samples =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxNumReorderSamples");
+          track_info.initialization_data_count =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "initializationDataCount");
+          track_info.initialization_data_total_bytes = GetIntFieldValue(
+              env, track, track_class, "CppTrackInfo", "initializationDataTotalBytes");
+          jobjectArray initialization_data = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "initializationData", "[[B"));
+          track_info.initialization_data = JByteArrayArrayToVector(env, initialization_data);
+          DeleteLocalRefIfNotNull(env, initialization_data);
+          if (!track_info.initialization_data.empty()) {
+            track_info.initialization_data_count =
+                static_cast<int>(track_info.initialization_data.size());
+            track_info.initialization_data_total_bytes =
+                TotalByteArrayBytes(track_info.initialization_data);
+          }
+          track_info.drm_scheme_type =
+              GetStringFieldValue(env, track, track_class, "CppTrackInfo", "drmSchemeType");
+          track_info.drm_scheme_data_count =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "drmSchemeDataCount");
+          jobjectArray drm_scheme_uuids = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "drmSchemeUuids", "[Ljava/lang/String;"));
+          jobjectArray drm_scheme_license_server_urls =
+              static_cast<jobjectArray>(GetObjectFieldValue(
+                  env,
+                  track,
+                  track_class,
+                  "CppTrackInfo",
+                  "drmSchemeLicenseServerUrls",
+                  "[Ljava/lang/String;"));
+          jobjectArray drm_scheme_mime_types =
+              static_cast<jobjectArray>(GetObjectFieldValue(
+                  env,
+                  track,
+                  track_class,
+                  "CppTrackInfo",
+                  "drmSchemeMimeTypes",
+                  "[Ljava/lang/String;"));
+          jobjectArray drm_scheme_data = static_cast<jobjectArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "drmSchemeData", "[[B"));
+          jintArray drm_scheme_data_has_data = static_cast<jintArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "drmSchemeDataHasData", "[I"));
+          PopulateDrmSchemeDataFromArrays(
+              &track_info,
+              JStringArrayToVector(env, drm_scheme_uuids),
+              JStringArrayToVector(env, drm_scheme_license_server_urls),
+              JStringArrayToVector(env, drm_scheme_mime_types),
+              JByteArrayArrayToVector(env, drm_scheme_data),
+              JIntArrayToVector(env, drm_scheme_data_has_data));
+          DeleteLocalRefIfNotNull(env, drm_scheme_uuids);
+          DeleteLocalRefIfNotNull(env, drm_scheme_license_server_urls);
+          DeleteLocalRefIfNotNull(env, drm_scheme_mime_types);
+          DeleteLocalRefIfNotNull(env, drm_scheme_data);
+          DeleteLocalRefIfNotNull(env, drm_scheme_data_has_data);
+          if (!track_info.drm_scheme_data.empty()) {
+            track_info.drm_scheme_data_count = static_cast<int>(track_info.drm_scheme_data.size());
+          }
+          track_info.subsample_offset_us =
+              GetLongFieldValue(env, track, track_class, "CppTrackInfo", "subsampleOffsetUs");
+          track_info.has_preroll_samples =
+              GetBooleanFieldValue(env, track, track_class, "CppTrackInfo", "hasPrerollSamples");
           track_info.width = GetIntFieldValue(env, track, track_class, "CppTrackInfo", "width");
           track_info.height =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "height");
+          track_info.decoded_width =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "decodedWidth");
+          track_info.decoded_height =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "decodedHeight");
           track_info.frame_rate =
               GetFloatFieldValue(env, track, track_class, "CppTrackInfo", "frameRate");
+          track_info.rotation_degrees =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "rotationDegrees");
+          track_info.pixel_width_height_ratio = GetFloatFieldValue(
+              env, track, track_class, "CppTrackInfo", "pixelWidthHeightRatio");
+          track_info.projection_data_length =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "projectionDataLength");
+          jbyteArray projection_data = static_cast<jbyteArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "projectionData", "[B"));
+          track_info.projection_data = JByteArrayToVector(env, projection_data);
+          DeleteLocalRefIfNotNull(env, projection_data);
+          if (!track_info.projection_data.empty()) {
+            track_info.projection_data_length = static_cast<int>(track_info.projection_data.size());
+          }
+          track_info.stereo_mode =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "stereoMode");
+          track_info.color_standard =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorStandard");
+          track_info.color_range =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorRange");
+          track_info.color_transfer =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorTransfer");
+          jbyteArray color_hdr_static_info = static_cast<jbyteArray>(GetObjectFieldValue(
+              env, track, track_class, "CppTrackInfo", "colorHdrStaticInfo", "[B"));
+          track_info.color_hdr_static_info = JByteArrayToVector(env, color_hdr_static_info);
+          DeleteLocalRefIfNotNull(env, color_hdr_static_info);
+          track_info.color_luma_bitdepth =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorLumaBitdepth");
+          track_info.color_chroma_bitdepth =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "colorChromaBitdepth");
+          track_info.max_sub_layers =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "maxSubLayers");
           track_info.sample_rate =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "sampleRate");
           track_info.channel_count =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "channelCount");
+          track_info.pcm_encoding =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "pcmEncoding");
+          track_info.encoder_delay =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "encoderDelay");
+          track_info.encoder_padding =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "encoderPadding");
           track_info.accessibility_channel = GetIntFieldValue(
               env, track, track_class, "CppTrackInfo", "accessibilityChannel");
+          track_info.cue_replacement_behavior =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "cueReplacementBehavior");
+          track_info.tile_count_horizontal =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "tileCountHorizontal");
+          track_info.tile_count_vertical =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "tileCountVertical");
+          track_info.crypto_type =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "cryptoType");
           track_info.role_flags =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "roleFlags");
           track_info.selection_flags =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "selectionFlags");
+          track_info.auxiliary_track_type =
+              GetIntFieldValue(env, track, track_class, "CppTrackInfo", "auxiliaryTrackType");
           track_info.format_support =
               GetIntFieldValue(env, track, track_class, "CppTrackInfo", "formatSupport");
           track_info.selected =
@@ -2116,7 +3060,27 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       metadata_class,
       "CppMediaMetadata",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[BIJIIIIIIIIIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;ZILjava/lang/String;)V");
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[BI"
+      "JIIIIIIIIIIILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/String;"
+      "Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;"
+      "ZILjava/lang/String;[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;)V");
   if (metadata_class == nullptr || ctor == nullptr) {
     DeleteLocalRefIfNotNull(env, metadata_class);
     return nullptr;
@@ -2236,6 +3200,81 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       metadata.extras_token.empty()
           ? nullptr
           : NewStringUtfChecked(env, metadata.extras_token, "CppMediaMetadata.extrasToken");
+  jobjectArray extras_values = CreateJavaBundleValueArray(env, metadata.extras_values);
+  const std::array<const ObjectValueInfo*, 14> object_value_infos = {
+      &metadata.title_value,
+      &metadata.artist_value,
+      &metadata.album_title_value,
+      &metadata.album_artist_value,
+      &metadata.display_title_value,
+      &metadata.subtitle_value,
+      &metadata.description_value,
+      &metadata.writer_value,
+      &metadata.author_value,
+      &metadata.composer_value,
+      &metadata.conductor_value,
+      &metadata.genre_value,
+      &metadata.compilation_value,
+      &metadata.station_value,
+  };
+  std::array<jobject, 14> object_values = {};
+  bool object_values_failed = false;
+  for (size_t i = 0; i < object_value_infos.size(); ++i) {
+    if (!object_value_infos[i]->present) {
+      continue;
+    }
+    object_values[i] = CreateJavaObjectValueInfo(env, *object_value_infos[i]);
+    if (object_values[i] == nullptr) {
+      object_values_failed = true;
+      break;
+    }
+  }
+  auto delete_object_values = [&]() {
+    for (jobject value : object_values) {
+      DeleteLocalRefIfNotNull(env, value);
+    }
+  };
+  if (extras_values == nullptr || object_values_failed) {
+    DeleteLocalRefIfNotNull(env, title);
+    DeleteLocalRefIfNotNull(env, title_token);
+    DeleteLocalRefIfNotNull(env, artist);
+    DeleteLocalRefIfNotNull(env, artist_token);
+    DeleteLocalRefIfNotNull(env, album_title);
+    DeleteLocalRefIfNotNull(env, album_title_token);
+    DeleteLocalRefIfNotNull(env, album_artist);
+    DeleteLocalRefIfNotNull(env, album_artist_token);
+    DeleteLocalRefIfNotNull(env, display_title);
+    DeleteLocalRefIfNotNull(env, display_title_token);
+    DeleteLocalRefIfNotNull(env, subtitle);
+    DeleteLocalRefIfNotNull(env, subtitle_token);
+    DeleteLocalRefIfNotNull(env, description);
+    DeleteLocalRefIfNotNull(env, description_token);
+    DeleteLocalRefIfNotNull(env, artwork_uri);
+    DeleteLocalRefIfNotNull(env, artwork_data);
+    DeleteLocalRefIfNotNull(env, writer);
+    DeleteLocalRefIfNotNull(env, writer_token);
+    DeleteLocalRefIfNotNull(env, author);
+    DeleteLocalRefIfNotNull(env, author_token);
+    DeleteLocalRefIfNotNull(env, composer);
+    DeleteLocalRefIfNotNull(env, composer_token);
+    DeleteLocalRefIfNotNull(env, conductor);
+    DeleteLocalRefIfNotNull(env, conductor_token);
+    DeleteLocalRefIfNotNull(env, genre);
+    DeleteLocalRefIfNotNull(env, genre_token);
+    DeleteLocalRefIfNotNull(env, compilation);
+    DeleteLocalRefIfNotNull(env, compilation_token);
+    DeleteLocalRefIfNotNull(env, station);
+    DeleteLocalRefIfNotNull(env, station_token);
+    DeleteLocalRefIfNotNull(env, extras_token);
+    DeleteLocalRefIfNotNull(env, extras_values);
+    delete_object_values();
+    DeleteLocalRefIfNotNull(env, metadata_class);
+    return nullptr;
+  }
+  const int extras_key_count =
+      metadata.extras_values.empty()
+          ? metadata.extras_key_count
+          : std::max(metadata.extras_key_count, static_cast<int>(metadata.extras_values.size()));
   jobject object = NewObjectChecked(
       env,
       metadata_class,
@@ -2287,9 +3326,24 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
       static_cast<jint>(metadata.media_type),
       station,
       station_token,
-      static_cast<jboolean>(metadata.extras_present),
-      static_cast<jint>(metadata.extras_key_count),
-      extras_token);
+      static_cast<jboolean>(metadata.extras_present || !metadata.extras_values.empty()),
+      static_cast<jint>(extras_key_count),
+      extras_token,
+      extras_values,
+      object_values[0],
+      object_values[1],
+      object_values[2],
+      object_values[3],
+      object_values[4],
+      object_values[5],
+      object_values[6],
+      object_values[7],
+      object_values[8],
+      object_values[9],
+      object_values[10],
+      object_values[11],
+      object_values[12],
+      object_values[13]);
   DeleteLocalRefIfNotNull(env, title);
   DeleteLocalRefIfNotNull(env, title_token);
   DeleteLocalRefIfNotNull(env, artist);
@@ -2321,6 +3375,8 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
   DeleteLocalRefIfNotNull(env, station);
   DeleteLocalRefIfNotNull(env, station_token);
   DeleteLocalRefIfNotNull(env, extras_token);
+  DeleteLocalRefIfNotNull(env, extras_values);
+  delete_object_values();
   env->DeleteLocalRef(metadata_class);
   return object;
 }
@@ -2338,26 +3394,48 @@ jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues) {
     return nullptr;
   }
 
+  size_t cue_count = cues.cues.size();
+  if (cue_count == 0) {
+    cue_count = static_cast<size_t>(std::max(cues.cue_count, 0));
+    cue_count = std::max(cue_count, cues.texts.size());
+    cue_count = std::max(cue_count, cues.text_tokens.size());
+    cue_count = std::max(cue_count, cues.bitmap_tokens.size());
+  }
   jobjectArray result =
-      env->NewObjectArray(static_cast<jsize>(cues.cues.size()), cue_class, nullptr);
+      env->NewObjectArray(static_cast<jsize>(cue_count), cue_class, nullptr);
   if (ClearJniExceptionIfPresent(env, "NewObjectArray(CppCue)") || result == nullptr) {
     DeleteLocalRefIfNotNull(env, cue_class);
     DeleteLocalRefIfNotNull(env, result);
     return nullptr;
   }
 
-  for (jsize i = 0; i < static_cast<jsize>(cues.cues.size()); ++i) {
-    const CueSnapshot::CueInfo& cue = cues.cues[static_cast<size_t>(i)];
+  for (jsize i = 0; i < static_cast<jsize>(cue_count); ++i) {
+    const size_t cue_index = static_cast<size_t>(i);
+    CueSnapshot::CueInfo empty_cue;
+    const CueSnapshot::CueInfo& cue =
+        cue_index < cues.cues.size() ? cues.cues[cue_index] : empty_cue;
+    std::string cue_text =
+        !cue.text.empty()
+            ? cue.text
+            : cue_index < cues.texts.size() ? cues.texts[cue_index] : "";
+    std::string cue_text_token =
+        !cue.text_token.empty()
+            ? cue.text_token
+            : cue_index < cues.text_tokens.size() ? cues.text_tokens[cue_index] : "";
+    std::string cue_bitmap_token =
+        !cue.bitmap_token.empty()
+            ? cue.bitmap_token
+            : cue_index < cues.bitmap_tokens.size() ? cues.bitmap_tokens[cue_index] : "";
     jstring text =
-        cue.text.empty() ? nullptr : NewStringUtfChecked(env, cue.text, "CppCue.text");
+        cue_text.empty() ? nullptr : NewStringUtfChecked(env, cue_text, "CppCue.text");
     jstring text_token =
-        cue.text_token.empty()
+        cue_text_token.empty()
             ? nullptr
-            : NewStringUtfChecked(env, cue.text_token, "CppCue.textToken");
+            : NewStringUtfChecked(env, cue_text_token, "CppCue.textToken");
     jstring bitmap_token =
-        cue.bitmap_token.empty()
+        cue_bitmap_token.empty()
             ? nullptr
-            : NewStringUtfChecked(env, cue.bitmap_token, "CppCue.bitmapToken");
+            : NewStringUtfChecked(env, cue_bitmap_token, "CppCue.bitmapToken");
     jobject cue_object = NewObjectChecked(
         env,
         cue_class,
@@ -2382,7 +3460,7 @@ jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues) {
         static_cast<jint>(cue.z_index),
         static_cast<jboolean>(cue.window_color_set),
         static_cast<jint>(cue.window_color),
-        static_cast<jboolean>(cue.has_bitmap));
+        static_cast<jboolean>(cue.has_bitmap || !cue_bitmap_token.empty()));
     DeleteLocalRefIfNotNull(env, text);
     DeleteLocalRefIfNotNull(env, text_token);
     DeleteLocalRefIfNotNull(env, bitmap_token);
@@ -2423,6 +3501,15 @@ MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object) {
   descriptor.tag_present = GetBooleanFieldValue(env, object, clazz, "CppMediaItem", "tagPresent");
   descriptor.tag_string = GetStringFieldValue(env, object, clazz, "CppMediaItem", "tagString");
   descriptor.tag_token = GetStringFieldValue(env, object, clazz, "CppMediaItem", "tagToken");
+  jobject tag_value = GetObjectFieldValue(
+      env,
+      object,
+      clazz,
+      "CppMediaItem",
+      "tagValue",
+      "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;");
+  descriptor.tag_value = FromJavaObjectValueInfo(env, tag_value);
+  DeleteLocalRefIfNotNull(env, tag_value);
   jobject metadata = GetObjectFieldValue(
       env,
       object,
@@ -2453,6 +3540,24 @@ MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object) {
           env, request_metadata, request_metadata_class, "CppRequestMetadata", "extrasKeyCount");
       descriptor.request_metadata.extras_token = GetStringFieldValue(
           env, request_metadata, request_metadata_class, "CppRequestMetadata", "extrasToken");
+      jobjectArray request_extras_values =
+          static_cast<jobjectArray>(GetObjectFieldValue(
+              env,
+              request_metadata,
+              request_metadata_class,
+              "CppRequestMetadata",
+              "extrasValues",
+              "[Landroidx/media3/exoplayer/cppbridge/CppBundleValue;"));
+      descriptor.request_metadata.extras_values =
+          FromJavaBundleValueArray(env, request_extras_values);
+      DeleteLocalRefIfNotNull(env, request_extras_values);
+      if (!descriptor.request_metadata.extras_values.empty()) {
+        descriptor.request_metadata.extras_present = true;
+        if (descriptor.request_metadata.extras_key_count == 0) {
+          descriptor.request_metadata.extras_key_count =
+              static_cast<int>(descriptor.request_metadata.extras_values.size());
+        }
+      }
       env->DeleteLocalRef(request_metadata_class);
     }
     DeleteLocalRefIfNotNull(env, request_metadata);
@@ -2474,6 +3579,15 @@ MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object) {
           GetStringFieldValue(env, ads, ads_class, "CppAdsConfiguration", "adsId");
       descriptor.ads_configuration.ads_id_token =
           GetStringFieldValue(env, ads, ads_class, "CppAdsConfiguration", "adsIdToken");
+      jobject ads_id_value = GetObjectFieldValue(
+          env,
+          ads,
+          ads_class,
+          "CppAdsConfiguration",
+          "adsIdValue",
+          "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;");
+      descriptor.ads_configuration.ads_id_value = FromJavaObjectValueInfo(env, ads_id_value);
+      DeleteLocalRefIfNotNull(env, ads_id_value);
       env->DeleteLocalRef(ads_class);
     }
     env->DeleteLocalRef(ads);
@@ -2676,4 +3790,3 @@ PositionInfoSnapshot FromJavaPositionInfo(JNIEnv* env, jobject object) {
 }
 
 }  // namespace androidx::media3::cppbridge::internal
-

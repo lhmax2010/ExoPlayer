@@ -1,6 +1,6 @@
 # Development Stages
 
-Last updated: 2026-03-18
+Last updated: 2026-05-19
 
 This document summarizes what has been developed so far, what remains, and what the final delivery
 package should contain.
@@ -25,7 +25,7 @@ Current checkpoint:
 
 - `PlaybackParameters`, `DeviceInfo`, and `VideoSize` are now promoted to `Done`
 - reduced `Player.Commands` and `Player.Events` snapshots and callbacks are now promoted to `Done`
-- the forty-five currently exposed reduced concrete `AnalyticsListener` event families are now promoted to `Done`
+- the seventy-one currently exposed reduced concrete `AnalyticsListener` event families are now promoted to `Done`
 - there are no remaining row-level `Partial` items in the current reduced endpoint tracker
 - remaining work is now concentrated in the true next-phase capability gaps: full Java parity, richer image/video capability, broader preload, and broader arbitrary factory injection
 
@@ -291,12 +291,18 @@ Medium priority:
 
 Next-phase capability work after second-batch closeout:
 
-- full `AnalyticsListener` parity
-  Current reduced event coverage already includes aggregate delivery plus forty-five concrete event
+- full `AnalyticsListener` reduced method-name parity
+  Current reduced event coverage already includes aggregate delivery plus seventy-one concrete event
   paths: audio underrun, dropped video frames, bandwidth estimate, load started, load completed,
   audio input format changed, audio decoder initialized, video decoder initialized, audio decoder released, video decoder released, analytics rendered first frame, analytics video size changed, analytics audio position advancing, analytics video frame processing offset, analytics volume changed, analytics audio session id changed, analytics skip silence enabled changed, analytics device volume changed, analytics playback state changed, analytics is playing changed, analytics play when ready changed, analytics playback suppression reason changed, analytics is loading changed, analytics repeat mode changed, analytics shuffle mode changed, and video input format changed.
-  The newest concrete reduced events are playback parameters changed, available commands changed,
-  analytics events batch delivery, device info changed, media metadata changed, and playlist metadata changed.
+  Stage 4 starts by adding analytics audio attributes changed as an independently routed C++
+  callback with content type, usage, flags, allowed-capture policy, spatialization behavior, and
+  remove-listener lifecycle smoke coverage.
+  Stage 4 then closes the remaining reduced Java `AnalyticsListener` callback method names with
+  a batch covering player-state/loading aliases, track-selection parameters, load canceled,
+  downstream/upstream format, decoder counters, audio/video errors, audio-track init/release,
+  surface size, DRM lifecycle/key events, renderer-ready, dropped-seeks-while-scrubbing, and
+  player-released callbacks.
 - broader preload ecosystem parity
 - richer image output parity beyond reduced frame metadata, bitmap-layout metadata, and callback behavior
 - richer video effects parity beyond the current reduced effect set and boundary/default-value coverage
@@ -340,13 +346,18 @@ Already in place:
 
 - reduced descriptor is stable in query smoke and opaque-token smoke
 - `tag`, `adsId`, and `requestMetadata.extras` have opaque-token baselines
+- `tag` and `adsId` also carry reduced `ObjectValueInfo` descriptors with class/type and stable
+  scalar payload fields
+- `requestMetadata.extras` also carries decoded stable `Bundle` values for strings,
+  integer-like numbers, floating-point numbers, booleans, and byte arrays
 - subtitles, clipping, live, DRM, and representative metadata are already query-visible
 
 Still required for true full support:
 
 - define whether arbitrary Java-object parity is required or whether opaque-token semantics are the intended endpoint
 - if arbitrary-object parity is required, replace token-only semantics for `tag` and `adsId`
-- decide whether `RequestMetadata.extras` needs full decoded `Bundle` parity in C++
+- decide whether `RequestMetadata.extras` needs arbitrary/nested `Bundle` parity beyond the
+  current stable primitive value subset
 - expand tests from representative fields to complete object-behavior parity where required
 
 ### `Timeline`
@@ -356,12 +367,17 @@ Already in place:
 - reduced summary/window/period snapshots
 - multi-window and multi-period smoke visibility
 - `uid`, `id`, `adsId`, and manifest token baselines
+- reduced `ObjectValueInfo` descriptors for `Timeline.Window.uid`,
+  `Timeline.Window.manifest`, `Timeline.Period.id`, `Timeline.Period.uid`, and
+  `Timeline.Period.adsId`, distinguishing null, class name, reduced value type, and stable
+  string/number/boolean payloads where applicable
 - query, direct-listener, and listener-payload smoke coverage
 
 Still required for true full support:
 
 - decide the final parity target for `Timeline.Window` / `Timeline.Period`
-- expand beyond token baselines for manifest/uid/id semantics if full object parity is required
+- expand beyond reduced value descriptors and token baselines for manifest/uid/id semantics if full
+  object parity is required
 - close remaining second-window/second-period asymmetries until coverage is intentionally complete
 - validate runtime stability with real playlist and timeline mutation scenarios
 
@@ -372,11 +388,16 @@ Already in place:
 - reduced `TracksSnapshot`, `TrackGroupSnapshot`, and representative `TrackInfo`
 - group token and label token baselines
 - first-group deep smoke coverage and growing second-group listener coverage
+- 2026-05-18 TrackInfo full-payload pass for label language/value arrays,
+  metadata/custom-data tokens, initialization byte arrays, DRM scheme data, projection bytes, HDR
+  static info, color bitdepth, and auxiliary track type
 
 Still required for true full support:
 
-- finish pulling second-group fields up to first-group depth
-- decide how much full `Format` parity is required
+- decide whether full Java `Tracks.Group` object semantics are required beyond the current reduced
+  snapshot shape
+- decide whether arbitrary `Metadata.Entry` / `customData` decoding is required beyond opaque-token
+  preservation
 - add tests that prove group/track parity beyond representative video/audio rows
 - validate selection/support semantics under real runtime track changes
 
@@ -384,13 +405,19 @@ Still required for true full support:
 
 Already in place:
 
-- representative text fields, artwork, extras baseline, and multiple query/listener smoke paths
+- representative text fields, artwork, extras baseline plus decoded stable extras values, and
+  multiple query/listener smoke paths
 - opaque-token baselines for representative `CharSequence` fields
+- reduced `ObjectValueInfo` descriptors for representative text/`CharSequence` fields: title,
+  artist, album title/artist, display title, subtitle, description, writer, author, composer,
+  conductor, genre, compilation, and station
 
 Still required for true full support:
 
-- decide whether full `CharSequence` semantics are required or whether opaque-token baselines are sufficient
-- decide whether metadata entry/extras behavior needs richer parity
+- decide whether full styled-span `CharSequence` semantics are required beyond token baselines and
+  reduced object-value summaries
+- decide whether metadata entry/extras behavior needs richer parity beyond the current stable
+  primitive `Bundle` value subset
 - extend from representative-field parity to intentional full-object parity where needed
 - validate metadata behavior under runtime updates on real devices
 

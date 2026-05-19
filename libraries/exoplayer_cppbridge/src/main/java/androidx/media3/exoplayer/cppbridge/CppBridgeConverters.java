@@ -5,7 +5,10 @@ import android.os.Bundle;
 import android.text.Layout;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
+import androidx.media3.common.DrmInitData;
 import androidx.media3.common.Effect;
+import androidx.media3.common.Format;
+import androidx.media3.common.Label;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.MimeTypes;
@@ -14,10 +17,12 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.text.Cue;
+import androidx.media3.common.util.Util;
 import androidx.media3.effect.Presentation;
 import androidx.media3.effect.RgbAdjustment;
 import androidx.media3.effect.ScaleAndRotateTransformation;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +55,7 @@ final class CppBridgeConverters {
 
   private static @androidx.annotation.Nullable String inferMimeType(CppMediaItem mediaItem) {
     if (mediaItem.mimeType != null && !mediaItem.mimeType.isEmpty()) {
-      return mediaItem.mimeType;
+      return normalizeMimeType(mediaItem.mimeType);
     }
     switch (mediaItem.sourceType) {
       case 1:
@@ -60,48 +65,257 @@ final class CppBridgeConverters {
       case 3:
         return MimeTypes.APPLICATION_SS;
       case 4:
-        return "application/x-rtsp";
+        return MimeTypes.APPLICATION_RTSP;
       default:
         return mediaItem.mimeType;
     }
   }
 
-  private static int inferSourceTypeFromMimeType(@androidx.annotation.Nullable String mimeType) {
-    if (MimeTypes.APPLICATION_MPD.equals(mimeType)) {
-      return 1;
+  private static @androidx.annotation.Nullable String normalizeMimeType(
+      @androidx.annotation.Nullable String mimeType) {
+    if (mimeType == null) {
+      return null;
     }
-    if (MimeTypes.APPLICATION_M3U8.equals(mimeType) || "application/x-mpegURL".equals(mimeType)) {
-      return 2;
+    String trimmedMimeType = mimeType.trim();
+    if (MimeTypes.APPLICATION_MPD.equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_MPD;
     }
-    if (MimeTypes.APPLICATION_SS.equals(mimeType)) {
-      return 3;
+    if (MimeTypes.APPLICATION_M3U8.equalsIgnoreCase(trimmedMimeType)
+        || "application/x-mpegURL".equalsIgnoreCase(trimmedMimeType)
+        || "application/vnd.apple.mpegurl".equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_M3U8;
     }
-    if ("application/x-rtsp".equals(mimeType)) {
-      return 4;
+    if (MimeTypes.APPLICATION_SS.equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_SS;
     }
-    return 0;
+    if (MimeTypes.APPLICATION_RTSP.equalsIgnoreCase(trimmedMimeType)
+        || "application/x-rtsp".equalsIgnoreCase(trimmedMimeType)) {
+      return MimeTypes.APPLICATION_RTSP;
+    }
+    return trimmedMimeType;
   }
 
-  private static int inferSourceTypeFromUri(@androidx.annotation.Nullable String uri) {
-    if (uri == null || uri.isEmpty()) {
+  private static int toCppSourceType(@C.ContentType int contentType) {
+    switch (contentType) {
+      case C.CONTENT_TYPE_DASH:
+        return 1;
+      case C.CONTENT_TYPE_HLS:
+        return 2;
+      case C.CONTENT_TYPE_SS:
+        return 3;
+      case C.CONTENT_TYPE_RTSP:
+        return 4;
+      case C.CONTENT_TYPE_OTHER:
+        return 5;
+      default:
+        return 0;
+    }
+  }
+
+  private static int inferSourceType(
+      @androidx.annotation.Nullable String uri, @androidx.annotation.Nullable String mimeType) {
+    String normalizedUri = uri != null ? uri : "";
+    String normalizedMimeType = normalizeMimeType(mimeType);
+    if (normalizedUri.isEmpty()
+        && (normalizedMimeType == null || normalizedMimeType.isEmpty())) {
       return 0;
     }
-    String normalizedUri = uri.toLowerCase();
-    if (normalizedUri.startsWith("rtsp://")) {
-      return 4;
+    return toCppSourceType(
+        Util.inferContentTypeForUriAndMimeType(Uri.parse(normalizedUri), normalizedMimeType));
+  }
+
+  private static CppBundleValue[] toCppBundleValues(@Nullable Bundle bundle) {
+    if (bundle == null) {
+      return new CppBundleValue[0];
     }
-    if (normalizedUri.contains(".mpd")) {
-      return 1;
+    ArrayList<String> keys = new ArrayList<>(bundle.keySet());
+    Collections.sort(keys);
+    ArrayList<CppBundleValue> values = new ArrayList<>(keys.size());
+    for (String key : keys) {
+      Object value = bundle.get(key);
+      if (value instanceof CharSequence) {
+        values.add(
+            new CppBundleValue(
+                key, CppBundleValue.TYPE_STRING, value.toString(), 0L, 0.0, false, null));
+      } else if (value instanceof Byte
+          || value instanceof Short
+          || value instanceof Integer
+          || value instanceof Long) {
+        values.add(
+            new CppBundleValue(
+                key,
+                CppBundleValue.TYPE_LONG,
+                null,
+                ((Number) value).longValue(),
+                0.0,
+                false,
+                null));
+      } else if (value instanceof Float || value instanceof Double) {
+        values.add(
+            new CppBundleValue(
+                key,
+                CppBundleValue.TYPE_DOUBLE,
+                null,
+                0L,
+                ((Number) value).doubleValue(),
+                false,
+                null));
+      } else if (value instanceof Boolean) {
+        values.add(
+            new CppBundleValue(
+                key, CppBundleValue.TYPE_BOOLEAN, null, 0L, 0.0, (Boolean) value, null));
+      } else if (value instanceof byte[]) {
+        values.add(
+            new CppBundleValue(
+                key,
+                CppBundleValue.TYPE_BYTE_ARRAY,
+                null,
+                0L,
+                0.0,
+                false,
+                ((byte[]) value).clone()));
+      }
     }
-    if (normalizedUri.contains(".m3u8")) {
-      return 2;
+    return values.toArray(new CppBundleValue[0]);
+  }
+
+  private static Bundle toBundle(CppBundleValue[] values) {
+    Bundle bundle = new Bundle();
+    if (values == null) {
+      return bundle;
     }
-    if (normalizedUri.contains(".ism/manifest")
-        || normalizedUri.endsWith(".ism")
-        || normalizedUri.endsWith(".isml")) {
-      return 3;
+    for (CppBundleValue value : values) {
+      if (value == null || value.key == null) {
+        continue;
+      }
+      switch (value.valueType) {
+        case CppBundleValue.TYPE_STRING:
+          bundle.putString(value.key, value.stringValue != null ? value.stringValue : "");
+          break;
+        case CppBundleValue.TYPE_LONG:
+          bundle.putLong(value.key, value.longValue);
+          break;
+        case CppBundleValue.TYPE_DOUBLE:
+          bundle.putDouble(value.key, value.doubleValue);
+          break;
+        case CppBundleValue.TYPE_BOOLEAN:
+          bundle.putBoolean(value.key, value.booleanValue);
+          break;
+        case CppBundleValue.TYPE_BYTE_ARRAY:
+          bundle.putByteArray(value.key, value.byteArrayValue.clone());
+          break;
+        default:
+          break;
+      }
     }
-    return 0;
+    return bundle;
+  }
+
+  private static CppObjectValue toCppObjectValue(@Nullable Object value) {
+    if (value == null) {
+      return CppObjectValue.nullValue();
+    }
+    if (value instanceof CharSequence) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_STRING,
+          value.toString(),
+          0L,
+          0.0,
+          false);
+    }
+    if (value instanceof Byte
+        || value instanceof Short
+        || value instanceof Integer
+        || value instanceof Long) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_LONG,
+          null,
+          ((Number) value).longValue(),
+          0.0,
+          false);
+    }
+    if (value instanceof Float || value instanceof Double) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_DOUBLE,
+          null,
+          0L,
+          ((Number) value).doubleValue(),
+          false);
+    }
+    if (value instanceof Boolean) {
+      return new CppObjectValue(
+          true,
+          value.getClass().getName(),
+          CppObjectValue.TYPE_BOOLEAN,
+          null,
+          0L,
+          0.0,
+          (Boolean) value);
+    }
+    return new CppObjectValue(
+        true,
+        value.getClass().getName(),
+        CppObjectValue.TYPE_OTHER,
+        String.valueOf(value),
+        0L,
+        0.0,
+        false);
+  }
+
+  private static Object toJavaObjectValue(
+      @Nullable CppObjectValue value, @Nullable String fallbackString) {
+    if (value == null || !value.present) {
+      return fallbackString != null ? fallbackString : "";
+    }
+    switch (value.valueType) {
+      case CppObjectValue.TYPE_STRING:
+      case CppObjectValue.TYPE_OTHER:
+        return value.stringValue != null
+            ? value.stringValue
+            : fallbackString != null ? fallbackString : "";
+      case CppObjectValue.TYPE_LONG:
+        return value.longValue;
+      case CppObjectValue.TYPE_DOUBLE:
+        return value.doubleValue;
+      case CppObjectValue.TYPE_BOOLEAN:
+        return value.booleanValue;
+      default:
+        return fallbackString != null ? fallbackString : "";
+    }
+  }
+
+  private static @Nullable CharSequence toJavaCharSequenceValue(
+      @Nullable CppObjectValue value, @Nullable String fallbackString) {
+    if (value == null || !value.present) {
+      return fallbackString;
+    }
+    switch (value.valueType) {
+      case CppObjectValue.TYPE_STRING:
+      case CppObjectValue.TYPE_OTHER:
+        return value.stringValue != null ? value.stringValue : fallbackString;
+      case CppObjectValue.TYPE_LONG:
+        return Long.toString(value.longValue);
+      case CppObjectValue.TYPE_DOUBLE:
+        return Double.toString(value.doubleValue);
+      case CppObjectValue.TYPE_BOOLEAN:
+        return Boolean.toString(value.booleanValue);
+      default:
+        return fallbackString;
+    }
+  }
+
+  private static @Nullable CharSequence resolveMetadataText(
+      @Nullable String token, @Nullable CppObjectValue value, @Nullable String fallbackString) {
+    Object resolved = CppOpaqueObjectRegistry.resolve(token);
+    return resolved instanceof CharSequence
+        ? (CharSequence) resolved
+        : (resolved != null ? resolved.toString() : toJavaCharSequenceValue(value, fallbackString));
   }
 
   static MediaItem toMediaItem(CppMediaItem mediaItem) {
@@ -120,7 +334,10 @@ final class CppBridgeConverters {
     }
     if (mediaItem.tagPresent) {
       Object resolvedTag = CppOpaqueObjectRegistry.resolve(mediaItem.tagToken);
-      builder.setTag(resolvedTag != null ? resolvedTag : mediaItem.tagString != null ? mediaItem.tagString : "");
+      builder.setTag(
+          resolvedTag != null
+              ? resolvedTag
+              : toJavaObjectValue(mediaItem.tagValue, mediaItem.tagString));
     }
     if (mediaItem.mediaMetadata != null) {
       builder.setMediaMetadata(toMediaMetadata(mediaItem.mediaMetadata));
@@ -133,19 +350,27 @@ final class CppBridgeConverters {
       if (mediaItem.requestMetadata.searchQuery != null) {
         requestMetadataBuilder.setSearchQuery(mediaItem.requestMetadata.searchQuery);
       }
-      if (mediaItem.requestMetadata.extrasPresent) {
+      if (mediaItem.requestMetadata.extrasPresent
+          || mediaItem.requestMetadata.extrasValues.length > 0) {
         Object resolvedExtras = CppOpaqueObjectRegistry.resolve(mediaItem.requestMetadata.extrasToken);
         requestMetadataBuilder.setExtras(
-            resolvedExtras instanceof Bundle ? (Bundle) resolvedExtras : new Bundle());
+            resolvedExtras instanceof Bundle
+                ? (Bundle) resolvedExtras
+                : toBundle(mediaItem.requestMetadata.extrasValues));
       }
       builder.setRequestMetadata(requestMetadataBuilder.build());
     }
     if (mediaItem.adsConfiguration != null && mediaItem.adsConfiguration.adTagUri != null) {
       MediaItem.AdsConfiguration.Builder adsBuilder =
           new MediaItem.AdsConfiguration.Builder(Uri.parse(mediaItem.adsConfiguration.adTagUri));
-      if (mediaItem.adsConfiguration.adsId != null) {
+      if (mediaItem.adsConfiguration.adsId != null
+          || mediaItem.adsConfiguration.adsIdValue.present) {
         Object resolvedAdsId = CppOpaqueObjectRegistry.resolve(mediaItem.adsConfiguration.adsIdToken);
-        adsBuilder.setAdsId(resolvedAdsId != null ? resolvedAdsId : mediaItem.adsConfiguration.adsId);
+        adsBuilder.setAdsId(
+            resolvedAdsId != null
+                ? resolvedAdsId
+                : toJavaObjectValue(
+                    mediaItem.adsConfiguration.adsIdValue, mediaItem.adsConfiguration.adsId));
       }
       builder.setAdsConfiguration(adsBuilder.build());
     }
@@ -353,7 +578,8 @@ final class CppBridgeConverters {
           new CppAdsConfiguration(
               ads.adTagUri.toString(),
               ads.adsId != null ? ads.adsId.toString() : null,
-              ads.adsId != null ? CppOpaqueObjectRegistry.register(ads.adsId) : null);
+              ads.adsId != null ? CppOpaqueObjectRegistry.register(ads.adsId) : null,
+              toCppObjectValue(ads.adsId));
     }
 
     CppRequestMetadata requestMetadata = null;
@@ -370,20 +596,19 @@ final class CppBridgeConverters {
               mediaItem.requestMetadata.extras != null ? mediaItem.requestMetadata.extras.size() : 0,
               mediaItem.requestMetadata.extras != null
                   ? CppOpaqueObjectRegistry.register(mediaItem.requestMetadata.extras)
-                  : null);
+                  : null,
+              toCppBundleValues(mediaItem.requestMetadata.extras));
     }
 
-    int inferredSourceTypeFromMimeType = inferSourceTypeFromMimeType(mimeType);
     return new CppMediaItem(
         uri,
         mediaItem.mediaId,
         mimeType,
-        inferredSourceTypeFromMimeType != 0
-            ? inferredSourceTypeFromMimeType
-            : inferSourceTypeFromUri(uri),
+        inferSourceType(uri, mimeType),
         tagPresent,
         tagString,
         tagToken,
+        toCppObjectValue(localConfiguration != null ? localConfiguration.tag : null),
         fromMediaMetadata(mediaItem.mediaMetadata),
         requestMetadata,
         adsConfiguration,
@@ -395,49 +620,24 @@ final class CppBridgeConverters {
 
   static MediaMetadata toMediaMetadata(CppMediaMetadata metadata) {
     MediaMetadata.Builder builder = new MediaMetadata.Builder();
-    Object resolvedTitle = CppOpaqueObjectRegistry.resolve(metadata.titleToken);
     builder.setTitle(
-        resolvedTitle instanceof CharSequence
-            ? (CharSequence) resolvedTitle
-            : (resolvedTitle != null ? resolvedTitle.toString() : metadata.title));
-    Object resolvedArtist = CppOpaqueObjectRegistry.resolve(metadata.artistToken);
+        resolveMetadataText(metadata.titleToken, metadata.titleValue, metadata.title));
     builder.setArtist(
-        resolvedArtist instanceof CharSequence
-            ? (CharSequence) resolvedArtist
-            : (resolvedArtist != null ? resolvedArtist.toString() : metadata.artist));
-    Object resolvedAlbumTitle = CppOpaqueObjectRegistry.resolve(metadata.albumTitleToken);
+        resolveMetadataText(metadata.artistToken, metadata.artistValue, metadata.artist));
     builder.setAlbumTitle(
-        resolvedAlbumTitle instanceof CharSequence
-            ? (CharSequence) resolvedAlbumTitle
-            : (resolvedAlbumTitle != null
-                ? resolvedAlbumTitle.toString()
-                : metadata.albumTitle));
-    Object resolvedAlbumArtist = CppOpaqueObjectRegistry.resolve(metadata.albumArtistToken);
+        resolveMetadataText(
+            metadata.albumTitleToken, metadata.albumTitleValue, metadata.albumTitle));
     builder.setAlbumArtist(
-        resolvedAlbumArtist instanceof CharSequence
-            ? (CharSequence) resolvedAlbumArtist
-            : (resolvedAlbumArtist != null
-                ? resolvedAlbumArtist.toString()
-                : metadata.albumArtist));
-    Object resolvedDisplayTitle = CppOpaqueObjectRegistry.resolve(metadata.displayTitleToken);
+        resolveMetadataText(
+            metadata.albumArtistToken, metadata.albumArtistValue, metadata.albumArtist));
     builder.setDisplayTitle(
-        resolvedDisplayTitle instanceof CharSequence
-            ? (CharSequence) resolvedDisplayTitle
-            : (resolvedDisplayTitle != null
-                ? resolvedDisplayTitle.toString()
-                : metadata.displayTitle));
-    Object resolvedSubtitle = CppOpaqueObjectRegistry.resolve(metadata.subtitleToken);
+        resolveMetadataText(
+            metadata.displayTitleToken, metadata.displayTitleValue, metadata.displayTitle));
     builder.setSubtitle(
-        resolvedSubtitle instanceof CharSequence
-            ? (CharSequence) resolvedSubtitle
-            : (resolvedSubtitle != null ? resolvedSubtitle.toString() : metadata.subtitle));
-    Object resolvedDescription = CppOpaqueObjectRegistry.resolve(metadata.descriptionToken);
+        resolveMetadataText(metadata.subtitleToken, metadata.subtitleValue, metadata.subtitle));
     builder.setDescription(
-        resolvedDescription instanceof CharSequence
-            ? (CharSequence) resolvedDescription
-            : (resolvedDescription != null
-                ? resolvedDescription.toString()
-                : metadata.description));
+        resolveMetadataText(
+            metadata.descriptionToken, metadata.descriptionValue, metadata.description));
     if (metadata.artworkUri != null) {
       builder.setArtworkUri(Uri.parse(metadata.artworkUri));
     }
@@ -482,55 +682,35 @@ final class CppBridgeConverters {
     if (metadata.releaseDay >= 0) {
       builder.setReleaseDay(metadata.releaseDay);
     }
-    Object resolvedWriter = CppOpaqueObjectRegistry.resolve(metadata.writerToken);
     builder.setWriter(
-        resolvedWriter instanceof CharSequence
-            ? (CharSequence) resolvedWriter
-            : (resolvedWriter != null ? resolvedWriter.toString() : metadata.writer));
-    Object resolvedAuthor = CppOpaqueObjectRegistry.resolve(metadata.authorToken);
+        resolveMetadataText(metadata.writerToken, metadata.writerValue, metadata.writer));
     builder.setAuthor(
-        resolvedAuthor instanceof CharSequence
-            ? (CharSequence) resolvedAuthor
-            : (resolvedAuthor != null ? resolvedAuthor.toString() : metadata.author));
-    Object resolvedComposer = CppOpaqueObjectRegistry.resolve(metadata.composerToken);
+        resolveMetadataText(metadata.authorToken, metadata.authorValue, metadata.author));
     builder.setComposer(
-        resolvedComposer instanceof CharSequence
-            ? (CharSequence) resolvedComposer
-            : (resolvedComposer != null ? resolvedComposer.toString() : metadata.composer));
-    Object resolvedConductor = CppOpaqueObjectRegistry.resolve(metadata.conductorToken);
+        resolveMetadataText(metadata.composerToken, metadata.composerValue, metadata.composer));
     builder.setConductor(
-        resolvedConductor instanceof CharSequence
-            ? (CharSequence) resolvedConductor
-            : (resolvedConductor != null ? resolvedConductor.toString() : metadata.conductor));
+        resolveMetadataText(
+            metadata.conductorToken, metadata.conductorValue, metadata.conductor));
     if (metadata.discNumber >= 0) {
       builder.setDiscNumber(metadata.discNumber);
     }
     if (metadata.totalDiscCount >= 0) {
       builder.setTotalDiscCount(metadata.totalDiscCount);
     }
-    Object resolvedGenre = CppOpaqueObjectRegistry.resolve(metadata.genreToken);
     builder.setGenre(
-        resolvedGenre instanceof CharSequence
-            ? (CharSequence) resolvedGenre
-            : (resolvedGenre != null ? resolvedGenre.toString() : metadata.genre));
-    Object resolvedCompilation = CppOpaqueObjectRegistry.resolve(metadata.compilationToken);
+        resolveMetadataText(metadata.genreToken, metadata.genreValue, metadata.genre));
     builder.setCompilation(
-        resolvedCompilation instanceof CharSequence
-            ? (CharSequence) resolvedCompilation
-            : (resolvedCompilation != null
-                ? resolvedCompilation.toString()
-                : metadata.compilation));
+        resolveMetadataText(
+            metadata.compilationToken, metadata.compilationValue, metadata.compilation));
     if (metadata.mediaType >= 0) {
       builder.setMediaType(metadata.mediaType);
     }
-    Object resolvedStation = CppOpaqueObjectRegistry.resolve(metadata.stationToken);
     builder.setStation(
-        resolvedStation instanceof CharSequence
-            ? (CharSequence) resolvedStation
-            : (resolvedStation != null ? resolvedStation.toString() : metadata.station));
-    if (metadata.extrasPresent) {
+        resolveMetadataText(metadata.stationToken, metadata.stationValue, metadata.station));
+    if (metadata.extrasPresent || metadata.extrasValues.length > 0) {
       Object resolvedExtras = CppOpaqueObjectRegistry.resolve(metadata.extrasToken);
-      builder.setExtras(resolvedExtras instanceof Bundle ? (Bundle) resolvedExtras : new Bundle());
+      builder.setExtras(
+          resolvedExtras instanceof Bundle ? (Bundle) resolvedExtras : toBundle(metadata.extrasValues));
     }
     return builder.build();
   }
@@ -637,7 +817,22 @@ final class CppBridgeConverters {
         metadata.station != null ? CppOpaqueObjectRegistry.register(metadata.station) : null,
         metadata.extras != null,
         metadata.extras != null ? metadata.extras.size() : 0,
-        metadata.extras != null ? CppOpaqueObjectRegistry.register(metadata.extras) : null);
+        metadata.extras != null ? CppOpaqueObjectRegistry.register(metadata.extras) : null,
+        toCppBundleValues(metadata.extras),
+        toCppObjectValue(metadata.title),
+        toCppObjectValue(metadata.artist),
+        toCppObjectValue(metadata.albumTitle),
+        toCppObjectValue(metadata.albumArtist),
+        toCppObjectValue(metadata.displayTitle),
+        toCppObjectValue(metadata.subtitle),
+        toCppObjectValue(metadata.description),
+        toCppObjectValue(metadata.writer),
+        toCppObjectValue(metadata.author),
+        toCppObjectValue(metadata.composer),
+        toCppObjectValue(metadata.conductor),
+        toCppObjectValue(metadata.genre),
+        toCppObjectValue(metadata.compilation),
+        toCppObjectValue(metadata.station));
   }
 
   static CppCue fromCue(Cue cue) {
@@ -791,6 +986,7 @@ final class CppBridgeConverters {
       CppTrackInfo[] trackInfos = new CppTrackInfo[group.length];
       for (int j = 0; j < group.length; j++) {
         androidx.media3.common.Format format = group.getTrackFormat(j);
+        @Nullable DrmInitData drmInitData = format.drmInitData;
         trackInfos[j] =
             new CppTrackInfo(
                 format.id,
@@ -801,18 +997,63 @@ final class CppBridgeConverters {
                 format.containerMimeType,
                 format.codecs,
                 format.bitrate,
+                format.averageBitrate,
+                format.peakBitrate,
+                format.metadata != null ? format.metadata.length() : 0,
+                format.maxInputSize,
+                format.maxNumReorderSamples,
+                format.initializationData.size(),
+                getInitializationDataTotalBytes(format.initializationData),
+                drmInitData != null ? drmInitData.schemeDataCount : 0,
+                format.subsampleOffsetUs,
+                format.hasPrerollSamples,
                 format.width,
                 format.height,
+                format.decodedWidth,
+                format.decodedHeight,
                 format.frameRate,
+                format.rotationDegrees,
+                format.pixelWidthHeightRatio,
+                format.projectionData != null ? format.projectionData.length : 0,
+                format.stereoMode,
+                format.colorInfo != null ? format.colorInfo.colorSpace : Format.NO_VALUE,
+                format.colorInfo != null ? format.colorInfo.colorRange : Format.NO_VALUE,
+                format.colorInfo != null ? format.colorInfo.colorTransfer : Format.NO_VALUE,
+                format.maxSubLayers,
                 format.sampleRate,
                 format.channelCount,
+                format.pcmEncoding,
+                format.encoderDelay,
+                format.encoderPadding,
                 format.accessibilityChannel,
+                format.cueReplacementBehavior,
+                format.tileCountHorizontal,
+                format.tileCountVertical,
+                format.cryptoType,
                 format.roleFlags,
                 format.selectionFlags,
                 group.getTrackSupport(j),
                 group.isTrackSelected(j),
                 group.isTrackSupported(j, true),
-                group.isTrackSupported(j));
+                group.isTrackSupported(j),
+                format.metadata != null ? CppOpaqueObjectRegistry.register(format.metadata) : null,
+                getLabelLanguages(format.labels),
+                getLabelValues(format.labels),
+                format.customData != null ? CppOpaqueObjectRegistry.register(format.customData) : null,
+                copyByteArrays(format.initializationData),
+                drmInitData != null ? drmInitData.schemeType : null,
+                getDrmSchemeUuids(drmInitData),
+                getDrmSchemeLicenseServerUrls(drmInitData),
+                getDrmSchemeMimeTypes(drmInitData),
+                getDrmSchemeData(drmInitData),
+                format.colorInfo != null && format.colorInfo.hdrStaticInfo != null
+                    ? format.colorInfo.hdrStaticInfo.clone()
+                    : null,
+                format.colorInfo != null ? format.colorInfo.lumaBitdepth : Format.NO_VALUE,
+                format.colorInfo != null ? format.colorInfo.chromaBitdepth : Format.NO_VALUE,
+                format.projectionData != null ? format.projectionData.clone() : null,
+                format.auxiliaryTrackType,
+                getDrmSchemeDataHasData(drmInitData));
       }
       result[i] =
           new CppTrackGroup(
@@ -826,6 +1067,95 @@ final class CppBridgeConverters {
               trackInfos);
     }
     return result;
+  }
+
+  private static int getInitializationDataTotalBytes(List<byte[]> initializationData) {
+    int totalBytes = 0;
+    for (byte[] data : initializationData) {
+      totalBytes += data.length;
+    }
+    return totalBytes;
+  }
+
+  private static String[] getLabelLanguages(List<Label> labels) {
+    String[] languages = new String[labels.size()];
+    for (int i = 0; i < labels.size(); i++) {
+      languages[i] = labels.get(i).language != null ? labels.get(i).language : "";
+    }
+    return languages;
+  }
+
+  private static String[] getLabelValues(List<Label> labels) {
+    String[] values = new String[labels.size()];
+    for (int i = 0; i < labels.size(); i++) {
+      values[i] = labels.get(i).value;
+    }
+    return values;
+  }
+
+  private static byte[][] copyByteArrays(List<byte[]> values) {
+    byte[][] result = new byte[values.size()][];
+    for (int i = 0; i < values.size(); i++) {
+      result[i] = values.get(i).clone();
+    }
+    return result;
+  }
+
+  private static String[] getDrmSchemeUuids(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new String[0];
+    }
+    String[] uuids = new String[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      uuids[i] = drmInitData.get(i).uuid.toString();
+    }
+    return uuids;
+  }
+
+  private static String[] getDrmSchemeLicenseServerUrls(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new String[0];
+    }
+    String[] licenseServerUrls = new String[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      @Nullable String licenseServerUrl = drmInitData.get(i).licenseServerUrl;
+      licenseServerUrls[i] = licenseServerUrl != null ? licenseServerUrl : "";
+    }
+    return licenseServerUrls;
+  }
+
+  private static String[] getDrmSchemeMimeTypes(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new String[0];
+    }
+    String[] mimeTypes = new String[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      mimeTypes[i] = drmInitData.get(i).mimeType;
+    }
+    return mimeTypes;
+  }
+
+  private static byte[][] getDrmSchemeData(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new byte[0][];
+    }
+    byte[][] data = new byte[drmInitData.schemeDataCount][];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      @Nullable byte[] schemeData = drmInitData.get(i).data;
+      data[i] = schemeData != null ? schemeData.clone() : new byte[0];
+    }
+    return data;
+  }
+
+  private static int[] getDrmSchemeDataHasData(@Nullable DrmInitData drmInitData) {
+    if (drmInitData == null) {
+      return new int[0];
+    }
+    int[] hasData = new int[drmInitData.schemeDataCount];
+    for (int i = 0; i < drmInitData.schemeDataCount; i++) {
+      hasData[i] = drmInitData.get(i).hasData() ? 1 : 0;
+    }
+    return hasData;
   }
 
   static CppTracks toCppTracks(Tracks tracks) {

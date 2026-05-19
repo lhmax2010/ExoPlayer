@@ -69,6 +69,11 @@ class ScopedEnv {
 };
 
 jintArray CreateJavaIntArray(JNIEnv* env, const std::vector<int>& values);
+jbyteArray CreateJavaByteArray(JNIEnv* env, const std::vector<uint8_t>& values);
+jobjectArray CreateJavaByteArrayArray(
+    JNIEnv* env,
+    const std::vector<std::vector<uint8_t>>& values);
+jfloatArray CreateJavaFloatArray(JNIEnv* env, const std::vector<float>& values);
 jobjectArray CreateJavaStringArray(JNIEnv* env, const std::vector<std::string>& values);
 jobjectArray CreateJavaVideoEffectArray(
     JNIEnv* env,
@@ -81,6 +86,9 @@ jobject CreateJavaMediaMetadata(JNIEnv* env, const MediaMetadataSnapshot& metada
 jobjectArray CreateJavaCueArray(JNIEnv* env, const CueSnapshot& cues);
 jobject CreateJavaTracks(JNIEnv* env, const TracksSnapshot& tracks);
 std::vector<std::string> JStringArrayToVector(JNIEnv* env, jobjectArray values);
+std::vector<uint8_t> JByteArrayToVector(JNIEnv* env, jbyteArray values);
+std::vector<std::vector<uint8_t>> JByteArrayArrayToVector(JNIEnv* env, jobjectArray values);
+std::vector<float> JFloatArrayToVector(JNIEnv* env, jfloatArray values);
 std::vector<MediaItemDescriptor> JStringArrayToMediaItems(JNIEnv* env, jobjectArray urls);
 AudioAttributesDescriptor FromJavaAudioAttributes(JNIEnv* env, jintArray values);
 MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object);
@@ -96,9 +104,14 @@ MediaMetadataSnapshot FromJavaMediaMetadata(JNIEnv* env, jobject object);
 SeekParametersDescriptor FromJavaSeekParameters(JNIEnv* env, jobject object);
 PlaybackParametersSnapshot FromJavaPlaybackParameters(JNIEnv* env, jobject object);
 ApplicationLooperDescriptor FromJavaApplicationLooper(JNIEnv* env, jobject object);
+CodecParametersDescriptor FromJavaCodecParameterArray(JNIEnv* env, jobjectArray values);
 int ParseIntOrDefault(const std::string& value, int fallback);
 int64_t ParseLongOrDefault(const std::string& value, int64_t fallback);
 float ParseFloatOrDefault(const std::string& value, float fallback);
+double ParseDoubleOrDefault(const std::string& value, double fallback);
+ObjectValueInfo ParseObjectValueInfo(
+    const std::vector<std::string>& fields,
+    size_t field_offset);
 std::vector<std::string> SplitString(const std::string& value, char delimiter);
 PlaybackState ToPlaybackState(int state);
 PlaybackSuppressionReason ToPlaybackSuppressionReason(int reason);
@@ -111,6 +124,7 @@ void UnregisterDemoPlayer(ExoPlayerSdkPlayer* player);
 void BridgeOnPlaybackStateChanged(jlong native_handle, int playback_state);
 void BridgeOnPlayWhenReadyChanged(jlong native_handle, bool play_when_ready, int reason);
 void BridgeOnIsPlayingChanged(jlong native_handle, bool is_playing);
+void BridgeOnIsLoadingChanged(jlong native_handle, bool is_loading);
 void BridgeOnMediaItemTransition(jlong native_handle, int media_item_index, int reason);
 void BridgeOnPlayerError(JNIEnv* env, jlong native_handle, int error_code, jstring message);
 void BridgeOnPlayerErrorChanged(JNIEnv* env, jlong native_handle, int error_code, jstring message);
@@ -226,6 +240,13 @@ void BridgeOnVolumeChanged(
 void BridgeOnAudioSessionIdChanged(
     jlong native_handle,
     int audio_session_id);
+void BridgeOnAnalyticsAudioAttributesChanged(
+    jlong native_handle,
+    int content_type,
+    int usage,
+    int flags,
+    int allowed_capture_policy,
+    int spatialization_behavior);
 void BridgeOnAnalyticsSkipSilenceEnabledChanged(
     jlong native_handle,
     bool skip_silence_enabled);
@@ -342,6 +363,196 @@ void BridgeOnVideoInputFormatChanged(
     int width,
     int height,
     float frame_rate);
+void BridgeOnAnalyticsPlayerStateChanged(
+    jlong native_handle,
+    bool play_when_ready,
+    int playback_state);
+void BridgeOnAnalyticsLoadingChanged(
+    jlong native_handle,
+    bool is_loading);
+void BridgeOnAnalyticsTrackSelectionParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobject parameters);
+void BridgeOnAnalyticsLoadCanceled(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring uri,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    int64_t media_start_time_ms,
+    int64_t media_end_time_ms);
+void BridgeOnAnalyticsDownstreamFormatChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    int64_t media_start_time_ms,
+    int64_t media_end_time_ms);
+void BridgeOnAnalyticsUpstreamDiscarded(
+    JNIEnv* env,
+    jlong native_handle,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    int64_t media_start_time_ms,
+    int64_t media_end_time_ms);
+void BridgeOnAnalyticsAudioEnabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us);
+void BridgeOnAnalyticsAudioDisabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us);
+void BridgeOnAnalyticsAudioSinkError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message);
+void BridgeOnAnalyticsAudioCodecError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message);
+void BridgeOnAnalyticsAudioTrackInitialized(
+    jlong native_handle,
+    jint encoding,
+    jint sample_rate,
+    jint channel_config,
+    bool tunneling,
+    bool offload,
+    jint buffer_size);
+void BridgeOnAnalyticsAudioTrackReleased(
+    jlong native_handle,
+    jint encoding,
+    jint sample_rate,
+    jint channel_config,
+    bool tunneling,
+    bool offload,
+    jint buffer_size);
+void BridgeOnAnalyticsVideoEnabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us);
+void BridgeOnAnalyticsVideoDisabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us);
+void BridgeOnAnalyticsVideoCodecError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message);
+void BridgeOnAnalyticsSurfaceSizeChanged(
+    jlong native_handle,
+    jint width,
+    jint height);
+void BridgeOnAnalyticsDrmSessionAcquired(
+    jlong native_handle,
+    bool has_state,
+    jint state);
+void BridgeOnAnalyticsDrmKeysLoaded(
+    jlong native_handle,
+    bool has_key_request_info,
+    jint load_info_count,
+    jint scheme_data_count);
+void BridgeOnAnalyticsDrmSessionManagerError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message);
+void BridgeOnAnalyticsDrmKeysRestored(jlong native_handle);
+void BridgeOnAnalyticsDrmKeysRemoved(jlong native_handle);
+void BridgeOnAnalyticsDrmSessionReleased(jlong native_handle);
+void BridgeOnAnalyticsRendererReadyChanged(
+    jlong native_handle,
+    jint renderer_index,
+    jint renderer_track_type,
+    bool is_renderer_ready);
+void BridgeOnAnalyticsDroppedSeeksWhileScrubbing(
+    jlong native_handle,
+    jint dropped_seeks);
+void BridgeOnAnalyticsPlayerReleased(jlong native_handle);
+void BridgeOnAudioCodecParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobjectArray codec_parameters);
+void BridgeOnVideoCodecParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobjectArray codec_parameters);
+void BridgeOnVideoFrameAboutToBeRendered(
+    JNIEnv* env,
+    jlong native_handle,
+    int64_t presentation_time_us,
+    int64_t release_time_ns,
+    jstring format_id,
+    jstring sample_mime_type,
+    jstring codecs,
+    int width,
+    int height,
+    float frame_rate,
+    jstring format_label,
+    jstring format_language,
+    jstring format_container_mime_type,
+    int format_bitrate,
+    int format_average_bitrate,
+    int format_peak_bitrate,
+    int format_rotation_degrees,
+    float format_pixel_width_height_ratio,
+    int format_color_standard,
+    int format_color_range,
+    int format_color_transfer,
+    int format_channel_count,
+    int format_sample_rate,
+    int format_role_flags,
+    int format_selection_flags,
+    bool media_format_present,
+    jstring media_format_summary,
+    jstring media_format_mime_type,
+    int media_format_width,
+    int media_format_height,
+    float media_format_frame_rate,
+    int media_format_rotation_degrees,
+    int media_format_color_standard,
+    int media_format_color_range,
+    int media_format_color_transfer);
+void BridgeOnCameraMotion(
+    JNIEnv* env,
+    jlong native_handle,
+    int64_t time_us,
+    jfloatArray rotation);
+void BridgeOnCameraMotionReset(jlong native_handle);
 void BridgeOnImageOutputAvailable(
     JNIEnv* env,
     jlong native_handle,
@@ -371,4 +582,3 @@ std::string BridgeSummarizeVideoEffectsForTest(
 }  // namespace androidx::media3::cppbridge::internal
 
 #endif  // ANDROIDX_MEDIA3_EXOPLAYER_CPPBRIDGE_JNI_INTERNAL_H_
-

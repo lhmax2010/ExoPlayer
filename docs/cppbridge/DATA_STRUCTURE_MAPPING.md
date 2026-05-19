@@ -1,6 +1,6 @@
 # Data Structure Mapping
 
-Last updated: 2026-03-19
+Last updated: 2026-05-19
 
 This document tracks the reduced-model mapping for value objects used by the bridge. Each entry
 includes its development status and the smoke test that currently validates it.
@@ -34,6 +34,11 @@ Reading rule:
 | cues | `CppCue.java` | `CppExoPlayerBridge.java`: `getCurrentCues` and cue callbacks | `include/exoplayer_bridge.h`: `CueSnapshot` | `exoplayer_cppbridge_jni_common.cpp`: `CreateJavaCueArray`, `FromJavaCues` | current cues query, listener callbacks, analytics cues |
 | seek parameters | `CppSeekParameters.java` | `CppBridgeConverters.java`: `toSeekParameters`, `fromSeekParameters`; `CppExoPlayerBridge.java`: `setSeekParameters`, `getSeekParameters` | `include/exoplayer_bridge.h`: `SeekParametersDescriptor` | `exoplayer_cppbridge_jni_common.cpp`: `FromJavaSeekParameters` | `exoplayer_cppbridge_jni_bridge.cpp`: set/get seek parameters |
 | audio attributes | Java uses `int[]` transport from `CppExoPlayerBridge.java`: `getAudioAttributesConfig` / `setAudioAttributesConfig` | `CppExoPlayerBridge.java`: audio config getters/setters | `include/exoplayer_bridge.h`: `AudioAttributesDescriptor` | `exoplayer_cppbridge_jni_common.cpp`: `FromJavaAudioAttributes` | audio attribute query and setter flow |
+| aux effect info | no Java DTO file; scalar runtime transport | `CppExoPlayerBridge.java`: `setAuxEffectInfoConfig`, `clearAuxEffectInfo` | `include/exoplayer_bridge.h`: `AuxEffectInfoDescriptor` | direct scalar JNI call | `SetAuxEffectInfo`, `ClearAuxEffectInfo` |
+| scrubbing mode parameters | no Java DTO file; Java returns string rows for getter | `CppExoPlayerBridge.java`: `setScrubbingModeParametersConfig`, `getScrubbingModeParametersConfig` | `include/exoplayer_bridge.h`: `ScrubbingModeParametersDescriptor` | bridge-side string parsing in `exoplayer_cppbridge_jni_bridge.cpp` | `SetScrubbingModeParameters`, `GetScrubbingModeParameters` |
+| codec parameters | `CppCodecParameter.java` | `CppExoPlayerBridge.java`: `setAudioCodecParametersConfig`, `setVideoCodecParametersConfig`, `toCodecParameters`, `fromCodecParameters` | `include/exoplayer_bridge.h`: `CodecParameterDescriptor`, `CodecParametersDescriptor` | `exoplayer_cppbridge_jni_bridge.cpp`: `CreateJavaCodecParameterArray`; `exoplayer_cppbridge_jni_common.cpp`: `CreateJavaByteArray`, `FromJavaCodecParameterArray` | setters plus `CodecParametersChangeListener` callback paths |
+| video frame metadata callback | no standalone Java DTO; Java forwards `Format` and `MediaFormat` fields from `VideoFrameMetadataListener` | `CppExoPlayerBridge.java`: `setNativeVideoFrameMetadataListener`, `nativeOnVideoFrameAboutToBeRendered` | `include/exoplayer_bridge.h`: `VideoFrameMetadataSnapshot` | scalar JNI callback fields plus reduced format/media-format assembly | `SetVideoFrameMetadataListener` and `SimulateVideoFrameAboutToBeRenderedForTest` |
+| camera motion callback | no standalone Java DTO; Java forwards `CameraMotionListener` values | `CppExoPlayerBridge.java`: `setNativeCameraMotionListener`, `nativeOnCameraMotion`, `nativeOnCameraMotionReset` | `include/exoplayer_bridge.h`: `CameraMotionSnapshot` | `exoplayer_cppbridge_jni_common.cpp`: `CreateJavaFloatArray`, `JFloatArrayToVector` | `SetCameraMotionListener` and camera-motion/reset simulation paths |
 | device info | `CppDeviceInfo.java` | `CppExoPlayerBridge.java`: `getDeviceInfo` | `include/exoplayer_bridge.h`: `DeviceInfoDescriptor` | `exoplayer_cppbridge_jni_common.cpp`: `FromJavaDeviceInfo` | device info query, listener callbacks, analytics device-info changed |
 | video size | `CppVideoSize.java` | `CppExoPlayerBridge.java`: `getVideoSize` | `include/exoplayer_bridge.h`: `VideoSizeSnapshot` | `exoplayer_cppbridge_jni_common.cpp`: `FromJavaVideoSize` | video size query, listener callbacks, analytics video-size changed |
 | playback parameters | `CppPlaybackParameters.java` | `CppExoPlayerBridge.java`: playback-parameters getter/callback path | `include/exoplayer_bridge.h`: `PlaybackParametersSnapshot` | `exoplayer_cppbridge_jni_common.cpp`: `FromJavaPlaybackParameters` | current playback query and playback-parameters listener/analytics paths |
@@ -59,6 +64,11 @@ entrypoints on both sides of the bridge.
 | cue | `class CppCue` | no dedicated converter method; runtime uses cue arrays directly | `struct CueSnapshot` | `CreateJavaCueArray(` / `FromJavaCues(` | `getCurrentCues(` / `nativeOnCues` / `nativeOnAnalyticsCues` |
 | seek parameters | `class CppSeekParameters` | `toSeekParameters(` / `fromSeekParameters(` | `struct SeekParametersDescriptor` | `FromJavaSeekParameters(` | `setSeekParameters(` / `getSeekParameters(` |
 | audio attributes | no `CppAudioAttributes`; Java transport is `int[]` | no converter class; runtime uses `getAudioAttributesConfig(` / `setAudioAttributesConfig(` | `struct AudioAttributesDescriptor` | `FromJavaAudioAttributes(` | `GetAudioAttributes(` / `SetAudioAttributes(` |
+| aux effect info | no Java DTO class | no converter class; runtime uses scalar setter | `struct AuxEffectInfoDescriptor` | direct scalar JNI call | `SetAuxEffectInfo(` / `ClearAuxEffectInfo(` |
+| scrubbing mode parameters | no Java DTO class | runtime uses `getScrubbingModeParametersConfig(` string rows | `struct ScrubbingModeParametersDescriptor` | bridge-side string parsing | `SetScrubbingModeParameters(` / `GetScrubbingModeParameters(` |
+| codec parameters | `class CppCodecParameter` | `toCodecParameters(` / `fromCodecParameters(` | `struct CodecParameterDescriptor` / `struct CodecParametersDescriptor` | `CreateJavaCodecParameterArray(` / `FromJavaCodecParameterArray(` | `SetAudioCodecParameters(` / `SetVideoCodecParameters(` / codec-parameter listener callbacks |
+| video frame metadata callback | no Java DTO class | `setNativeVideoFrameMetadataListener(` | `struct VideoFrameMetadataSnapshot` | scalar JNI callback conversion | `nativeOnVideoFrameAboutToBeRendered` / `SetVideoFrameMetadataListener(` |
+| camera motion callback | no Java DTO class | `setNativeCameraMotionListener(` | `struct CameraMotionSnapshot` | `CreateJavaFloatArray(` / `JFloatArrayToVector(` | `nativeOnCameraMotion` / `nativeOnCameraMotionReset` / `SetCameraMotionListener(` |
 | device info | `class CppDeviceInfo` | no converter class; runtime returns DTO directly | `struct DeviceInfoDescriptor` | `FromJavaDeviceInfo(` | `getDeviceInfo(` / `nativeOnDeviceInfoChanged` / `nativeOnAnalyticsDeviceInfoChanged` |
 | video size | `class CppVideoSize` | no converter class; runtime returns DTO directly | `struct VideoSizeSnapshot` | `FromJavaVideoSize(` | `getVideoSize(` / `nativeOnVideoSizeChanged` |
 | playback parameters | `class CppPlaybackParameters` | `fromPlaybackParameters(` and runtime playback-parameters callbacks | `struct PlaybackParametersSnapshot` | `FromJavaPlaybackParameters(` | `getPlaybackParameters(` / `nativeOnPlaybackParametersChanged` |
@@ -78,10 +88,10 @@ DTO tracker below.
 
 | Object family | Full-support status | Currently supported | Still missing |
 | --- | --- | --- | --- |
-| `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM, tag/adsId/requestMetadata opaque-token baselines | full arbitrary-object semantics and full Java object parity |
-| `Timeline` | Partial | reduced summary/window/period snapshots, uid/id/manifest token baselines, multi-window/multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` semantics |
+| `MediaItem` | Partial | reduced descriptor, subtitles/clipping/live/DRM, tag/adsId/requestMetadata opaque-token baselines, reduced `ObjectValueInfo` semantics for tag/adsId, decoded stable `requestMetadata.extras` values for strings/numbers/booleans/byte arrays | full arbitrary-object semantics and full Java object parity |
+| `Timeline` | Partial | reduced summary/window/period snapshots, uid/id/adsId/manifest token baselines, reduced `ObjectValueInfo` semantics for window `uid`/`manifest` and period `id`/`uid`/`adsId`, multi-window/multi-period smoke visibility | full Java `Timeline.Window` / `Timeline.Period` behavior, arbitrary object graph semantics, and deeper ad/playback structure parity beyond the reduced row model |
 | `Tracks` | Partial | reduced tracks/group/format snapshots, group and label token baselines, representative query/listener coverage | full `Tracks.Group` / `Format` parity and deeper second-group parity |
-| `MediaMetadata` | Partial | representative text fields, artwork, extras token baseline, query/listener/playlist smoke coverage | full Java `MediaMetadata` semantics beyond reduced snapshot |
+| `MediaMetadata` | Partial | representative text fields, reduced object-value metadata for text/`CharSequence` fields, artwork, extras token baseline, decoded stable extras values for strings/numbers/booleans/byte arrays, query/listener/playlist smoke coverage | full Java `MediaMetadata` semantics beyond reduced snapshot |
 | `Cue` | Partial | representative text, bitmap token baseline, layout/style smoke coverage, query/listener/analytics visibility | full Java `Cue` styled-text and bitmap-object parity |
 
 Field observability conventions:
@@ -96,20 +106,20 @@ Field observability conventions:
 | Java type | C++ type | Status | Preserved fields / concepts | Smoke test reference |
 | --- | --- | --- | --- | --- |
 | `ExoPlayer.Builder` config | `PlayerConfig` | Done | audio focus, noisy handling, lazy prep, seek increments, wake mode, priority, preload target | `CppBridgeNativeSmokeTest.nativeBuilderConfigSmokeTest_returnsConfiguredSnapshot`; `CppBridgeNativeSmokeTest.nativeBuilderBuildSmokeTest_buildsConfiguredPlayer`; `CppBridgeNativeSmokeTest.nativeBuilderPreloadRoundTripSmokeTest_updatesAndRestoresPreloadTarget`; `CppBridgeNativePlayerInstrumentationTest.nativePlayerConfigFlagsSmokeTest_returnsCreateTimeFlags`; `CppBridgeNativePlayerInstrumentationTest.nativePreloadRoundTripSmokeTest_updatesAndRestoresPreloadTarget`; `CppBridgeNativePlayerInstrumentationTest.nativePreloadBridgeRuntimeSmokeTest_updatesAndMatchesBridgeFlags` |
-| `DefaultMediaSourceFactory` baseline config | `PlayerConfig::MediaSourceFactoryConfig` | Done | token-registered and registry-generated-token factory selection, safe fallback-to-default behavior, replacement-registration observability, and multi-token isolation for native-create and builder-build paths, subtitle parsing, selected-track loading, headers, user agent, timeouts, redirect flag, live defaults | `CppBridgeNativeSmokeTest.nativeBuilderConfigSmokeTest_returnsConfiguredSnapshot`; `CppBridgeNativeSmokeTest.nativeBuilderBuildSmokeTest_buildsConfiguredPlayer`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryInjectionSmokeTest_buildsWithRegisteredFactoryToken`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryFallbackSmokeTest_buildsWithDefaultFactoryWhenTokenIsMissing`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryInjectionReplacementSmokeTest_usesLatestRegisteredFactory`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryInjectionMultiTokenSmokeTest_keepsTokensIsolated`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryGeneratedTokenSmokeTest_buildsWithGeneratedRegistryToken`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryConfigSmokeTest_returnsConfigSummary`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionSmokeTest_usesRegisteredFactoryToken`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionFallbackSmokeTest_fallsBackWhenTokenIsMissing`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionReplacementSmokeTest_usesLatestRegisteredFactory`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionMultiTokenSmokeTest_keepsTokensIsolated`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryGeneratedTokenSmokeTest_usesGeneratedRegistryToken` |
-| priority wrapper | `ExoPlayerSdkPriorityTaskManager` | Done | add/remove/proceed state through reduced C++ wrapper | `CppBridgeNativeSmokeTest.nativePriorityTaskManagerWrapperSmokeTest_returnsStructuredSummary`; `CppBridgeNativePlayerInstrumentationTest.nativePriorityTaskManagerSmokeTest_returnsBridgeState` |
+| `DefaultMediaSourceFactory` baseline config | `PlayerConfig::MediaSourceFactoryConfig` | Done | token-registered and registry-generated-token factory selection, safe fallback-to-default behavior, replacement-registration observability, multi-token isolation for native-create and builder-build paths, direct builder `SetMediaSourceFactoryConfig` coverage, custom factory playback for SmoothStreaming / RTSP descriptors, real HTTP playback verification for headers/user-agent config, subtitle parsing, selected-track loading, headers, user agent, timeouts, redirect flag, live defaults | `CppBridgeNativeSmokeTest.nativeBuilderConfigSmokeTest_returnsConfiguredSnapshot`; `CppBridgeNativeSmokeTest.nativeBuilderBuildSmokeTest_buildsConfiguredPlayer`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryInjectionSmokeTest_buildsWithRegisteredFactoryToken`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryFallbackSmokeTest_buildsWithDefaultFactoryWhenTokenIsMissing`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryInjectionReplacementSmokeTest_usesLatestRegisteredFactory`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryInjectionMultiTokenSmokeTest_keepsTokensIsolated`; `CppBridgeNativeSmokeTest.nativeBuilderMediaSourceFactoryGeneratedTokenSmokeTest_buildsWithGeneratedRegistryToken`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryConfigSmokeTest_returnsConfigSummary`; `CppBridgeNativePlayerInstrumentationTest.nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionSmokeTest_usesRegisteredFactoryToken`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionFallbackSmokeTest_fallsBackWhenTokenIsMissing`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionReplacementSmokeTest_usesLatestRegisteredFactory`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryInjectionMultiTokenSmokeTest_keepsTokensIsolated`; `CppBridgeNativePlayerInstrumentationTest.nativeMediaSourceFactoryGeneratedTokenSmokeTest_usesGeneratedRegistryToken`; `CppBridgeNativePlayerInstrumentationTest.nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig` |
+| priority wrapper | `ExoPlayerSdkPriorityTaskManager` | Done | add/remove/proceed state through reduced C++ wrapper plus SDK player `ClearPriorityTaskManager` path | `CppBridgeNativeSmokeTest.nativePriorityTaskManagerWrapperSmokeTest_returnsStructuredSummary`; `CppBridgeNativePlayerInstrumentationTest.nativePriorityTaskManagerSmokeTest_returnsBridgeState` |
 
 ## 2. Media And Playlist Objects
 
 | Java type | C++ type | Status | Preserved fields / concepts | Smoke test reference |
 | --- | --- | --- | --- | --- |
-| `MediaItem` | `MediaItemDescriptor` | Done | uri, media id, mime type, source type, reduced local tag observability (`tagPresent`, `tagString`) plus opaque token round-trip baseline, reduced metadata identity fields, reduced request metadata (`mediaUri`, `searchQuery`, extras-presence`) plus opaque extras token baseline, reduced ads config plus opaque `adsId` token baseline, subtitles, clipping, live, DRM | `CppBridgeNativePlayerInstrumentationTest.nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
-| `MediaItem.RequestMetadata` | `MediaItemDescriptor::RequestMetadataDescriptor` | Done | `mediaUri`, `searchQuery`, extras presence flag, extras key count, opaque extras token baseline | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
+| `MediaItem` | `MediaItemDescriptor` | Done | uri, media id, mime type, source type, reduced local tag observability (`tagPresent`, `tagString`) plus opaque token and reduced object-value metadata, reduced metadata identity fields, reduced request metadata (`mediaUri`, `searchQuery`, extras-presence/key-count/token plus decoded stable extras values), reduced ads config plus opaque `adsId` token and reduced object-value metadata, subtitles, clipping, live, DRM, source-family coverage for HTTP/HLS/DASH plus custom-factory SmoothStreaming/RTSP descriptors and data-source-config progressive playback | `CppBridgeNativePlayerInstrumentationTest.nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`; `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi`; `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig`; `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects`; `CppBridgeNativeSmokeTest.nativeMediaItemObjectValueConversionSmokeTest_roundTripsObjectMetadata` |
+| `MediaItem.RequestMetadata` | `MediaItemDescriptor::RequestMetadataDescriptor` | Done | `mediaUri`, `searchQuery`, extras presence flag, extras key count, opaque extras token baseline, decoded stable extras values (`String`, integer-like, floating-point, boolean, `byte[]`) | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
 | `MediaItem.SubtitleConfiguration` | `MediaItemDescriptor::SubtitleConfigurationDescriptor` | Done | uri, mime type, language, label, id, selection flags, role flags | `nativeSubtitleSmokeTest_returnsSubtitleSummary`; `nativeMultiSubtitleSmokeTest_returnsSubtitleAndPreferenceSummary` |
 | `MediaItem.ClippingConfiguration` | `MediaItemDescriptor::ClippingConfigurationDescriptor` | Done | start/end position, live/default/keyframe/unseekable flags | `nativeClippingSmokeTest_returnsClippingSummary` |
 | `MediaItem.LiveConfiguration` | `MediaItemDescriptor::LiveConfigurationDescriptor` | Done | target/min/max offsets, min/max speed | `nativeLiveConfigurationSmokeTest_returnsLiveSummary` |
 | `MediaItem.DrmConfiguration` | `MediaItemDescriptor::DrmConfigurationDescriptor` | Done | scheme UUID, license URI, request headers, forced session track types, key-set id, core flags | `nativeDrmSmokeTest_returnsDrmSummary` |
-| `MediaItem.AdsConfiguration` | `MediaItemDescriptor::AdsConfigurationDescriptor` | Done | `adTagUri`, string `adsId` | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds` |
+| `MediaItem.AdsConfiguration` | `MediaItemDescriptor::AdsConfigurationDescriptor` | Done | `adTagUri`, string/token `adsId` baseline, reduced `adsId` object-value metadata | `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`; `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`; `nativeMediaItemObjectValueConversionSmokeTest_roundTripsObjectMetadata` |
 
 ## 3. Playback State And Query Snapshots
 
@@ -131,7 +141,7 @@ Field observability conventions:
 | `TrackSelectionParameters` | `TrackSelectionParametersDescriptor` | Done | preferred audio/text language, arrays, role flags, viewport, max bitrate/size, text defaults, undetermined text, disabled track types, overrides | `nativeTrackSelectionRoundTripForTest_returnsUpdatedParameters` |
 | `Tracks` | `TracksSnapshot` | Done | group array plus contains/selected/supported summary by type | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary` |
 | `Tracks.Group` | `TrackGroupSnapshot` | Done | group id plus opaque token baseline, type, adaptive support, selected, supported, tracks | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
-| representative `Format` fields | `TrackInfo` | Done | id, language, label plus opaque token baseline, mime/container mime, codecs, bitrate, width/height, frame rate, sample rate, channel count, flags, support, selected | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
+| representative `Format` fields | `TrackInfo` | Done | id, language, label plus opaque token baseline, label list language/value arrays, mime/container mime, codecs, bitrate/average bitrate/peak bitrate, metadata entry count plus metadata token, custom-data token, auxiliary track type, max input/reorder size, initialization-data count/total plus byte arrays, DRM scheme type plus scheme-data uuid/license/mime/bytes/has-data, subsample offset, preroll flag, width/height, decoded width/height, frame rate, rotation, pixel width-height ratio, projection length plus bytes, stereo mode, color info plus HDR static info and luma/chroma bitdepth, max sublayers, sample rate, channel count, PCM encoding, encoder delay/padding, accessibility/cue/tile/crypto fields, flags, support, selected | `nativeCurrentTracksSmokeTest_returnsTracksSummary`; `CppBridgeNativeSmokeTest.nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`; `CppBridgeNativeSmokeTest.nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
 
 ## 5. Timeline Objects
 
@@ -139,17 +149,22 @@ Field observability conventions:
 | --- | --- | --- | --- | --- |
 | `Timeline` | `TimelineDetailsSnapshot` | Done | summary + window list + period list | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
 | timeline summary | `TimelineSnapshot` | Done | window/period count, empty, current/next/previous indices, has next/previous, current item dynamic/live/seekable | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` |
-| `Timeline.Window` | `TimelineWindowSnapshot` | Done | media item index, media item id, media item uri, media item tag presence/string plus opaque token baseline, uid plus opaque token baseline, reduced live-configuration fields, manifest presence/string plus opaque token baseline, first/last period index, start/duration/default position fields, seekable/dynamic/live/placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |
-| `Timeline.Period` | `TimelinePeriodSnapshot` | Done | id plus opaque token baseline, uid plus opaque token baseline, ads id plus opaque token baseline, window index, ad-group count, duration, position-in-window, placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
+| `Timeline.Window` | `TimelineWindowSnapshot` | Done | media item index, media item id, media item uri, media item tag presence/string plus opaque token baseline, uid plus opaque token baseline and reduced object value info, reduced live-configuration fields, manifest presence/string plus opaque token baseline and reduced object value info, first/last period index, start/duration/default position fields, seekable/dynamic/live/placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |
+| `Timeline.Period` | `TimelinePeriodSnapshot` | Done | id plus opaque token baseline and reduced object value info, uid plus opaque token baseline and reduced object value info, ads id plus opaque token baseline and reduced object value info, window index, ad-group count, duration, position-in-window, placeholder | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
 
 ## 6. Audio / Device / Video / Metadata / Cue Objects
 
 | Java type | C++ type | Status | Preserved fields / concepts | Smoke test reference |
 | --- | --- | --- | --- | --- |
 | `AudioAttributes` | `AudioAttributesDescriptor` | Done | content type, flags, usage, capture policy, spatialization behavior | `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` |
+| `AuxEffectInfo` | `AuxEffectInfoDescriptor` | Done | effect ID, send level, clear-to-default behavior | `nativeAudioAndScrubbingParitySmokeTest_updatesAdvancedRuntimeControls` |
+| `ScrubbingModeParameters` | `ScrubbingModeParametersDescriptor` | Done | min/max seek interval, seek-to-current-position delay, min/max playback speed | `nativeAudioAndScrubbingParitySmokeTest_updatesAdvancedRuntimeControls` |
+| `CodecParameters` | `CodecParametersDescriptor` / `CodecParameterDescriptor` | Done | typed key/value entries for integer, long, float, string, byte-buffer, and null values, including setter, reduced listener callback delivery, and multi-listener immediate routing | `nativeCodecParametersParitySmokeTest_setsAudioAndVideoCodecParameters`; `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks`; `nativeCodecParametersMultiListenerParitySmokeTest_routesImmediateCallbacks` |
 | `DeviceInfo` | `DeviceInfoDescriptor` | Done | playback type, min volume, max volume, routing controller id | `nativeDeviceAndSkipSilenceSmokeTest_returnsDeviceSummary` |
 | `VideoSize` | `VideoSizeSnapshot` | Done | width, height, unapplied rotation degrees, pixel ratio | `nativeVideoAndMetadataSmokeTest_returnsQuerySummary` |
-| `MediaMetadata` | `MediaMetadataSnapshot` | Done | common text metadata, representative text opaque token baseline (`title`, `artist`, `albumTitle`, `albumArtist`, `displayTitle`, `subtitle`, `description`, `writer`, `author`, `composer`, `conductor`, `genre`, `compilation`, `station`), extras presence/key-count plus opaque token baseline, artwork uri/data/type, browsable/playable/folder fields, dates, credits, disc/track counts, media type | `nativeVideoAndMetadataSmokeTest_returnsQuerySummary`; `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata`; `nativePlaylistMetadataOpaqueTokenSmokeTest_resolvesRegisteredObjects` |
+| `VideoFrameMetadataListener` callback | `VideoFrameMetadataSnapshot` | Done | presentation time, release time, representative `Format` id/mime/codecs/size/frame-rate/label/language/container MIME/bitrate/rotation/pixel-ratio/color/audio-shape/flags fields, media-format presence and summary string, plus representative `MediaFormat` mime/width/height/frame-rate/rotation/color-standard/color-range/color-transfer fields | `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` |
+| `CameraMotionListener` callback | `CameraMotionSnapshot` | Done | motion `timeUs`, rotation float vector, and reset callback delivery/removal behavior | `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` |
+| `MediaMetadata` | `MediaMetadataSnapshot` | Done | common text metadata, representative text opaque token baseline and reduced object-value metadata (`title`, `artist`, `albumTitle`, `albumArtist`, `displayTitle`, `subtitle`, `description`, `writer`, `author`, `composer`, `conductor`, `genre`, `compilation`, `station`), extras presence/key-count plus opaque token baseline and decoded stable extras values (`String`, integer-like, floating-point, boolean, `byte[]`), artwork uri/data/type, browsable/playable/folder fields, dates, credits, disc/track counts, media type | `nativeVideoAndMetadataSmokeTest_returnsQuerySummary`; `nativePlaylistMetadataSmokeTest_roundTripsPlaylistMetadata`; `nativePlaylistMetadataOpaqueTokenSmokeTest_resolvesRegisteredObjects`; `nativeMediaMetadataObjectValueConversionSmokeTest_roundTripsObjectTextFields` |
 | `CueGroup` / `Cue` | `CueSnapshot` | Done | cue count, presentation time, cue text list plus representative text opaque token baseline, cue layout/style descriptors, bitmap opaque token baseline, bitmap height, shear, z-index, window color, bitmap presence | `CppBridgeNativeSmokeTest.nativeCueSnapshotConversionSmokeTest_returnsStructuredSummary`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `nativeAnalyticsCuesSmokeTest_reportsConcreteAnalyticsEvent` |
 | analytics aggregate | `AnalyticsSnapshot` | Done | bitrate estimate, dropped frames, load started/completed counts, derived load delta, last audio/video mime, multi-update last-value overwrite semantics | `nativeAnalyticsSmokeTest_returnsAnalyticsSummary`; `nativeAnalyticsCallbackSmokeTest_reportsListenerDelivery`; `nativeAnalyticsListenerRegistrationSmokeTest_addsAndRemovesAnalyticsOnlyListener` |
 | analytics audio underrun event | `AudioUnderrunEvent` | Done | buffer size, buffer size ms, elapsed since last feed ms, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsAudioUnderrunSmokeTest_reportsConcreteAnalyticsEvent` |
@@ -168,6 +183,8 @@ Field observability conventions:
 | analytics video frame processing offset event | `VideoFrameProcessingOffsetEvent` | Done | total processing offset us, frame count, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsVideoFrameProcessingOffsetSmokeTest_reportsConcreteAnalyticsEvent` |
 | analytics volume changed event | `VolumeChangedEvent` | Done | volume, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsVolumeChangedSmokeTest_reportsConcreteAnalyticsEvent` |
 | analytics audio session id changed event | `AudioSessionIdChangedEvent` | Done | audio session id, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsAudioSessionIdChangedSmokeTest_reportsConcreteAnalyticsEvent` |
+| analytics audio attributes changed event | `AudioAttributesDescriptor` | Done | content type, usage, flags, allowed capture policy, spatialization behavior, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent` |
+| analytics Stage 4 remaining events | `AnalyticsPlayerStateChangedEvent`, `AnalyticsMediaLoadDataEvent`, `AnalyticsDecoderCountersSnapshot`, `AnalyticsExceptionEvent`, `AnalyticsAudioTrackConfigSnapshot`, DRM / renderer / scrubbing descriptors | Done | 25 additional reduced analytics callback payloads covering player-state/loading aliases, track-selection parameters, load canceled, downstream/upstream format events, decoder counters, audio/video error descriptors, audio-track config, surface size, DRM lifecycle/key counts, renderer-ready state, dropped seeks, player released, and remove-listener stop-delivery behavior | `nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents` |
 | analytics skip silence enabled changed event | `AnalyticsSkipSilenceEnabledChangedEvent` | Done | skip-silence-enabled flag, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsSkipSilenceEnabledChangedSmokeTest_reportsConcreteAnalyticsEvent` |
 | analytics device volume changed event | `AnalyticsDeviceVolumeChangedEvent` | Done | volume, muted flag, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsDeviceVolumeChangedSmokeTest_reportsConcreteAnalyticsEvent` |
 | analytics playback state changed event | `AnalyticsPlaybackStateChangedEvent` | Done | playback state, multi-update last-value overwrite semantics, remove-listener stop-delivery behavior | `nativeAnalyticsPlaybackStateChangedSmokeTest_reportsConcreteAnalyticsEvent` |
@@ -205,10 +222,24 @@ Field observability conventions:
 
 - current `Done` rows are reduced-endpoint complete, not full `api.txt` object parity
 - no full Java `MediaItem` parity
-- `MediaItem.LocalConfiguration.tag` now has presence-plus-string observability and opaque token round-trip baseline, but still not full arbitrary Java object semantics across processes or persistence boundaries
-- `MediaItem.AdsConfiguration.adsId` now has string identity plus opaque token round-trip baseline, but still not full arbitrary Java object semantics across processes or persistence boundaries
-- `MediaItem.RequestMetadata.extras` now has presence-plus-opaque-token round-trip baseline, but still not a fully decoded `Bundle` value-model parity surface in C++
+- `MediaItem.LocalConfiguration.tag` now has presence-plus-string observability, opaque token
+  round-trip baseline, and reduced `ObjectValueInfo` semantics for stable scalar values, but still
+  not full arbitrary Java object semantics across processes or persistence boundaries
+- `MediaItem.AdsConfiguration.adsId` now has string identity, opaque token round-trip baseline, and
+  reduced `ObjectValueInfo` semantics for stable scalar values, but still not full arbitrary Java
+  object semantics across processes or persistence boundaries
+- `MediaItem.RequestMetadata.extras` and `MediaMetadata.extras` now have decoded stable primitive
+  `Bundle` value transport for strings, integer-like numbers, floating-point numbers, booleans, and
+  byte arrays, plus opaque-token fallback for unsupported arbitrary Java values; this is still not
+  full arbitrary `Bundle` parity for nested objects, parcelables, serializables, or styled
+  `CharSequence` semantics.
 - no full Java `Tracks` or `Timeline` parity
+- `Timeline.Window.uid`, `Timeline.Window.manifest`, `Timeline.Period.id`,
+  `Timeline.Period.uid`, and `Timeline.Period.getAdsId()` now carry `ObjectValueInfo`
+  descriptors that distinguish null, class name, reduced value type, and stable string/number/
+  boolean payloads where applicable; arbitrary Java object behavior still falls back to
+  `String.valueOf(...)` plus the existing opaque-token identity baseline rather than full object
+  graph transfer.
 - no full `AnalyticsListener` parity
 - no full `Cue` bitmap object transfer
 - no arbitrary Java target parity for `PlayerMessage`
@@ -228,9 +259,11 @@ Directly observed by smoke:
 - `tag_present`
 - `tag_string`
 - `tag_token`
+- `tag_value`
 - `ads_configuration.ad_tag_uri`
 - `ads_configuration.ads_id`
 - `ads_configuration.ads_id_token`
+- `ads_configuration.ads_id_value`
 - `request_metadata.media_uri`
 - `request_metadata.search_query`
 - `request_metadata.extras_present`
@@ -301,6 +334,8 @@ Primary smoke evidence:
 - `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`
 - `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`
 - `nativeSourceTypeSmokeTest_returnsInferredMimeSummary`
+- `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi`
+- `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig`
 
 ### `TimelineWindowSnapshot`
 
@@ -314,6 +349,10 @@ Directly observed by smoke:
 - `media_item_tag_token`
 - `uid`
 - `uid_token`
+- `uid_value.present`
+- `uid_value.class_name`
+- `uid_value.value_type`
+- `uid_value.string_value`
 - `live_configuration_present`
 - `live_target_offset_ms`
 - `live_min_offset_ms`
@@ -323,6 +362,10 @@ Directly observed by smoke:
 - `manifest_present`
 - `manifest_string`
 - `manifest_token`
+- `manifest_value.present`
+- `manifest_value.class_name`
+- `manifest_value.value_type`
+- `manifest_value.string_value`
 - `first_period_index`
 - `last_period_index`
 - `presentation_start_time_ms`
@@ -341,7 +384,8 @@ Directly observed by smoke:
 
 Present in bridge but not directly smoke-observed:
 
-- no additional high-signal window timing fields remain completely unobserved in the current smoke set
+- numeric and boolean `ObjectValueInfo` payload fields for timeline window objects are supported by
+  the row parser but are not separately asserted by the current string/null timeline smoke data
 
 Primary smoke evidence:
 
@@ -355,10 +399,22 @@ Directly observed by smoke:
 
 - `id`
 - `id_token`
+- `id_value.present`
+- `id_value.class_name`
+- `id_value.value_type`
+- `id_value.string_value`
 - `uid`
 - `uid_token`
+- `uid_value.present`
+- `uid_value.class_name`
+- `uid_value.value_type`
+- `uid_value.string_value`
 - `ads_id`
 - `ads_id_token`
+- `ads_id_value.present`
+- `ads_id_value.class_name`
+- `ads_id_value.value_type`
+- `ads_id_value.string_value`
 - `window_index`
 - `ad_group_count`
 - `duration_ms`
@@ -369,7 +425,8 @@ Directly observed by smoke:
 
 Present in bridge but not directly smoke-observed:
 
-- no additional high-signal period timing/count fields remain completely unobserved in the current smoke set
+- numeric and boolean `ObjectValueInfo` payload fields for timeline period objects are supported by
+  the row parser but are not separately asserted by the current string/null timeline smoke data
 
 Primary smoke evidence:
 
@@ -383,14 +440,21 @@ Directly observed by smoke:
 
 - `title`
 - `title_token`
+- `title_value`
 - `artist`
 - `artist_token`
+- `artist_value`
 - `album_title`
+- `album_title_value`
 - `album_artist`
+- `album_artist_value`
 - `display_title`
 - `display_title_token`
+- `display_title_value`
 - `subtitle`
+- `subtitle_value`
 - `description`
+- `description_value`
 - `artwork_uri`
 - `artwork_data.size()`
 - `artwork_data_type`
@@ -407,15 +471,22 @@ Directly observed by smoke:
 - `release_month`
 - `release_day`
 - `writer`
+- `writer_value`
 - `author`
+- `author_value`
 - `composer`
+- `composer_value`
 - `conductor`
+- `conductor_value`
 - `disc_number`
 - `total_disc_count`
 - `genre`
+- `genre_value`
 - `compilation`
+- `compilation_value`
 - `media_type`
 - `station`
+- `station_value`
 
 Present in bridge but not directly smoke-observed:
 
@@ -428,6 +499,7 @@ Primary smoke evidence:
 - `nativeCurrentMediaItemQuerySmokeTest_returnsStructuredSummary`
 - `nativeMediaItemAtSmokeTest_returnsSnapshotAndHandlesOutOfBounds`
 - `nativeListenerSmokeTest_reportsExtendedCallbacks`
+- `nativeMediaMetadataObjectValueConversionSmokeTest_roundTripsObjectTextFields`
 
 ### `TracksSnapshot` / `TrackGroupSnapshot` / `TrackInfo`
 
@@ -443,12 +515,19 @@ Directly observed by smoke:
 - first track `language`
 - first track `label`
 - first track `label_token`
+- first track label list language/value payload
+- first track metadata/custom-data opaque tokens
+- first track `auxiliary_track_type`
 - group-level `group_token`
 - first track `mime_type`
 - first track `container_mime_type`
 - first track `codecs`
 - first track `bitrate`
 - first track width/height/frame rate in value smoke
+- first track initialization-data byte vectors
+- first track DRM scheme type, scheme-data uuid/license/mime/bytes/has-data
+- first track projection byte vector
+- first track `ColorInfo` HDR static info length and luma/chroma bitdepth
 - first track `accessibility_channel`
 - first track `role_flags`
 - first track `selection_flags`
@@ -466,6 +545,7 @@ Primary smoke evidence:
 
 - `nativeCurrentTracksSmokeTest_returnsTracksSummary`
 - `nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary`
+- `nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload`
 - `nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary`
 - `nativeListenerSmokeTest_reportsExtendedCallbacks`
 
