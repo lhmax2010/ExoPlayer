@@ -72,6 +72,87 @@ struct PlayerConfig {
   int64_t target_preload_duration_us = -9223372036854775807LL;
 };
 
+struct AuxEffectInfoDescriptor {
+  int effect_id = 0;
+  float send_level = 0.0f;
+};
+
+struct ScrubbingModeParametersDescriptor {
+  std::vector<int> disabled_track_types = {1, 5};
+  bool has_fractional_seek_tolerance = false;
+  double fractional_seek_tolerance_before = 0.0;
+  double fractional_seek_tolerance_after = 0.0;
+  bool should_increase_codec_operating_rate = true;
+  bool allow_skipping_media_codec_flush = true;
+  bool allow_skipping_key_frame_reset = true;
+  bool should_enable_dynamic_scheduling = true;
+  bool use_decode_only_flag = true;
+};
+
+struct CodecParameterDescriptor {
+  enum class ValueType {
+    kInteger = 0,
+    kLong = 1,
+    kFloat = 2,
+    kString = 3,
+    kByteBuffer = 4,
+    kNull = 5,
+  };
+
+  std::string key;
+  ValueType value_type = ValueType::kInteger;
+  int int_value = 0;
+  int64_t long_value = 0;
+  float float_value = 0.0f;
+  std::string string_value;
+  std::vector<uint8_t> byte_buffer_value;
+};
+
+struct CodecParametersDescriptor {
+  std::vector<CodecParameterDescriptor> parameters;
+};
+
+struct VideoFrameMetadataSnapshot {
+  int64_t presentation_time_us = 0;
+  int64_t release_time_ns = 0;
+  std::string format_id;
+  std::string sample_mime_type;
+  std::string codecs;
+  int width = 0;
+  int height = 0;
+  float frame_rate = 0.0f;
+  std::string format_label;
+  std::string format_language;
+  std::string format_container_mime_type;
+  int format_bitrate = -1;
+  int format_average_bitrate = -1;
+  int format_peak_bitrate = -1;
+  int format_rotation_degrees = 0;
+  float format_pixel_width_height_ratio = 1.0f;
+  int format_color_standard = -1;
+  int format_color_range = -1;
+  int format_color_transfer = -1;
+  int format_channel_count = -1;
+  int format_sample_rate = -1;
+  int format_role_flags = 0;
+  int format_selection_flags = 0;
+  bool media_format_present = false;
+  std::string media_format_summary;
+  std::string media_format_mime_type;
+  int media_format_width = 0;
+  int media_format_height = 0;
+  float media_format_frame_rate = 0.0f;
+  int media_format_rotation_degrees = 0;
+  int media_format_color_standard = 0;
+  int media_format_color_range = 0;
+  int media_format_color_transfer = 0;
+};
+
+struct CameraMotionSnapshot {
+  int64_t time_us = 0;
+  std::vector<float> rotation;
+};
+
 struct PlayerMessageDescriptor {
   enum class TargetType {
     kInternal = 0,
@@ -103,21 +184,65 @@ struct PlayerMessageResult {
   std::string thread_name;
 };
 
+struct BundleValueInfo {
+  enum ValueType {
+    kString = 1,
+    kLong = 2,
+    kDouble = 3,
+    kBoolean = 4,
+    kByteArray = 5,
+  };
+
+  std::string key;
+  int value_type = 0;
+  std::string string_value;
+  int64_t long_value = 0;
+  double double_value = 0.0;
+  bool boolean_value = false;
+  std::vector<uint8_t> byte_array_value;
+};
+
+struct ObjectValueInfo {
+  enum ValueType {
+    kNull = 0,
+    kString = 1,
+    kLong = 2,
+    kDouble = 3,
+    kBoolean = 4,
+    kOther = 5,
+  };
+
+  bool present = false;
+  std::string class_name;
+  int value_type = kNull;
+  std::string string_value;
+  int64_t long_value = 0;
+  double double_value = 0.0;
+  bool boolean_value = false;
+};
+
 struct MediaMetadataSnapshot {
   std::string title;
   std::string title_token;
+  ObjectValueInfo title_value;
   std::string artist;
   std::string artist_token;
+  ObjectValueInfo artist_value;
   std::string album_title;
   std::string album_title_token;
+  ObjectValueInfo album_title_value;
   std::string album_artist;
   std::string album_artist_token;
+  ObjectValueInfo album_artist_value;
   std::string display_title;
   std::string display_title_token;
+  ObjectValueInfo display_title_value;
   std::string subtitle;
   std::string subtitle_token;
+  ObjectValueInfo subtitle_value;
   std::string description;
   std::string description_token;
+  ObjectValueInfo description_value;
   std::string artwork_uri;
   std::vector<uint8_t> artwork_data;
   int artwork_data_type = -1;
@@ -135,24 +260,32 @@ struct MediaMetadataSnapshot {
   int release_day = -1;
   std::string writer;
   std::string writer_token;
+  ObjectValueInfo writer_value;
   std::string author;
   std::string author_token;
+  ObjectValueInfo author_value;
   std::string composer;
   std::string composer_token;
+  ObjectValueInfo composer_value;
   std::string conductor;
   std::string conductor_token;
+  ObjectValueInfo conductor_value;
   int disc_number = -1;
   int total_disc_count = -1;
   std::string genre;
   std::string genre_token;
+  ObjectValueInfo genre_value;
   std::string compilation;
   std::string compilation_token;
+  ObjectValueInfo compilation_value;
   int media_type = -1;
   std::string station;
   std::string station_token;
+  ObjectValueInfo station_value;
   bool extras_present = false;
   int extras_key_count = 0;
   std::string extras_token;
+  std::vector<BundleValueInfo> extras_values;
 };
 
 struct MediaItemDescriptor {
@@ -164,6 +297,7 @@ struct MediaItemDescriptor {
   bool tag_present = false;
   std::string tag_string;
   std::string tag_token;
+  ObjectValueInfo tag_value;
   MediaMetadataSnapshot media_metadata;
   struct RequestMetadataDescriptor {
     std::string media_uri;
@@ -171,12 +305,14 @@ struct MediaItemDescriptor {
     bool extras_present = false;
     int extras_key_count = 0;
     std::string extras_token;
+    std::vector<BundleValueInfo> extras_values;
   };
   RequestMetadataDescriptor request_metadata;
   struct AdsConfigurationDescriptor {
     std::string ad_tag_uri;
     std::string ads_id;
     std::string ads_id_token;
+    ObjectValueInfo ads_id_value;
   };
   AdsConfigurationDescriptor ads_configuration;
   struct SubtitleConfigurationDescriptor {
@@ -261,6 +397,19 @@ struct TrackSelectionParametersDescriptor {
   int OverrideCount() const { return static_cast<int>(overrides.size()); }
 };
 
+struct FormatLabelInfo {
+  std::string language;
+  std::string value;
+};
+
+struct DrmSchemeDataInfo {
+  std::string uuid;
+  std::string license_server_url;
+  std::string mime_type;
+  std::vector<uint8_t> data;
+  bool has_data = false;
+};
+
 struct TrackInfo {
   std::string id;
   std::string language;
@@ -269,13 +418,51 @@ struct TrackInfo {
   std::string mime_type;
   std::string container_mime_type;
   std::string codecs;
-  int bitrate = 0;
-  int width = 0;
-  int height = 0;
-  float frame_rate = 0.0f;
-  int sample_rate = 0;
-  int channel_count = 0;
+  int bitrate = -1;
+  int average_bitrate = -1;
+  int peak_bitrate = -1;
+  int metadata_entry_count = 0;
+  std::string metadata_token;
+  std::vector<FormatLabelInfo> labels;
+  std::string custom_data_token;
+  int auxiliary_track_type = 0;
+  int max_input_size = -1;
+  int max_num_reorder_samples = -1;
+  int initialization_data_count = 0;
+  int initialization_data_total_bytes = 0;
+  std::vector<std::vector<uint8_t>> initialization_data;
+  std::string drm_scheme_type;
+  int drm_scheme_data_count = 0;
+  std::vector<DrmSchemeDataInfo> drm_scheme_data;
+  int64_t subsample_offset_us = 9223372036854775807LL;
+  bool has_preroll_samples = false;
+  int width = -1;
+  int height = -1;
+  int decoded_width = -1;
+  int decoded_height = -1;
+  float frame_rate = -1.0f;
+  int rotation_degrees = 0;
+  float pixel_width_height_ratio = 1.0f;
+  int projection_data_length = 0;
+  std::vector<uint8_t> projection_data;
+  int stereo_mode = -1;
+  int color_standard = -1;
+  int color_range = -1;
+  int color_transfer = -1;
+  std::vector<uint8_t> color_hdr_static_info;
+  int color_luma_bitdepth = -1;
+  int color_chroma_bitdepth = -1;
+  int max_sub_layers = -1;
+  int sample_rate = -1;
+  int channel_count = -1;
+  int pcm_encoding = -1;
+  int encoder_delay = 0;
+  int encoder_padding = 0;
   int accessibility_channel = 0;
+  int cue_replacement_behavior = 1;
+  int tile_count_horizontal = -1;
+  int tile_count_vertical = -1;
+  int crypto_type = 0;
   int role_flags = 0;
   int selection_flags = 0;
   int format_support = 0;
@@ -373,6 +560,7 @@ struct TimelineWindowSnapshot {
   std::string media_item_tag_token;
   std::string uid;
   std::string uid_token;
+  ObjectValueInfo uid_value;
   bool live_configuration_present = false;
   int64_t live_target_offset_ms = -9223372036854775807LL;
   int64_t live_min_offset_ms = -9223372036854775807LL;
@@ -382,6 +570,7 @@ struct TimelineWindowSnapshot {
   bool manifest_present = false;
   std::string manifest_string;
   std::string manifest_token;
+  ObjectValueInfo manifest_value;
   int first_period_index = -1;
   int last_period_index = -1;
   int64_t presentation_start_time_ms = -9223372036854775807LL;
@@ -402,10 +591,13 @@ struct TimelineWindowSnapshot {
 struct TimelinePeriodSnapshot {
   std::string id;
   std::string id_token;
+  ObjectValueInfo id_value;
   std::string uid;
   std::string uid_token;
+  ObjectValueInfo uid_value;
   std::string ads_id;
   std::string ads_id_token;
+  ObjectValueInfo ads_id_value;
   int window_index = -1;
   int ad_group_count = 0;
   int64_t duration_ms = -9223372036854775807LL;
@@ -540,6 +732,8 @@ inline void AppendOpaqueObjectTokens(
     const TrackInfo& track,
     std::vector<std::string>* tokens) {
   AddOpaqueObjectToken(tokens, track.label_token);
+  AddOpaqueObjectToken(tokens, track.metadata_token);
+  AddOpaqueObjectToken(tokens, track.custom_data_token);
 }
 
 inline void AppendOpaqueObjectTokens(
@@ -788,6 +982,71 @@ struct VideoInputFormatChangedEvent {
   float frame_rate = 0.0f;
 };
 
+struct AnalyticsPlayerStateChangedEvent {
+  bool play_when_ready = false;
+  int playback_state = 0;
+};
+
+struct AnalyticsLoadingChangedEvent {
+  bool is_loading = false;
+};
+
+struct AnalyticsMediaLoadDataEvent {
+  std::string uri;
+  int data_type = 0;
+  int track_type = 0;
+  std::string sample_mime_type;
+  int track_selection_reason = 0;
+  int64_t media_start_time_ms = 0;
+  int64_t media_end_time_ms = 0;
+};
+
+struct AnalyticsDecoderCountersSnapshot {
+  int decoder_init_count = 0;
+  int decoder_release_count = 0;
+  int queued_input_buffer_count = 0;
+  int rendered_output_buffer_count = 0;
+  int dropped_buffer_count = 0;
+  int skipped_output_buffer_count = 0;
+  int video_frame_processing_offset_count = 0;
+  int64_t total_video_frame_processing_offset_us = 0;
+};
+
+struct AnalyticsExceptionEvent {
+  std::string class_name;
+  std::string message;
+};
+
+struct AnalyticsAudioTrackConfigSnapshot {
+  int encoding = 0;
+  int sample_rate = 0;
+  int channel_config = 0;
+  bool tunneling = false;
+  bool offload = false;
+  int buffer_size = 0;
+};
+
+struct AnalyticsDrmSessionAcquiredEvent {
+  bool has_state = false;
+  int state = 0;
+};
+
+struct AnalyticsDrmKeysLoadedEvent {
+  bool has_key_request_info = false;
+  int load_info_count = 0;
+  int scheme_data_count = 0;
+};
+
+struct AnalyticsRendererReadyChangedEvent {
+  int renderer_index = 0;
+  int renderer_track_type = 0;
+  bool is_renderer_ready = false;
+};
+
+struct AnalyticsDroppedSeeksWhileScrubbingEvent {
+  int dropped_seeks = 0;
+};
+
 struct PlayerError {
   int error_code = 0;
   std::string message;
@@ -851,6 +1110,7 @@ class PlayerListener {
   virtual void OnPlaybackStateChanged(const PlaybackSnapshot& snapshot) = 0;
   virtual void OnPlayWhenReadyChanged(const PlaybackSnapshot& snapshot, int reason) = 0;
   virtual void OnIsPlayingChanged(const PlaybackSnapshot& snapshot) = 0;
+  virtual void OnIsLoadingChanged(const PlaybackSnapshot& snapshot) {}
   virtual void OnMediaItemTransition(const PlaybackSnapshot& snapshot, int reason) = 0;
   virtual void OnPlayerError(const PlaybackSnapshot& snapshot) = 0;
   virtual void OnPlayerErrorChanged(const PlaybackSnapshot& snapshot) {}
@@ -974,6 +1234,9 @@ class PlayerListener {
   virtual void OnAudioSessionIdChanged(
       const PlaybackSnapshot& snapshot,
       const AudioSessionIdChangedEvent& audio_session_id_changed) {}
+  virtual void OnAnalyticsAudioAttributesChanged(
+      const PlaybackSnapshot& snapshot,
+      const AudioAttributesDescriptor& attributes) {}
   virtual void OnAnalyticsSkipSilenceEnabledChanged(
       const PlaybackSnapshot& snapshot,
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) {}
@@ -1059,6 +1322,87 @@ class PlayerListener {
   virtual void OnVideoInputFormatChanged(
       const PlaybackSnapshot& snapshot,
       const VideoInputFormatChangedEvent& video_input_format_changed) {}
+  virtual void OnAnalyticsPlayerStateChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsPlayerStateChangedEvent& player_state_changed) {}
+  virtual void OnAnalyticsLoadingChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsLoadingChangedEvent& loading_changed) {}
+  virtual void OnAnalyticsTrackSelectionParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const TrackSelectionParametersDescriptor& parameters) {}
+  virtual void OnAnalyticsLoadCanceled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& load_canceled) {}
+  virtual void OnAnalyticsDownstreamFormatChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& downstream_format_changed) {}
+  virtual void OnAnalyticsUpstreamDiscarded(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& upstream_discarded) {}
+  virtual void OnAnalyticsAudioEnabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsAudioDisabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsAudioSinkError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsAudioCodecError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsAudioTrackInitialized(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) {}
+  virtual void OnAnalyticsAudioTrackReleased(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) {}
+  virtual void OnAnalyticsVideoEnabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsVideoDisabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsVideoCodecError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsSurfaceSizeChanged(
+      const PlaybackSnapshot& snapshot,
+      int width,
+      int height) {}
+  virtual void OnAnalyticsDrmSessionAcquired(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDrmSessionAcquiredEvent& drm_session_acquired) {}
+  virtual void OnAnalyticsDrmKeysLoaded(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDrmKeysLoadedEvent& drm_keys_loaded) {}
+  virtual void OnAnalyticsDrmSessionManagerError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsDrmKeysRestored(const PlaybackSnapshot& snapshot) {}
+  virtual void OnAnalyticsDrmKeysRemoved(const PlaybackSnapshot& snapshot) {}
+  virtual void OnAnalyticsDrmSessionReleased(const PlaybackSnapshot& snapshot) {}
+  virtual void OnAnalyticsRendererReadyChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsRendererReadyChangedEvent& renderer_ready_changed) {}
+  virtual void OnAnalyticsDroppedSeeksWhileScrubbing(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDroppedSeeksWhileScrubbingEvent& dropped_seeks) {}
+  virtual void OnAnalyticsPlayerReleased(const PlaybackSnapshot& snapshot) {}
+  virtual void OnAudioCodecParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const CodecParametersDescriptor& codec_parameters) {}
+  virtual void OnVideoCodecParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const CodecParametersDescriptor& codec_parameters) {}
+  virtual void OnVideoFrameAboutToBeRendered(
+      const PlaybackSnapshot& snapshot,
+      const VideoFrameMetadataSnapshot& video_frame_metadata) {}
+  virtual void OnCameraMotion(
+      const PlaybackSnapshot& snapshot,
+      const CameraMotionSnapshot& camera_motion) {}
+  virtual void OnCameraMotionReset(const PlaybackSnapshot& snapshot) {}
 };
 
 class ExoPlayerBridge {
@@ -1152,10 +1496,12 @@ class ExoPlayerBridge {
   virtual void SeekToNextMediaItem(JNIEnv* env) = 0;
   virtual void SeekToPreviousMediaItem(JNIEnv* env) = 0;
   virtual void SetWakeMode(JNIEnv* env, int wake_mode) = 0;
+  virtual void SetHandleAudioBecomingNoisy(JNIEnv* env, bool handle_audio_becoming_noisy) = 0;
   virtual void SetPriority(JNIEnv* env, int priority) = 0;
   virtual void SetPriorityTaskManager(JNIEnv* env, jobject priority_task_manager) = 0;
   virtual void SetPriorityTaskManagerEnabled(JNIEnv* env, bool enabled) = 0;
   virtual void SetPreloadConfiguration(JNIEnv* env, int64_t target_preload_duration_us) = 0;
+  virtual void SetForegroundMode(JNIEnv* env, bool foreground_mode) = 0;
   virtual PlayerMessageResult SendPlayerMessage(
       JNIEnv* env,
       const PlayerMessageDescriptor& message) = 0;
@@ -1164,12 +1510,43 @@ class ExoPlayerBridge {
       JNIEnv* env,
       const AudioAttributesDescriptor& attributes,
       bool handle_audio_focus) = 0;
+  virtual void SetAudioSessionId(JNIEnv* env, int audio_session_id) = 0;
+  virtual void SetAuxEffectInfo(
+      JNIEnv* env,
+      const AuxEffectInfoDescriptor& aux_effect_info) = 0;
+  virtual void ClearAuxEffectInfo(JNIEnv* env) = 0;
+  virtual void SetPreferredAudioDevice(JNIEnv* env, jobject audio_device_info) = 0;
+  virtual void SetVirtualDeviceId(JNIEnv* env, int virtual_device_id) = 0;
+  virtual void SetAudioCodecParameters(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SetVideoCodecParameters(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SetAudioCodecParametersChangeListener(
+      JNIEnv* env,
+      const std::vector<std::string>& keys) = 0;
+  virtual void ClearAudioCodecParametersChangeListener(JNIEnv* env) = 0;
+  virtual void SetVideoCodecParametersChangeListener(
+      JNIEnv* env,
+      const std::vector<std::string>& keys) = 0;
+  virtual void ClearVideoCodecParametersChangeListener(JNIEnv* env) = 0;
+  virtual void SetVideoFrameMetadataListener(JNIEnv* env) = 0;
+  virtual void ClearVideoFrameMetadataListener(JNIEnv* env) = 0;
+  virtual void SetCameraMotionListener(JNIEnv* env) = 0;
+  virtual void ClearCameraMotionListener(JNIEnv* env) = 0;
   virtual void SetDeviceVolume(JNIEnv* env, int volume, int flags) = 0;
   virtual void AdjustDeviceVolume(JNIEnv* env, int direction, int flags) = 0;
   virtual void IncreaseDeviceVolume(JNIEnv* env, int flags) = 0;
   virtual void DecreaseDeviceVolume(JNIEnv* env, int flags) = 0;
   virtual void SetDeviceMuted(JNIEnv* env, bool muted, int flags) = 0;
   virtual void SetSkipSilenceEnabled(JNIEnv* env, bool skip_silence_enabled) = 0;
+  virtual void SetScrubbingModeEnabled(JNIEnv* env, bool scrubbing_mode_enabled) = 0;
+  virtual bool IsScrubbingModeEnabled(JNIEnv* env) = 0;
+  virtual void SetScrubbingModeParameters(
+      JNIEnv* env,
+      const ScrubbingModeParametersDescriptor& parameters) = 0;
+  virtual ScrubbingModeParametersDescriptor GetScrubbingModeParameters(JNIEnv* env) = 0;
   virtual void SetPlayWhenReady(JNIEnv* env, bool play_when_ready) = 0;
   virtual void SetRepeatMode(JNIEnv* env, RepeatMode repeat_mode) = 0;
   virtual void SetShuffleModeEnabled(JNIEnv* env, bool shuffle_mode_enabled) = 0;
@@ -1179,10 +1556,24 @@ class ExoPlayerBridge {
       JNIEnv* env,
       const PlaybackParametersSnapshot& parameters) = 0;
   virtual void SetPauseAtEndOfMediaItems(JNIEnv* env, bool pause_at_end_of_media_items) = 0;
+  virtual bool GetPauseAtEndOfMediaItems(JNIEnv* env) = 0;
+  virtual void SetSeekBackIncrementMs(JNIEnv* env, int64_t seek_back_increment_ms) = 0;
+  virtual void SetSeekForwardIncrementMs(JNIEnv* env, int64_t seek_forward_increment_ms) = 0;
+  virtual void SetMaxSeekToPreviousPositionMs(
+      JNIEnv* env,
+      int64_t max_seek_to_previous_position_ms) = 0;
+  virtual void SetVideoScalingMode(JNIEnv* env, int video_scaling_mode) = 0;
+  virtual int GetVideoScalingMode(JNIEnv* env) = 0;
+  virtual void SetVideoChangeFrameRateStrategy(
+      JNIEnv* env,
+      int video_change_frame_rate_strategy) = 0;
+  virtual int GetVideoChangeFrameRateStrategy(JNIEnv* env) = 0;
   virtual void SetTrackSelectionParameters(
       JNIEnv* env,
       const TrackSelectionParametersDescriptor& parameters) = 0;
   virtual TrackSelectionParametersDescriptor GetTrackSelectionParameters(JNIEnv* env) = 0;
+  virtual int GetRendererCount(JNIEnv* env) = 0;
+  virtual int GetRendererType(JNIEnv* env, int index) = 0;
   virtual TracksSnapshot GetTracksSnapshot(JNIEnv* env) = 0;
   virtual std::vector<TrackGroupSnapshot> GetTrackGroups(JNIEnv* env) = 0;
   virtual PlaybackState GetPlaybackState(JNIEnv* env) = 0;
@@ -1223,6 +1614,9 @@ class ExoPlayerBridge {
   virtual bool IsCommandAvailable(JNIEnv* env, int command_code) = 0;
   virtual bool CanAdvertiseSession(JNIEnv* env) = 0;
   virtual ApplicationLooperDescriptor GetApplicationLooper(JNIEnv* env) = 0;
+  virtual bool IsSleepingForOffload(JNIEnv* env) = 0;
+  virtual bool IsTunnelingEnabled(JNIEnv* env) = 0;
+  virtual bool IsReleased(JNIEnv* env) = 0;
   virtual int GetCurrentAdGroupIndex(JNIEnv* env) = 0;
   virtual int GetCurrentAdIndexInAdGroup(JNIEnv* env) = 0;
   virtual bool IsCurrentMediaItemDynamic(JNIEnv* env) = 0;
@@ -1295,6 +1689,9 @@ class ExoPlayerBridge {
   virtual void SimulateAudioSessionIdChangedForTest(
       JNIEnv* env,
       const AudioSessionIdChangedEvent& audio_session_id_changed) = 0;
+  virtual void SimulateAnalyticsAudioAttributesChangedForTest(
+      JNIEnv* env,
+      const AudioAttributesDescriptor& attributes) = 0;
   virtual void SimulateAnalyticsSkipSilenceEnabledChangedForTest(
       JNIEnv* env,
       const AnalyticsSkipSilenceEnabledChangedEvent& skip_silence_enabled_changed) = 0;
@@ -1331,6 +1728,7 @@ class ExoPlayerBridge {
   virtual void SimulateAnalyticsEventsForTest(
       JNIEnv* env,
       const AnalyticsEventsEvent& analytics_events) = 0;
+  virtual void SimulateIsLoadingChangedForTest(JNIEnv* env, bool is_loading) = 0;
   virtual void SimulateSeekBackIncrementChangedForTest(
       JNIEnv* env,
       int64_t seek_back_increment_ms) = 0;
@@ -1392,6 +1790,20 @@ class ExoPlayerBridge {
   virtual void SimulateVideoInputFormatChangedForTest(
       JNIEnv* env,
       const VideoInputFormatChangedEvent& video_input_format_changed) = 0;
+  virtual void SimulateAnalyticsStage4RemainingEventsForTest(JNIEnv* env) = 0;
+  virtual void SimulateAudioCodecParametersChangedForTest(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SimulateVideoCodecParametersChangedForTest(
+      JNIEnv* env,
+      const CodecParametersDescriptor& codec_parameters) = 0;
+  virtual void SimulateVideoFrameAboutToBeRenderedForTest(
+      JNIEnv* env,
+      const VideoFrameMetadataSnapshot& video_frame_metadata) = 0;
+  virtual void SimulateCameraMotionForTest(
+      JNIEnv* env,
+      const CameraMotionSnapshot& camera_motion) = 0;
+  virtual void SimulateCameraMotionResetForTest(JNIEnv* env) = 0;
   virtual void SimulateImageOutputForTest(
       JNIEnv* env,
       const ImageFrameSnapshot& image_frame) = 0;

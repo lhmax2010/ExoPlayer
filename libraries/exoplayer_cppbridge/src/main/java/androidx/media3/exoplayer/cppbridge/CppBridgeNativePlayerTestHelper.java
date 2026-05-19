@@ -1,6 +1,7 @@
 package androidx.media3.exoplayer.cppbridge;
 
 import android.content.Context;
+import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.TextureView;
 import androidx.media3.ui.PlayerView;
@@ -56,7 +57,7 @@ public final class CppBridgeNativePlayerTestHelper {
   public static native String nativeAvailableCommandsSmokeTest(Context context);
 
   public static native String nativeSurfaceBridgeSmokeTest(
-      Context context, SurfaceView surfaceView, TextureView textureView);
+      Context context, Surface surface, SurfaceView surfaceView, TextureView textureView);
 
   public static native String nativePlayerViewBridgeSmokeTest(Context context, PlayerView playerView);
 
@@ -109,6 +110,10 @@ public final class CppBridgeNativePlayerTestHelper {
   public static native String nativeAnalyticsVolumeChangedSmokeTest(Context context);
 
   public static native String nativeAnalyticsAudioSessionIdChangedSmokeTest(Context context);
+
+  public static native String nativeAnalyticsAudioAttributesChangedSmokeTest(Context context);
+
+  public static native String nativeAnalyticsStage4RemainingCallbacksSmokeTest(Context context);
 
   public static native String nativeAnalyticsSkipSilenceEnabledChangedSmokeTest(Context context);
 
@@ -175,6 +180,15 @@ public final class CppBridgeNativePlayerTestHelper {
 
   public static native String nativeSourceTypeSmokeTest(Context context);
 
+  public static native String nativeHttpHlsDashPlaybackSmokeTest(
+      Context context, String httpUrl, String hlsUrl, String dashUrl);
+
+  public static native String nativeHttpDataSourceConfigPlaybackSmokeTest(
+      Context context, String httpUrl);
+
+  public static native String nativeCustomMediaSourceFactoryPlaybackSmokeTest(
+      Context context, String factoryToken);
+
   public static native String nativeMediaSourceFactoryConfigSmokeTest(Context context);
 
   public static native String nativeMediaSourceFactoryInjectionSmokeTest(Context context);
@@ -196,6 +210,20 @@ public final class CppBridgeNativePlayerTestHelper {
   public static native String nativePlayerConfigFlagsSmokeTest(Context context);
 
   public static native String nativeWakeModeRuntimeSmokeTest(Context context);
+
+  public static native String nativeRuntimeControlParitySmokeTest(Context context);
+
+  public static native String nativeAudioAndScrubbingParitySmokeTest(Context context);
+
+  public static native String nativeCodecParametersParitySmokeTest(Context context);
+
+  public static native String nativeAuxiliaryCallbackParitySmokeTest(Context context);
+
+  public static native String nativeVideoFrameMetadataSimulationFallbackSmokeTest(Context context);
+
+  public static native String nativeCodecParametersMultiListenerParitySmokeTest(Context context);
+
+  public static native String nativeRendererAndDeviceStateGetterSmokeTest(Context context);
 
   public static native String nativePreloadConfigurationSmokeTest(Context context);
 

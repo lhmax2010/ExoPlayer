@@ -3,17 +3,26 @@ package androidx.media3.exoplayer.cppbridge;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
+import android.graphics.SurfaceTexture;
 import android.os.Bundle;
 import android.text.SpannableString;
+import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.TextureView;
 import androidx.media3.common.C;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.test.utils.FakeMediaSourceFactory;
+import androidx.media3.test.utils.TestUtil;
+import androidx.media3.test.utils.WebServerDispatcher;
 import androidx.media3.ui.PlayerView;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -29,12 +38,36 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     return Integer.parseInt(value);
   }
 
-  private static void assertCallbackStoppedAfterRemove(String summary, int minimumBeforeRemoveCb) {
+  private static void assertCallbackStoppedAfterRemove(String summary) {
     int beforeRemoveCb = extractIntMarker(summary, "beforeRemoveCb=");
     int afterRemoveCb = extractIntMarker(summary, "afterRemoveCb=");
-    assertThat(beforeRemoveCb).isAtLeast(minimumBeforeRemoveCb);
+    assertThat(beforeRemoveCb).isAtLeast(2);
     assertThat(afterRemoveCb).isEqualTo(beforeRemoveCb);
     assertThat(summary).contains("callbackStopped=1");
+  }
+
+  private static WebServerDispatcher.Resource assetResource(
+      Context context, String path, String assetName) throws IOException {
+    return new WebServerDispatcher.Resource.Builder()
+        .setPath(path)
+        .setData(TestUtil.getByteArray(context, assetName))
+        .supportsRangeRequests(true)
+        .build();
+  }
+
+  private static MockWebServer createStreamPlaybackServer(Context context) throws IOException {
+    MockWebServer server = new MockWebServer();
+    server.setDispatcher(
+        WebServerDispatcher.forResources(
+            Arrays.asList(
+                assetResource(context, "/http/sample.audio.mp4", "sample.audio.mp4"),
+                assetResource(context, "/dash/sample.mpd", "sample.mpd"),
+                assetResource(context, "/dash/sample.audio.mp4", "sample.audio.mp4"),
+                assetResource(context, "/hls/manifest.m3u8", "manifest.m3u8"),
+                assetResource(context, "/hls/sd-hls.m3u8", "sd-hls.m3u8"),
+                assetResource(context, "/hls/sd-hls0000000000.ts", "sd-hls0000000000.ts"))));
+    server.start();
+    return server;
   }
 
   @Test
@@ -194,6 +227,12 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("item0=item-5");
     assertThat(summary).contains("item1=item-r");
     assertThat(summary).contains("item2=item-2");
+    assertThat(summary).contains("moveRangeFirstMediaId=item-4");
+    assertThat(summary).contains("singleRemoveRestoredCount=3");
+    assertThat(summary).contains("nextIndex=1");
+    assertThat(summary).contains("previousIndex=-1");
+    assertThat(summary).contains("hasNext=1");
+    assertThat(summary).contains("hasPrevious=0");
     assertThat(summary).contains("mediaId=item-5");
   }
 
@@ -259,6 +298,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("timelineWindow0TagPresent=0");
     assertThat(summary).contains("timelineWindow0TagString=");
     assertThat(summary).contains("timelineWindow0TagTokenPresent=0");
+    assertThat(summary).contains("timelineWindow0UidValuePresent=");
+    assertThat(summary).contains("timelineWindow0UidValueType=");
+    assertThat(summary).contains("timelineWindow0ManifestValuePresent=0");
+    assertThat(summary).contains("timelineWindow0ManifestValueType=0");
     assertThat(summary).contains("timelineWindow0PresentationStartMs=");
     assertThat(summary).contains("timelineWindow0WindowStartMs=");
     assertThat(summary).contains("timelineWindow0ElapsedRealtimeEpochOffsetMs=");
@@ -266,6 +309,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("timelineWindow0PositionInFirstPeriodUs=");
     assertThat(summary).contains("timelinePeriod0DurationUs=");
     assertThat(summary).contains("timelinePeriod0PositionInWindowUs=");
+    assertThat(summary).contains("timelinePeriod0IdValuePresent=");
+    assertThat(summary).contains("timelinePeriod0UidValuePresent=");
+    assertThat(summary).contains("timelinePeriod0AdsIdValuePresent=0");
+    assertThat(summary).contains("timelinePeriod0AdsIdValueType=0");
     assertThat(summary).contains("bufferedPercentage=");
     assertThat(summary).contains("contentBufferedPositionMs=");
     assertThat(summary).contains("contentDurationMs=");
@@ -319,6 +366,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("cue1VerticalType=1");
     assertThat(summary).contains("availableCommandCount=");
     assertThat(summary).contains("commands=");
+    assertThat(summary).contains("tracksGroupCount=");
+    assertThat(summary).contains("trackGroupVectorCount=");
+    assertThat(summary).contains("bridgeTracksGroupCount=");
+    assertThat(summary).contains("bridgeTrackGroupVectorCount=");
   }
 
   @Test
@@ -353,7 +404,47 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("track0ContainerMimeType=video/mp4");
     assertThat(summary).contains("track0Codecs=avc1.640028");
     assertThat(summary).contains("track0Bitrate=2500000");
+    assertThat(summary).contains("track0AverageBitrate=2000000");
+    assertThat(summary).contains("track0PeakBitrate=2500000");
+    assertThat(summary).contains("track0MetadataEntryCount=2");
+    assertThat(summary).contains("track0MetadataTokenPresent=1");
+    assertThat(summary).contains("track0LabelCount=2");
+    assertThat(summary).contains("track0Label0Language=en");
+    assertThat(summary).contains("track0Label0Value=Main Video");
+    assertThat(summary).contains("track0CustomDataTokenPresent=1");
+    assertThat(summary).contains("track0AuxiliaryTrackType=2");
+    assertThat(summary).contains("track0MaxInputSize=4096");
+    assertThat(summary).contains("track0MaxNumReorderSamples=3");
+    assertThat(summary).contains("track0InitializationData=2:7");
+    assertThat(summary).contains("track0InitializationDataVectorCount=2");
+    assertThat(summary).contains("track0DrmSchemeDataCount=1");
+    assertThat(summary).contains("track0DrmSchemeType=cenc");
+    assertThat(summary).contains("track0DrmSchemeUuid=edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+    assertThat(summary).contains("track0DrmSchemeLicenseUrl=https://license.example/video");
+    assertThat(summary).contains("track0DrmSchemeMimeType=video/mp4");
+    assertThat(summary).contains("track0DrmSchemeDataLength=2");
+    assertThat(summary).contains("track0DrmSchemeHasData=1");
+    assertThat(summary).contains("track0SubsampleOffsetUs=987654");
+    assertThat(summary).contains("track0HasPrerollSamples=1");
+    assertThat(summary).contains("track0Width=1920");
+    assertThat(summary).contains("track0Height=1080");
+    assertThat(summary).contains("track0DecodedSize=1936x1096");
+    assertThat(summary).contains("track0FrameRate=30.000000");
+    assertThat(summary).contains("track0RotationDegrees=90");
+    assertThat(summary).contains("track0PixelRatio=1.250000");
+    assertThat(summary).contains("track0ProjectionDataLength=4");
+    assertThat(summary).contains("track0ProjectionDataVectorLength=4");
+    assertThat(summary).contains("track0StereoMode=2");
+    assertThat(summary).contains("track0Color=1:2:3");
+    assertThat(summary).contains("track0ColorHdrStaticInfoLength=3");
+    assertThat(summary).contains("track0ColorBitdepth=10:10");
+    assertThat(summary).contains("track0MaxSubLayers=4");
+    assertThat(summary).contains("track0PcmEncoding=-1");
+    assertThat(summary).contains("track0EncoderTrim=0:0");
     assertThat(summary).contains("track0AccessibilityChannel=-1");
+    assertThat(summary).contains("track0CueReplacementBehavior=1");
+    assertThat(summary).contains("track0Tiles=5x6");
+    assertThat(summary).contains("track0CryptoType=2");
     assertThat(summary).contains("track0RoleFlags=0");
     assertThat(summary).contains("track0SelectionFlags=0");
     assertThat(summary).contains("track0SupportedWithinCapabilities=1");
@@ -369,6 +460,13 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("group1Track0Label=Main Audio");
     assertThat(summary).contains("group1Track0LabelTokenPresent=1");
     assertThat(summary).contains("group1Track0MimeType=audio/mp4a-latm");
+    assertThat(summary).contains("group1Track0Bitrate=192000");
+    assertThat(summary).contains("group1Track0AverageBitrate=160000");
+    assertThat(summary).contains("group1Track0PeakBitrate=192000");
+    assertThat(summary).contains("group1Track0MetadataEntryCount=1");
+    assertThat(summary).contains("group1Track0InitializationData=1:3");
+    assertThat(summary).contains("group1Track0PcmEncoding=2");
+    assertThat(summary).contains("group1Track0EncoderTrim=12:34");
   }
 
   @Test
@@ -395,6 +493,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("window0TagTokenPresent=1");
     assertThat(summary).contains("window0Uid=");
     assertThat(summary).contains("window0UidTokenPresent=");
+    assertThat(summary).contains("window0UidValuePresent=1");
+    assertThat(summary).contains("window0UidValueClass=java.lang.String");
+    assertThat(summary).contains("window0UidValueType=1");
+    assertThat(summary).contains("window0UidValueString=window-uid-0");
     assertThat(summary).contains("window0LiveConfigurationPresent=");
     assertThat(summary).contains("window0LiveTargetOffsetMs=");
     assertThat(summary).contains("window0LiveMinOffsetMs=");
@@ -404,6 +506,8 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("window0ManifestPresent=0");
     assertThat(summary).contains("window0ManifestString=");
     assertThat(summary).contains("window0ManifestTokenPresent=0");
+    assertThat(summary).contains("window0ManifestValuePresent=0");
+    assertThat(summary).contains("window0ManifestValueType=0");
     assertThat(summary).contains("window0FirstPeriodIndex=0");
     assertThat(summary).contains("window0LastPeriodIndex=0");
     assertThat(summary).contains("window0PresentationStartTimeMs=");
@@ -431,9 +535,17 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("window1LiveMaxOffsetMs=8200");
     assertThat(summary).contains("window1LiveMinSpeed=0.930000");
     assertThat(summary).contains("window1LiveMaxSpeed=1.070000");
-    assertThat(summary).contains("window1ManifestPresent=");
-    assertThat(summary).contains("window1ManifestString=");
-    assertThat(summary).contains("window1ManifestTokenPresent=");
+    assertThat(summary).contains("window1UidValuePresent=1");
+    assertThat(summary).contains("window1UidValueClass=java.lang.String");
+    assertThat(summary).contains("window1UidValueType=1");
+    assertThat(summary).contains("window1UidValueString=window-uid-1");
+    assertThat(summary).contains("window1ManifestPresent=1");
+    assertThat(summary).contains("window1ManifestString=timeline-query-manifest");
+    assertThat(summary).contains("window1ManifestTokenPresent=1");
+    assertThat(summary).contains("window1ManifestValuePresent=1");
+    assertThat(summary).contains("window1ManifestValueClass=java.lang.String");
+    assertThat(summary).contains("window1ManifestValueType=1");
+    assertThat(summary).contains("window1ManifestValueString=timeline-query-manifest");
     assertThat(summary).contains("window1FirstPeriodIndex=");
     assertThat(summary).contains("window1LastPeriodIndex=");
     assertThat(summary).contains("window1DurationMs=");
@@ -447,11 +559,21 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("window1DefaultPositionUs=");
     assertThat(summary).contains("window1DurationUs=");
     assertThat(summary).contains("period0Id=");
-    assertThat(summary).contains("period0IdTokenPresent=");
+    assertThat(summary).contains("period0IdTokenPresent=1");
+    assertThat(summary).contains("period0IdValuePresent=1");
+    assertThat(summary).contains("period0IdValueClass=java.lang.String");
+    assertThat(summary).contains("period0IdValueType=1");
+    assertThat(summary).contains("period0IdValueString=period-0");
     assertThat(summary).contains("period0Uid=");
     assertThat(summary).contains("period0UidTokenPresent=1");
+    assertThat(summary).contains("period0UidValuePresent=1");
+    assertThat(summary).contains("period0UidValueClass=java.lang.String");
+    assertThat(summary).contains("period0UidValueType=1");
+    assertThat(summary).contains("period0UidValueString=period-uid-0");
     assertThat(summary).contains("period0AdsId=");
     assertThat(summary).contains("period0AdsIdTokenPresent=");
+    assertThat(summary).contains("period0AdsIdValuePresent=0");
+    assertThat(summary).contains("period0AdsIdValueType=0");
     assertThat(summary).contains("period0WindowIndex=");
     assertThat(summary).contains("period0AdGroupCount=");
     assertThat(summary).contains("period0DurationMs=");
@@ -460,11 +582,23 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("period0PositionInWindowUs=");
     assertThat(summary).contains("period0Placeholder=");
     assertThat(summary).contains("period1Id=");
-    assertThat(summary).contains("period1IdTokenPresent=");
+    assertThat(summary).contains("period1IdTokenPresent=1");
+    assertThat(summary).contains("period1IdValuePresent=1");
+    assertThat(summary).contains("period1IdValueClass=java.lang.String");
+    assertThat(summary).contains("period1IdValueType=1");
+    assertThat(summary).contains("period1IdValueString=period-1");
     assertThat(summary).contains("period1Uid=");
     assertThat(summary).contains("period1UidTokenPresent=");
-    assertThat(summary).contains("period1AdsId=");
-    assertThat(summary).contains("period1AdsIdTokenPresent=");
+    assertThat(summary).contains("period1UidValuePresent=1");
+    assertThat(summary).contains("period1UidValueClass=java.lang.String");
+    assertThat(summary).contains("period1UidValueType=1");
+    assertThat(summary).contains("period1UidValueString=period-uid-1");
+    assertThat(summary).contains("period1AdsId=period-ads-1");
+    assertThat(summary).contains("period1AdsIdTokenPresent=1");
+    assertThat(summary).contains("period1AdsIdValuePresent=1");
+    assertThat(summary).contains("period1AdsIdValueClass=java.lang.String");
+    assertThat(summary).contains("period1AdsIdValueType=1");
+    assertThat(summary).contains("period1AdsIdValueString=period-ads-1");
     assertThat(summary).contains("period1WindowIndex=");
     assertThat(summary).contains("period1AdGroupCount=");
     assertThat(summary).contains("period1DurationMs=");
@@ -489,12 +623,19 @@ public final class CppBridgeNativePlayerInstrumentationTest {
   @Test
   public void nativeSurfaceBridgeSmokeTest_runsSurfaceCalls() {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    SurfaceTexture surfaceTexture = new SurfaceTexture(0);
+    Surface surface = new Surface(surfaceTexture);
 
-    String summary =
-        CppBridgeNativePlayerTestHelper.nativeSurfaceBridgeSmokeTest(
-            context, new SurfaceView(context), new TextureView(context));
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeSurfaceBridgeSmokeTest(
+              context, surface, new SurfaceView(context), new TextureView(context));
 
-    assertThat(summary).isEqualTo("surface-ok");
+      assertThat(summary).isEqualTo("surface-ok");
+    } finally {
+      surface.release();
+      surfaceTexture.release();
+    }
   }
 
   @Test
@@ -533,6 +674,8 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("timelineCurrentMediaItemIndex=1");
     assertThat(summary).contains("tracksChangedCb=1");
     assertThat(summary).contains("positionDiscontinuityCb=1");
+    assertThat(summary).contains("isLoadingCb=1");
+    assertThat(summary).contains("isLoading=1");
     assertThat(summary).contains("timelineWindow0MediaId=listener-item-1");
     assertThat(summary).contains("timelineWindow0TagPresent=1");
     assertThat(summary).contains("timelineWindow0TagString=listener-tag-1");
@@ -622,6 +765,8 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     assertThat(summary).contains("mediaMetadataTitle=Listener Item Title");
     assertThat(summary).contains("mediaMetadataTitleTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValuePresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValueString=Listener Item Title");
     assertThat(summary).contains("mediaMetadataArtist=Listener Item Artist");
     assertThat(summary).contains("mediaMetadataArtistTokenPresent=1");
     assertThat(summary).contains("mediaMetadataAlbumArtist=Listener Item Album Artist");
@@ -642,8 +787,12 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("mediaMetadataCompilationTokenPresent=1");
     assertThat(summary).contains("mediaMetadataStation=Listener Item Station");
     assertThat(summary).contains("mediaMetadataStationTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataStationValuePresent=1");
+    assertThat(summary).contains("mediaMetadataStationValueString=Listener Item Station");
     assertThat(summary).contains("mediaMetadataMediaType=5");
     assertThat(summary).contains("playlistMetadataTitle=Listener Playlist");
+    assertThat(summary).contains("playlistMetadataTitleValuePresent=1");
+    assertThat(summary).contains("playlistMetadataTitleValueString=Listener Playlist");
     assertThat(summary).contains("playlistMetadataArtist=Listener Artist");
     assertThat(summary).contains("playlistMetadataAlbumArtist=Listener Playlist Album Artist");
     assertThat(summary).contains("playlistMetadataDisplayTitle=Listener Playlist Display");
@@ -704,6 +853,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("deviceVol=");
     assertThat(summary).contains("muted=");
     assertThat(summary).contains("skipSilence=");
+    assertThat(summary).contains("deviceControlCalls=1");
   }
 
   @Test
@@ -813,7 +963,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsListenerRegistrationSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("bitrate=8765432");
     assertThat(summary).contains("dropped=4");
     assertThat(summary).contains("loadStarted=6");
@@ -830,7 +980,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioUnderrunSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("bufferSize=4096");
     assertThat(summary).contains("bufferSizeMs=87");
     assertThat(summary).contains("elapsedSinceLastFeedMs=23");
@@ -843,7 +993,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsDroppedVideoFramesSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("droppedFrames=8");
     assertThat(summary).contains("elapsedMs=41");
   }
@@ -855,7 +1005,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsBandwidthEstimateSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("elapsedMs=34");
     assertThat(summary).contains("bytesTransferred=67890");
     assertThat(summary).contains("bitrateEstimate=999999");
@@ -867,7 +1017,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsLoadStartedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("uri=https://example.com/analytics-final.m3u8");
     assertThat(summary).contains("dataType=3");
     assertThat(summary).contains("trackType=1");
@@ -881,7 +1031,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsLoadCompletedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("uri=https://example.com/analytics-final-complete.m3u8");
     assertThat(summary).contains("dataType=4");
     assertThat(summary).contains("trackType=1");
@@ -895,7 +1045,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioInputFormatChangedSmokeTest(
             context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("sampleMimeType=audio/final");
     assertThat(summary).contains("codecs=ec-3");
     assertThat(summary).contains("channelCount=6");
@@ -909,7 +1059,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioDecoderInitializedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("decoderName=c2.android.eac3.decoder");
     assertThat(summary).contains("initializedTimestampMs=222");
     assertThat(summary).contains("initializationDurationMs=19");
@@ -922,7 +1072,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoDecoderInitializedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("decoderName=c2.android.hevc.decoder");
     assertThat(summary).contains("initializedTimestampMs=444");
     assertThat(summary).contains("initializationDurationMs=29");
@@ -935,7 +1085,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioDecoderReleasedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("decoderName=c2.android.eac3.decoder");
   }
 
@@ -946,7 +1096,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoDecoderReleasedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("decoderName=c2.android.hevc.decoder");
   }
 
@@ -957,7 +1107,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsRenderedFirstFrameSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("renderTimeMs=456");
   }
 
@@ -968,7 +1118,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoSizeChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("width=1920");
     assertThat(summary).contains("height=1080");
     assertThat(summary).contains("pixelWidthHeightRatio=1.250000");
@@ -981,7 +1131,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioPositionAdvancingSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("playoutStartSystemTimeMs=2222");
   }
 
@@ -993,7 +1143,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoFrameProcessingOffsetSmokeTest(
             context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("totalProcessingOffsetUs=67890");
     assertThat(summary).contains("frameCount=8");
   }
@@ -1005,7 +1155,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVolumeChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("volume=0.750000");
   }
 
@@ -1016,8 +1166,67 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioSessionIdChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
-    assertThat(summary).contains("audioSessionId=42");
+    assertCallbackStoppedAfterRemove(summary);
+    assertThat(summary).contains("audioSessionId=700042");
+  }
+
+  @Test
+  public void nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioAttributesChangedSmokeTest(context);
+
+    assertCallbackStoppedAfterRemove(summary);
+    assertThat(summary).contains("contentType=4");
+    assertThat(summary).contains("usage=5");
+    assertThat(summary).contains("flags=6");
+    assertThat(summary).contains("allowedCapturePolicy=2");
+    assertThat(summary).contains("spatializationBehavior=1");
+  }
+
+  @Test
+  public void nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeAnalyticsStage4RemainingCallbacksSmokeTest(context);
+
+    assertCallbackStoppedAfterRemove(summary);
+    assertThat(summary).contains("beforeRemoveCb=25");
+    assertThat(summary).contains("playerStatePlayWhenReady=1");
+    assertThat(summary).contains("playerState=3");
+    assertThat(summary).contains("loading=1");
+    assertThat(summary).contains("trackTextLanguage=stage4-text");
+    assertThat(summary).contains("trackDisableText=1");
+    assertThat(summary).contains("loadCanceledSampleMimeType=audio/mp4");
+    assertThat(summary).contains("downstreamSampleMimeType=video/avc");
+    assertThat(summary).contains("upstreamSampleMimeType=text/vtt");
+    assertThat(summary).contains("audioEnabledInitCount=1");
+    assertThat(summary).contains("audioDisabledReleaseCount=9");
+    assertThat(summary).contains("audioSinkError=stage4 audio sink");
+    assertThat(summary).contains("audioCodecError=stage4 audio codec");
+    assertThat(summary).contains("audioTrackInitSampleRate=48000");
+    assertThat(summary).contains("audioTrackReleasedOffload=1");
+    assertThat(summary).contains("videoEnabledProcessingOffsetUs=22000");
+    assertThat(summary).contains("videoDisabledProcessingOffsetCount=28");
+    assertThat(summary).contains("videoCodecError=stage4 video codec");
+    assertThat(summary).contains("surfaceWidth=1280");
+    assertThat(summary).contains("surfaceHeight=720");
+    assertThat(summary).contains("drmAcquiredHasState=1");
+    assertThat(summary).contains("drmAcquiredState=4");
+    assertThat(summary).contains("drmKeysLoadedHasInfo=1");
+    assertThat(summary).contains("drmKeysLoadedLoadInfoCount=5");
+    assertThat(summary).contains("drmKeysLoadedSchemeDataCount=6");
+    assertThat(summary).contains("drmError=stage4 drm");
+    assertThat(summary).contains("drmRestoredCb=1");
+    assertThat(summary).contains("drmRemovedCb=1");
+    assertThat(summary).contains("drmReleasedCb=1");
+    assertThat(summary).contains("rendererIndex=2");
+    assertThat(summary).contains("rendererTrackType=2");
+    assertThat(summary).contains("rendererReady=1");
+    assertThat(summary).contains("droppedSeeks=7");
+    assertThat(summary).contains("playerReleasedCb=1");
   }
 
   @Test
@@ -1027,7 +1236,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsSkipSilenceEnabledChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("skipSilenceEnabled=1");
   }
 
@@ -1038,7 +1247,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsDeviceVolumeChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("volume=7");
     assertThat(summary).contains("muted=0");
   }
@@ -1050,7 +1259,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlaybackStateChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("playbackState=3");
   }
 
@@ -1061,7 +1270,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsIsPlayingChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("isPlaying=1");
   }
 
@@ -1072,7 +1281,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlayWhenReadyChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("playWhenReady=1");
     assertThat(summary).contains("reason=2");
   }
@@ -1086,7 +1295,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper
             .nativeAnalyticsPlaybackSuppressionReasonChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("playbackSuppressionReason=1");
   }
 
@@ -1097,7 +1306,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsIsLoadingChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("isLoading=1");
   }
 
@@ -1108,7 +1317,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsRepeatModeChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("repeatMode=2");
   }
 
@@ -1119,7 +1328,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsShuffleModeChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("shuffleModeEnabled=1");
   }
 
@@ -1131,7 +1340,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlaybackParametersChangedSmokeTest(
             context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("speed=1.500000");
     assertThat(summary).contains("pitch=0.750000");
   }
@@ -1144,7 +1353,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAvailableCommandsChangedSmokeTest(
             context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("commandCount=3");
     assertThat(summary).contains("firstCommand=3");
     assertThat(summary).contains("contains8=1");
@@ -1156,10 +1365,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsEventsSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("eventCount=3");
     assertThat(summary).contains("firstEvent=7");
-    assertThat(summary).contains("contains9=1");
+    assertThat(summary).contains("contains9009=1");
   }
 
   @Test
@@ -1170,7 +1379,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsSeekBackIncrementChangedSmokeTest(
             context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("seekBackIncrementMs=15000");
   }
 
@@ -1182,7 +1391,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsSeekForwardIncrementChangedSmokeTest(
             context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("seekForwardIncrementMs=25000");
   }
 
@@ -1194,7 +1403,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper
             .nativeAnalyticsMaxSeekToPreviousPositionChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("maxSeekToPreviousPositionMs=12000");
   }
 
@@ -1205,7 +1414,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsTimelineChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("reason=2");
   }
 
@@ -1216,7 +1425,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPositionDiscontinuitySmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("reason=5");
   }
 
@@ -1226,7 +1435,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsSeekStartedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("started=1");
   }
 
@@ -1236,7 +1445,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsPlayerErrorSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("errorCode=2002");
     assertThat(summary).contains("message=analytics-final-error");
   }
@@ -1248,7 +1457,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlayerErrorChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("errorCode=4004");
     assertThat(summary).contains("message=analytics-final-changed");
   }
@@ -1259,7 +1468,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsTracksChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("groupCount=2");
     assertThat(summary).contains("firstGroupType=2");
     assertThat(summary).contains("firstGroupId=video-main");
@@ -1277,7 +1486,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsMediaItemTransitionSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("mediaId=analytics-transition-final");
     assertThat(summary).contains("sourceType=2");
     assertThat(summary).contains("reason=2");
@@ -1289,7 +1498,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsCuesSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("cueCount=2");
     assertThat(summary).contains("presentationTimeUs=654321");
     assertThat(summary).contains("text0=Analytics Cue Final");
@@ -1306,7 +1515,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsMetadataSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("entryCount=2");
     assertThat(summary).contains("firstEntryType=MdtaMetadataEntry");
     assertThat(summary).contains("firstEntryText=analytics-metadata-final");
@@ -1318,7 +1527,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     String summary = CppBridgeNativePlayerTestHelper.nativeAnalyticsLoadErrorSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("uri=https://example.com/analytics-error-final.m3u8");
     assertThat(summary).contains("dataType=4");
     assertThat(summary).contains("trackType=2");
@@ -1333,7 +1542,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsDeviceInfoChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("playbackType=1");
     assertThat(summary).contains("minVolume=2");
     assertThat(summary).contains("maxVolume=15");
@@ -1347,7 +1556,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsMediaMetadataChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("title=Analytics Media Final");
     assertThat(summary).contains("artist=Analytics Artist Final");
     assertThat(summary).contains("displayTitle=Analytics Display Final");
@@ -1360,7 +1569,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary =
         CppBridgeNativePlayerTestHelper.nativeAnalyticsPlaylistMetadataChangedSmokeTest(context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("title=Analytics Playlist Final");
     assertThat(summary).contains("artist=Analytics Playlist Artist Final");
     assertThat(summary).contains("displayTitle=Analytics Playlist Display Final");
@@ -1374,7 +1583,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoInputFormatChangedSmokeTest(
             context);
 
-    assertCallbackStoppedAfterRemove(summary, 2);
+    assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("sampleMimeType=video/final");
     assertThat(summary).contains("codecs=hvc1.1.6.L93.B0");
     assertThat(summary).contains("width=1920");
@@ -1389,7 +1598,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     String summary = CppBridgeNativePlayerTestHelper.nativeImageOutputSmokeTest(context);
 
     assertThat(summary).contains("imageCount=3");
-    assertThat(summary).contains("runtimeDisableDisabledCount=0");
+    assertThat(summary).contains("runtimeDisableDisabledCount=1");
     assertThat(summary).contains("afterRuntimeDisableImageCount=2");
     assertThat(summary).contains("afterRuntimeReenableImageCount=3");
     assertThat(summary).contains("beforeRemoveImageCount=3");
@@ -1405,7 +1614,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("lastIsPremultiplied=1");
     assertThat(summary).contains("lastIsMutable=1");
     assertThat(summary).contains("lastBitmapConfig=ARGB_8888");
-    assertThat(summary).contains("disabledCount=1");
+    assertThat(summary).contains("disabledCount=2");
     assertThat(summary).contains("reattachImageCount=1");
     assertThat(summary).contains("reattachLastPresentationTimeUs=456789");
     assertThat(summary).contains("reattachLastWidth=14");
@@ -1428,6 +1637,150 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     assertThat(summary).contains("mediaId=source-type-item");
     assertThat(summary).contains("sourceType=2");
+  }
+
+  @Test
+  public void nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi()
+      throws Exception {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    MockWebServer server = createStreamPlaybackServer(context);
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeHttpHlsDashPlaybackSmokeTest(
+              context,
+              server.url("/http/sample.audio.mp4").toString(),
+              server.url("/hls/manifest.m3u8").toString(),
+              server.url("/dash/sample.mpd").toString());
+
+      assertThat(summary).contains("httpPrepared=1");
+      assertThat(summary).contains("httpAdvanced=1");
+      assertThat(summary).contains("httpSourceType=5");
+      assertThat(summary).contains("httpMimeType=audio/mp4");
+      assertThat(summary).contains("hlsPrepared=1");
+      assertThat(summary).contains("hlsAdvanced=1");
+      assertThat(summary).contains("hlsSourceType=2");
+      assertThat(summary).contains("hlsMimeType=application/x-mpegURL");
+      assertThat(summary).contains("dashPrepared=1");
+      assertThat(summary).contains("dashAdvanced=1");
+      assertThat(summary).contains("dashSourceType=1");
+      assertThat(summary).contains("dashMimeType=application/dash+xml");
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @Test
+  public void nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig()
+      throws Exception {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    MockWebServer server = createStreamPlaybackServer(context);
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeHttpDataSourceConfigPlaybackSmokeTest(
+              context, server.url("/http/sample.audio.mp4").toString());
+
+      assertThat(summary).contains("headerCount=2");
+      assertThat(summary).contains("userAgent=cppbridge-stage5-agent");
+      assertThat(summary).contains("allowCrossProtocolRedirects=1");
+      assertThat(summary).contains("httpConfigPrepared=1");
+      assertThat(summary).contains("httpConfigAdvanced=1");
+      assertThat(summary).contains("httpConfigSourceType=5");
+      assertThat(summary).contains("httpConfigMimeType=audio/mp4");
+      assertThat(summary).contains("httpConfigErrorCode=0");
+
+      RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+      assertThat(request).isNotNull();
+      assertThat(request.getHeader("X-CppBridge-Stage")).isEqualTo("5");
+      assertThat(request.getHeader("X-CppBridge-Source")).isEqualTo("http-config");
+      assertThat(request.getHeader("User-Agent")).isEqualTo("cppbridge-stage5-agent");
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @Test
+  public void nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-custom-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeCustomMediaSourceFactoryPlaybackSmokeTest(
+              context, token);
+
+      assertThat(summary).contains("factoryToken=stage5-custom-media-source-factory");
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("smoothPrepared=1");
+      assertThat(summary).contains("smoothErrorCode=0");
+      assertThat(summary).contains("smoothSourceType=3");
+      assertThat(summary).contains("smoothMimeType=application/vnd.ms-sstr+xml");
+      assertThat(summary).contains("rtspPrepared=1");
+      assertThat(summary).contains("rtspErrorCode=0");
+      assertThat(summary).contains("rtspSourceType=4");
+      assertThat(summary).contains("rtspMimeType=application/x-rtsp");
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
+    }
+  }
+
+  @Test
+  public void nativeCustomCacheKeyPlaybackSmokeTest_preservesCacheKeyThroughPlaybackPath() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-cache-fake-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeCustomCacheKeyPlaybackSmokeTest(context, token);
+
+      assertThat(summary).contains("factoryToken=" + token);
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("runtimePlayerReady=1");
+      assertThat(summary).contains("prepared=1");
+      assertThat(summary).contains("errorCode=0");
+      assertThat(summary).contains("mediaId=stage5-cache-item");
+      assertThat(summary).contains("mimeType=video/mp4");
+      assertThat(summary).contains("sourceType=5");
+      assertThat(summary).contains("customCacheKey=stage5-cache-key");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item,subtitleCount=0");
+      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
+    }
+  }
+
+  @Test
+  public void nativeDrmPlaybackSmokeTest_preservesDrmConfigThroughPlaybackPath() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-drm-fake-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary = CppBridgeNativePlayerTestHelper.nativeDrmPlaybackSmokeTest(context, token);
+
+      assertThat(summary).contains("factoryToken=" + token);
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("runtimePlayerReady=1");
+      assertThat(summary).contains("prepared=1");
+      assertThat(summary).contains("errorCode=0");
+      assertThat(summary).contains("mediaId=stage5-drm-item");
+      assertThat(summary).contains("mimeType=application/dash+xml");
+      assertThat(summary).contains("sourceType=1");
+      assertThat(summary).contains("hasDrmConfiguration=1");
+      assertThat(summary).contains("drmScheme=edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+      assertThat(summary).contains("drmLicenseUri=https://license.example.com/stage5");
+      assertThat(summary).contains("drmHeaderCount=2");
+      assertThat(summary).contains("drmHeader0=X-Drm-Stage:5");
+      assertThat(summary).contains("drmHeader1=X-Drm-Trace:cppbridge");
+      assertThat(summary).contains("drmForcedSessionTrackTypeCount=2");
+      assertThat(summary).contains("drmKeySetIdLength=4");
+      assertThat(summary).contains("drmMultiSession=1");
+      assertThat(summary).contains("drmForceDefaultLicenseUri=1");
+      assertThat(summary).contains("drmPlayClearContentWithoutKey=0");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-drm-item");
+      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
+    }
   }
 
   @Test
@@ -1560,66 +1913,6 @@ public final class CppBridgeNativePlayerInstrumentationTest {
   }
 
   @Test
-  public void nativeCustomCacheKeyPlaybackSmokeTest_preservesCacheKeyThroughPlaybackPath() {
-    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-    String token = "stage5-cache-fake-media-source-factory";
-    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
-    try {
-      String summary =
-          CppBridgeNativePlayerTestHelper.nativeCustomCacheKeyPlaybackSmokeTest(context, token);
-
-      assertThat(summary).contains("factoryToken=" + token);
-      assertThat(summary).contains("injectedFactoryUsed=1");
-      assertThat(summary).contains("runtimePlayerReady=1");
-      assertThat(summary).contains("prepared=1");
-      assertThat(summary).contains("errorCode=0");
-      assertThat(summary).contains("mediaId=stage5-cache-item");
-      assertThat(summary).contains("mimeType=video/mp4");
-      assertThat(summary).contains("sourceType=5");
-      assertThat(summary).contains("customCacheKey=stage5-cache-key");
-      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item");
-      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item,subtitleCount=0");
-      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
-    } finally {
-      CppMediaSourceFactoryRegistry.unregister(token);
-    }
-  }
-
-  @Test
-  public void nativeDrmPlaybackSmokeTest_preservesDrmConfigThroughPlaybackPath() {
-    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-    String token = "stage5-drm-fake-media-source-factory";
-    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
-    try {
-      String summary = CppBridgeNativePlayerTestHelper.nativeDrmPlaybackSmokeTest(context, token);
-
-      assertThat(summary).contains("factoryToken=" + token);
-      assertThat(summary).contains("injectedFactoryUsed=1");
-      assertThat(summary).contains("runtimePlayerReady=1");
-      assertThat(summary).contains("prepared=1");
-      assertThat(summary).contains("errorCode=0");
-      assertThat(summary).contains("mediaId=stage5-drm-item");
-      assertThat(summary).contains("mimeType=application/dash+xml");
-      assertThat(summary).contains("sourceType=1");
-      assertThat(summary).contains("hasDrmConfiguration=1");
-      assertThat(summary).contains("drmScheme=edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
-      assertThat(summary).contains("drmLicenseUri=https://license.example.com/stage5");
-      assertThat(summary).contains("drmHeaderCount=2");
-      assertThat(summary).contains("drmHeader0=X-Drm-Stage:5");
-      assertThat(summary).contains("drmHeader1=X-Drm-Trace:cppbridge");
-      assertThat(summary).contains("drmForcedSessionTrackTypeCount=2");
-      assertThat(summary).contains("drmKeySetIdLength=4");
-      assertThat(summary).contains("drmMultiSession=1");
-      assertThat(summary).contains("drmForceDefaultLicenseUri=1");
-      assertThat(summary).contains("drmPlayClearContentWithoutKey=0");
-      assertThat(summary).contains("debugSummary=mediaId=stage5-drm-item");
-      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
-    } finally {
-      CppMediaSourceFactoryRegistry.unregister(token);
-    }
-  }
-
-  @Test
   public void nativePlayerConfigFlagsSmokeTest_returnsCreateTimeFlags() {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
@@ -1645,6 +1938,152 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("beforeWakeMode=1");
     assertThat(summary).contains("afterWakeMode=0");
     assertThat(summary).contains("runtimeApplied=1");
+  }
+
+  @Test
+  public void nativeRuntimeControlParitySmokeTest_updatesPhaseOneRuntimeControls() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary = CppBridgeNativePlayerTestHelper.nativeRuntimeControlParitySmokeTest(context);
+
+    assertThat(summary).contains("seekBackIncrementMs=4321");
+    assertThat(summary).contains("seekForwardIncrementMs=8765");
+    assertThat(summary).contains("maxSeekToPreviousPositionMs=9999");
+    assertThat(summary).contains("initialPauseAtEnd=0");
+    assertThat(summary).contains("afterEnablePauseAtEnd=1");
+    assertThat(summary).contains("afterDisablePauseAtEnd=0");
+    assertThat(summary).contains("videoScalingMode=2");
+    assertThat(summary).contains("videoChangeFrameRateStrategy=-2147483648");
+    assertThat(summary).contains("afterDisableNoisyFlag=0");
+    assertThat(summary).contains("afterEnableNoisyFlag=1");
+    assertThat(summary).contains("afterEnableForegroundFlag=1");
+    assertThat(summary).contains("afterDisableForegroundFlag=0");
+    assertThat(summary).contains("runtimeApplied=1");
+  }
+
+  @Test
+  public void nativeAudioAndScrubbingParitySmokeTest_updatesAdvancedRuntimeControls() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary = CppBridgeNativePlayerTestHelper.nativeAudioAndScrubbingParitySmokeTest(context);
+
+    assertThat(summary).contains("audioSessionId=1234");
+    assertThat(summary).contains("auxEffectAfterSet=0:0.37");
+    assertThat(summary).contains("auxEffectAfterClear=0:0.0");
+    assertThat(summary).contains("preferredAudioDeviceAfterClear=0");
+    assertThat(summary).contains("virtualDeviceId=42");
+    assertThat(summary).contains("scrubbingInitially=0");
+    assertThat(summary).contains("scrubbingAfterEnable=1");
+    assertThat(summary).contains("scrubbingAfterDisable=0");
+    assertThat(summary).contains("scrubTracks=2,3");
+    assertThat(summary).contains("scrubTolerance=0.125000:0.500000");
+    assertThat(summary).contains("scrubFlags=01010");
+    assertThat(summary).contains("runtimeApplied=1");
+  }
+
+  @Test
+  public void nativeCodecParametersParitySmokeTest_setsAudioAndVideoCodecParameters() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary = CppBridgeNativePlayerTestHelper.nativeCodecParametersParitySmokeTest(context);
+
+    assertThat(summary)
+        .contains(
+            "audioCodec=audio-int=int:7;audio-long=long:9876543210;audio-float=float:1.25;"
+                + "audio-string=string:music;audio-bytes=bytes:3:012aff;audio-null=null");
+    assertThat(summary).contains("videoCodec=video-string=string:video;video-bytes=bytes:2:1020");
+    assertThat(summary).contains("runtimeApplied=1");
+  }
+
+  @Test
+  public void nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeAuxiliaryCallbackParitySmokeTest(context);
+
+    assertThat(summary).contains("audioCodecCb=1");
+    assertThat(summary).contains("audioCodec=codec-mode=string:low-latency;codec-rate=int:60");
+    assertThat(summary).contains("videoCodecCb=1");
+    assertThat(summary).contains("videoCodec=video-profile=string:main");
+    assertThat(summary).contains("videoFrameCb=1");
+    assertThat(summary).contains("framePresentationUs=123456");
+    assertThat(summary).contains("frameReleaseNs=987654321");
+    assertThat(summary).contains("frameFormatId=frame-format");
+    assertThat(summary).contains("frameMime=video/avc");
+    assertThat(summary).contains("frameSize=1920x1080");
+    assertThat(summary).contains("frameLabel=Main Camera");
+    assertThat(summary).contains("frameLanguage=en");
+    assertThat(summary).contains("frameContainerMime=video/mp4");
+    assertThat(summary).contains("frameBitrates=333000:222000:333000");
+    assertThat(summary).contains("frameRotation=180");
+    assertThat(summary).contains("framePixelRatio=1.500000");
+    assertThat(summary).contains("frameColor=1:2:3");
+    assertThat(summary).contains("frameAudioShape=2:48000");
+    assertThat(summary).contains("frameFlags=5:7");
+    assertThat(summary).contains("frameMediaFormatPresent=1");
+    assertThat(summary).contains("frameMediaFormatMime=video/avc");
+    assertThat(summary).contains("frameMediaFormatSize=1920x1080");
+    assertThat(summary).contains("frameMediaFormatFrameRate=23.976000");
+    assertThat(summary).contains("frameMediaFormatRotation=90");
+    assertThat(summary).contains("frameMediaFormatColor=1:2:3");
+    assertThat(summary).contains("cameraMotionCb=1");
+    assertThat(summary).contains("cameraTimeUs=654321");
+    assertThat(summary).contains("cameraRotation=1.000000:2.000000:3.000000");
+    assertThat(summary).contains("cameraResetCb=1");
+    assertThat(summary).contains("afterRemoveStopped=1");
+    assertThat(summary).contains("bridgeCodecRegistrationSafe=1");
+    assertThat(summary).contains("callbackApplied=1");
+  }
+
+  @Test
+  public void nativeVideoFrameMetadataSimulationFallbackSmokeTest_preservesFallbackFields() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeVideoFrameMetadataSimulationFallbackSmokeTest(context);
+
+    assertThat(summary).contains("frameCb=1");
+    assertThat(summary).contains("fallbackBitrates=123000:123000:-1");
+    assertThat(summary).contains("fallbackColor=1:-1:-1");
+    assertThat(summary).contains("fallbackAudioShape=-1:-1");
+    assertThat(summary).contains("fallbackApplied=1");
+  }
+
+  @Test
+  public void nativeCodecParametersMultiListenerParitySmokeTest_routesImmediateCallbacks() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeCodecParametersMultiListenerParitySmokeTest(context);
+
+    assertThat(summary).contains("audioFirstAfterSecondAdd=0");
+    assertThat(summary).contains("audioSecondInitial=1");
+    assertThat(summary).contains("audioFirst=keyA=int:10;keyB=int:20");
+    assertThat(summary).contains("audioSecond=keyB=int:20;keyC=int:30");
+    assertThat(summary).contains("audioFirstAfterRemoveDelta=0");
+    assertThat(summary).contains("audioSecondAfterRemoveStopped=1");
+    assertThat(summary).contains("videoFirstAfterSecondAdd=0");
+    assertThat(summary).contains("videoSecondInitial=1");
+    assertThat(summary).contains("videoFirst=vKeyA=int:100;vKeyB=int:200");
+    assertThat(summary).contains("videoSecond=vKeyB=int:200;vKeyC=int:300");
+    assertThat(summary).contains("videoFirstAfterRemoveDelta=0");
+    assertThat(summary).contains("videoSecondAfterRemoveStopped=1");
+    assertThat(summary).contains("multiListenerApplied=1");
+  }
+
+  @Test
+  public void nativeRendererAndDeviceStateGetterSmokeTest_readsRendererAndDeviceState() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeRendererAndDeviceStateGetterSmokeTest(context);
+
+    assertThat(summary).contains("sleepingForOffload=0");
+    assertThat(summary).contains("tunnelingEnabled=0");
+    assertThat(summary).contains("invalidRendererType=-1");
+    assertThat(summary).contains("releasedBefore=0");
+    assertThat(summary).contains("getterApplied=1");
   }
 
   @Test
@@ -1749,7 +2188,8 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("type=42");
     assertThat(summary).contains("payload=payload-test");
     assertThat(summary).contains("mediaItemIndex=0");
-    assertThat(summary).contains("positionMs=1234");
+    assertThat(summary).contains("positionMs=");
+    assertThat(summary).contains("scheduledPositionMs=");
     assertThat(summary).contains("deleteAfterDelivery=1");
     assertThat(summary).contains("thread=");
     assertThat(summary).contains("playbackAdvanced=1");
@@ -1805,6 +2245,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("tagPresent=1");
     assertThat(summary).contains("tagString=current-tag");
     assertThat(summary).contains("tagTokenPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueClass=java.lang.String");
+    assertThat(summary).contains("tagValueType=1");
+    assertThat(summary).contains("tagValueString=current-tag");
     assertThat(summary).contains("subtitleCount=2");
     assertThat(summary).contains("subtitle0Uri=https://example.com/current.vtt");
     assertThat(summary).contains("subtitle0MimeType=text/vtt");
@@ -1847,13 +2291,37 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("requestMetadataMediaUri=https://example.com/current-request");
     assertThat(summary).contains("requestMetadataSearchQuery=current search");
     assertThat(summary).contains("requestMetadataExtrasPresent=1");
-    assertThat(summary).contains("requestMetadataExtrasKeyCount=1");
+    assertThat(summary).contains("requestMetadataExtrasKeyCount=5");
     assertThat(summary).contains("requestMetadataExtrasTokenPresent=1");
+    assertThat(summary).contains("requestMetadataExtrasValueCount=5");
+    assertThat(summary).contains("requestMetadataExtrasValue0Key=enabled");
+    assertThat(summary).contains("requestMetadataExtrasValue0Type=4");
+    assertThat(summary).contains("requestMetadataExtrasValue0Bool=1");
+    assertThat(summary).contains("requestMetadataExtrasValue1Key=episode");
+    assertThat(summary).contains("requestMetadataExtrasValue1Type=2");
+    assertThat(summary).contains("requestMetadataExtrasValue1Long=42");
+    assertThat(summary).contains("requestMetadataExtrasValue2Key=gain");
+    assertThat(summary).contains("requestMetadataExtrasValue2Type=3");
+    assertThat(summary).contains("requestMetadataExtrasValue2Double=1.500000");
+    assertThat(summary).contains("requestMetadataExtrasValue3Key=payload");
+    assertThat(summary).contains("requestMetadataExtrasValue3Type=5");
+    assertThat(summary).contains("requestMetadataExtrasValue3Bytes=3:6");
+    assertThat(summary).contains("requestMetadataExtrasValue4Key=source");
+    assertThat(summary).contains("requestMetadataExtrasValue4Type=1");
+    assertThat(summary).contains("requestMetadataExtrasValue4String=cppbridge");
     assertThat(summary).contains("adTagUri=https://ads.example.com/tag.xml");
     assertThat(summary).contains("adsId=ads-current");
     assertThat(summary).contains("adsIdTokenPresent=1");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueClass=java.lang.String");
+    assertThat(summary).contains("adsIdValueType=1");
+    assertThat(summary).contains("adsIdValueString=ads-current");
     assertThat(summary).contains("mediaMetadataTitle=Current Item Title");
     assertThat(summary).contains("mediaMetadataTitleTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValuePresent=1");
+    assertThat(summary).contains("mediaMetadataTitleValueClass=java.lang.String");
+    assertThat(summary).contains("mediaMetadataTitleValueType=1");
+    assertThat(summary).contains("mediaMetadataTitleValueString=Current Item Title");
     assertThat(summary).contains("mediaMetadataArtist=Current Item Artist");
     assertThat(summary).contains("mediaMetadataArtistTokenPresent=1");
     assertThat(summary).contains("mediaMetadataAlbumTitle=Current Album");
@@ -1890,14 +2358,38 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("mediaMetadataTotalDiscCount=4");
     assertThat(summary).contains("mediaMetadataGenre=Current Item Genre");
     assertThat(summary).contains("mediaMetadataGenreTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataGenreValuePresent=1");
+    assertThat(summary).contains("mediaMetadataGenreValueClass=java.lang.String");
+    assertThat(summary).contains("mediaMetadataGenreValueType=1");
+    assertThat(summary).contains("mediaMetadataGenreValueString=Current Item Genre");
     assertThat(summary).contains("mediaMetadataCompilation=Current Item Compilation");
     assertThat(summary).contains("mediaMetadataCompilationTokenPresent=1");
     assertThat(summary).contains("mediaMetadataMediaType=7");
     assertThat(summary).contains("mediaMetadataStation=Current Item Station");
     assertThat(summary).contains("mediaMetadataStationTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataStationValuePresent=1");
+    assertThat(summary).contains("mediaMetadataStationValueClass=java.lang.String");
+    assertThat(summary).contains("mediaMetadataStationValueType=1");
+    assertThat(summary).contains("mediaMetadataStationValueString=Current Item Station");
     assertThat(summary).contains("mediaMetadataExtrasPresent=1");
-    assertThat(summary).contains("mediaMetadataExtrasKeyCount=1");
+    assertThat(summary).contains("mediaMetadataExtrasKeyCount=5");
     assertThat(summary).contains("mediaMetadataExtrasTokenPresent=1");
+    assertThat(summary).contains("mediaMetadataExtrasValueCount=5");
+    assertThat(summary).contains("mediaMetadataExtrasValue0Key=available");
+    assertThat(summary).contains("mediaMetadataExtrasValue0Type=4");
+    assertThat(summary).contains("mediaMetadataExtrasValue0Bool=1");
+    assertThat(summary).contains("mediaMetadataExtrasValue1Key=blob");
+    assertThat(summary).contains("mediaMetadataExtrasValue1Type=5");
+    assertThat(summary).contains("mediaMetadataExtrasValue1Bytes=3:24");
+    assertThat(summary).contains("mediaMetadataExtrasValue2Key=rating");
+    assertThat(summary).contains("mediaMetadataExtrasValue2Type=3");
+    assertThat(summary).contains("mediaMetadataExtrasValue2Double=4.500000");
+    assertThat(summary).contains("mediaMetadataExtrasValue3Key=season");
+    assertThat(summary).contains("mediaMetadataExtrasValue3Type=2");
+    assertThat(summary).contains("mediaMetadataExtrasValue3Long=2");
+    assertThat(summary).contains("mediaMetadataExtrasValue4Key=studio");
+    assertThat(summary).contains("mediaMetadataExtrasValue4Type=1");
+    assertThat(summary).contains("mediaMetadataExtrasValue4String=Studio");
     assertThat(summary).contains("artworkUri=https://example.com/current-artwork.jpg");
     assertThat(summary).contains("artworkDataLength=4");
     assertThat(summary).contains("artworkDataType=3");
@@ -1917,6 +2409,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("albumTitleTokenPresent=1");
     assertThat(summary).contains("albumArtistTokenPresent=1");
     assertThat(summary).contains("titleTokenPresent=1");
+    assertThat(summary).contains("titleValuePresent=1");
+    assertThat(summary).contains("titleValueClass=java.lang.String");
+    assertThat(summary).contains("titleValueType=1");
+    assertThat(summary).contains("titleValueString=Playlist Title");
     assertThat(summary).contains("artistTokenPresent=1");
     assertThat(summary).contains("displayTitleTokenPresent=1");
     assertThat(summary).contains("subtitle=Playlist Subtitle");
@@ -1935,6 +2431,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("totalDiscCount=5");
     assertThat(summary).contains("genre=Playlist Genre");
     assertThat(summary).contains("genreTokenPresent=1");
+    assertThat(summary).contains("genreValuePresent=1");
+    assertThat(summary).contains("genreValueClass=java.lang.String");
+    assertThat(summary).contains("genreValueType=1");
+    assertThat(summary).contains("genreValueString=Playlist Genre");
     assertThat(summary).contains("compilation=Playlist Compilation");
     assertThat(summary).contains("compilationTokenPresent=1");
     assertThat(summary).contains("artworkUri=https://example.com/playlist-artwork.jpg");
@@ -1948,9 +2448,29 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("releaseDay=22");
     assertThat(summary).contains("station=Playlist Station");
     assertThat(summary).contains("stationTokenPresent=1");
+    assertThat(summary).contains("stationValuePresent=1");
+    assertThat(summary).contains("stationValueClass=java.lang.String");
+    assertThat(summary).contains("stationValueType=1");
+    assertThat(summary).contains("stationValueString=Playlist Station");
     assertThat(summary).contains("extrasPresent=1");
-    assertThat(summary).contains("extrasKeyCount=1");
+    assertThat(summary).contains("extrasKeyCount=5");
     assertThat(summary).contains("extrasTokenPresent=1");
+    assertThat(summary).contains("extrasValueCount=5");
+    assertThat(summary).contains("extrasValue0Key=enabled");
+    assertThat(summary).contains("extrasValue0Type=4");
+    assertThat(summary).contains("extrasValue0Bool=1");
+    assertThat(summary).contains("extrasValue1Key=episode");
+    assertThat(summary).contains("extrasValue1Type=2");
+    assertThat(summary).contains("extrasValue1Long=12");
+    assertThat(summary).contains("extrasValue2Key=gain");
+    assertThat(summary).contains("extrasValue2Type=3");
+    assertThat(summary).contains("extrasValue2Double=0.750000");
+    assertThat(summary).contains("extrasValue3Key=payload");
+    assertThat(summary).contains("extrasValue3Type=5");
+    assertThat(summary).contains("extrasValue3Bytes=3:15");
+    assertThat(summary).contains("extrasValue4Key=source");
+    assertThat(summary).contains("extrasValue4Type=1");
+    assertThat(summary).contains("extrasValue4String=playlist-decoded");
   }
 
   @Test
@@ -2049,6 +2569,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("tagPresent=1");
     assertThat(summary).contains("tagString=at-two-tag");
     assertThat(summary).contains("tagTokenPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueClass=java.lang.String");
+    assertThat(summary).contains("tagValueType=1");
+    assertThat(summary).contains("tagValueString=at-two-tag");
     assertThat(summary).contains("subtitleCount=2");
     assertThat(summary).contains("subtitle0Uri=https://example.com/at-two.vtt");
     assertThat(summary).contains("subtitle0Id=sub-at-2");
@@ -2084,6 +2608,10 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("adTagUri=https://ads.example.com/at-two.xml");
     assertThat(summary).contains("adsId=ads-at-2");
     assertThat(summary).contains("adsIdTokenPresent=1");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueClass=java.lang.String");
+    assertThat(summary).contains("adsIdValueType=1");
+    assertThat(summary).contains("adsIdValueString=ads-at-2");
     assertThat(summary).contains("mediaMetadataTitle=At Two Title");
     assertThat(summary).contains("mediaMetadataTitleTokenPresent=1");
     assertThat(summary).contains("mediaMetadataArtist=At Two Artist");
@@ -2151,8 +2679,14 @@ public final class CppBridgeNativePlayerInstrumentationTest {
 
     assertThat(summary).contains("tagString=registered-tag-object");
     assertThat(summary).contains("tagTokenPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueType=5");
+    assertThat(summary).contains("tagValueString=registered-tag-object");
     assertThat(summary).contains("adsId=registered-ads-object");
     assertThat(summary).contains("adsIdTokenPresent=1");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueType=5");
+    assertThat(summary).contains("adsIdValueString=registered-ads-object");
     assertThat(summary).contains("requestMetadataExtrasPresent=1");
     assertThat(summary).contains("requestMetadataExtrasKeyCount=1");
     assertThat(summary).contains("requestMetadataExtrasTokenPresent=1");

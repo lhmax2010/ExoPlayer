@@ -31,6 +31,71 @@ public final class CppBridgeNativeSmokeTest {
   }
 
   @Test
+  public void nativeObjectValueInfoParsingSmokeTest_parsesReducedValueTypes() {
+    String summary = CppBridgeNativeSmokeTestHelper.nativeObjectValueInfoParsingSmokeTest();
+
+    assertThat(summary).contains("objectValueParsing=1");
+    assertThat(summary).contains("stringPresent=1");
+    assertThat(summary).contains("stringClass=java.lang.String");
+    assertThat(summary).contains("stringType=1");
+    assertThat(summary).contains("stringString=hello|world");
+    assertThat(summary).contains("longType=2");
+    assertThat(summary).contains("longLong=42");
+    assertThat(summary).contains("doubleType=3");
+    assertThat(summary).contains("doubleDouble=2.500000");
+    assertThat(summary).contains("boolType=4");
+    assertThat(summary).contains("boolBool=1");
+    assertThat(summary).contains("nullPresent=0");
+    assertThat(summary).contains("nullType=0");
+    assertThat(summary).contains("otherType=5");
+    assertThat(summary).contains("otherString=object-value");
+    assertThat(summary).contains("invalidDoubleType=3");
+    assertThat(summary).contains("invalidDoubleDouble=0.000000");
+    assertThat(summary).contains("truncatedPresent=0");
+    assertThat(summary).contains("truncatedType=0");
+  }
+
+  @Test
+  public void nativeMediaItemObjectValueConversionSmokeTest_roundTripsObjectMetadata() {
+    String summary =
+        CppBridgeNativeSmokeTestHelper.nativeMediaItemObjectValueConversionSmokeTest();
+
+    assertThat(summary).contains("mediaItemObjectValueConversion=1");
+    assertThat(summary).contains("mediaId=object-value-item");
+    assertThat(summary).contains("sourceType=2");
+    assertThat(summary).contains("tagPresent=1");
+    assertThat(summary).contains("tagValuePresent=1");
+    assertThat(summary).contains("tagValueClass=java.lang.Long");
+    assertThat(summary).contains("tagValueType=2");
+    assertThat(summary).contains("tagValueLong=77");
+    assertThat(summary).contains("adTagUri=https://ads.example.com/object-value.xml");
+    assertThat(summary).contains("adsIdValuePresent=1");
+    assertThat(summary).contains("adsIdValueClass=java.lang.Boolean");
+    assertThat(summary).contains("adsIdValueType=4");
+    assertThat(summary).contains("adsIdValueBool=1");
+  }
+
+  @Test
+  public void nativeMediaMetadataObjectValueConversionSmokeTest_roundTripsObjectTextFields() {
+    String summary =
+        CppBridgeNativeSmokeTestHelper.nativeMediaMetadataObjectValueConversionSmokeTest();
+
+    assertThat(summary).contains("mediaMetadataObjectValueConversion=1");
+    assertThat(summary).contains("titleValuePresent=1");
+    assertThat(summary).contains("titleValueClass=java.lang.String");
+    assertThat(summary).contains("titleValueType=1");
+    assertThat(summary).contains("titleValueString=object-title");
+    assertThat(summary).contains("genreValuePresent=1");
+    assertThat(summary).contains("genreValueClass=java.lang.Long");
+    assertThat(summary).contains("genreValueType=2");
+    assertThat(summary).contains("genreValueLong=42");
+    assertThat(summary).contains("stationValuePresent=1");
+    assertThat(summary).contains("stationValueClass=java.lang.Boolean");
+    assertThat(summary).contains("stationValueType=4");
+    assertThat(summary).contains("stationValueBool=1");
+  }
+
+  @Test
   public void nativeTracksSnapshotConversionSmokeTest_returnsStructuredSummary() {
     String summary = CppBridgeNativeSmokeTestHelper.nativeTracksSnapshotConversionSmokeTest();
 
@@ -61,10 +126,31 @@ public final class CppBridgeNativeSmokeTest {
     assertThat(summary).contains("track0ContainerMimeType=");
     assertThat(summary).contains("track0Codecs=");
     assertThat(summary).contains("track0Bitrate=2500000");
+    assertThat(summary).contains("track0AverageBitrate=2000000");
+    assertThat(summary).contains("track0PeakBitrate=2500000");
+    assertThat(summary).contains("track0MetadataEntryCount=2");
+    assertThat(summary).contains("track0MaxInputSize=4096");
+    assertThat(summary).contains("track0MaxNumReorderSamples=3");
+    assertThat(summary).contains("track0InitializationData=2:7");
+    assertThat(summary).contains("track0DrmSchemeDataCount=1");
+    assertThat(summary).contains("track0SubsampleOffsetUs=987654");
+    assertThat(summary).contains("track0HasPrerollSamples=1");
     assertThat(summary).contains("track0Width=1920");
     assertThat(summary).contains("track0Height=1080");
+    assertThat(summary).contains("track0DecodedSize=1936x1096");
     assertThat(summary).contains("track0FrameRate=30.000000");
+    assertThat(summary).contains("track0RotationDegrees=90");
+    assertThat(summary).contains("track0PixelRatio=1.250000");
+    assertThat(summary).contains("track0ProjectionDataLength=4");
+    assertThat(summary).contains("track0StereoMode=2");
+    assertThat(summary).contains("track0Color=1:2:3");
+    assertThat(summary).contains("track0MaxSubLayers=4");
+    assertThat(summary).contains("track0PcmEncoding=-1");
+    assertThat(summary).contains("track0EncoderTrim=0:0");
     assertThat(summary).contains("track0AccessibilityChannel=0");
+    assertThat(summary).contains("track0CueReplacementBehavior=1");
+    assertThat(summary).contains("track0Tiles=5x6");
+    assertThat(summary).contains("track0CryptoType=2");
     assertThat(summary).contains("track0RoleFlags=0");
     assertThat(summary).contains("track0SelectionFlags=0");
     assertThat(summary).contains("track0Selected=1");
@@ -85,10 +171,43 @@ public final class CppBridgeNativeSmokeTest {
     assertThat(summary).contains("group1Track0LabelTokenPresent=1");
     assertThat(summary).contains("group1Track0Language=en");
     assertThat(summary).contains("group1Track0MimeType=audio/mp4a-latm");
+    assertThat(summary).contains("group1Track0AverageBitrate=160000");
+    assertThat(summary).contains("group1Track0PeakBitrate=192000");
+    assertThat(summary).contains("group1Track0MetadataEntryCount=1");
+    assertThat(summary).contains("group1Track0InitializationData=1:3");
+    assertThat(summary).contains("group1Track0PcmEncoding=2");
+    assertThat(summary).contains("group1Track0EncoderTrim=12:34");
     assertThat(summary).contains("group1Track0ChannelCount=2");
     assertThat(summary).contains("group1Track0SampleRate=48000");
     assertThat(summary).contains("group1Track0RoleFlags=0");
     assertThat(summary).contains("group1Track0SelectionFlags=0");
+  }
+
+  @Test
+  public void nativeTracksFullPayloadConversionSmokeTest_roundTripsFormatPayload() {
+    String summary = CppBridgeNativeSmokeTestHelper.nativeTracksFullPayloadConversionSmokeTest();
+
+    assertThat(summary).contains("groupCount=1");
+    assertThat(summary).contains("trackId=full-format-video");
+    assertThat(summary).contains("metadataTokenPresent=1");
+    assertThat(summary).contains("labelCount=2");
+    assertThat(summary).contains("label0Language=en");
+    assertThat(summary).contains("label0Value=Full Format Video");
+    assertThat(summary).contains("label1Language=es");
+    assertThat(summary).contains("label1Value=Video completo");
+    assertThat(summary).contains("customDataTokenPresent=1");
+    assertThat(summary).contains("auxiliaryTrackType=2");
+    assertThat(summary).contains("initializationData=2:7:28");
+    assertThat(summary).contains("drmSchemeType=cenc");
+    assertThat(summary).contains("drmSchemeDataCount=1");
+    assertThat(summary).contains("drmUuid=edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+    assertThat(summary).contains("drmLicenseUrl=https://license.example/widevine");
+    assertThat(summary).contains("drmMimeType=video/mp4");
+    assertThat(summary).contains("drmDataChecksum=27");
+    assertThat(summary).contains("drmHasData=1");
+    assertThat(summary).contains("projectionData=3:66");
+    assertThat(summary).contains("colorHdrStaticInfo=4:50");
+    assertThat(summary).contains("colorBitdepth=10:10");
   }
 
   @Test
@@ -460,6 +579,7 @@ public final class CppBridgeNativeSmokeTest {
     assertThat(summary).contains("clearedRegistered=0");
     assertThat(summary).contains("clearedPriority=");
     assertThat(summary).contains("proceedAfterRemove=0");
+    assertThat(summary).contains("sdkClearPriorityTaskManagerSafe=1");
   }
 
   @Test

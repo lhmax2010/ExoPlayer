@@ -4,11 +4,17 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
 import android.net.Uri;
+import android.os.Bundle;
 import android.text.Layout;
+import android.text.SpannableString;
 import androidx.media3.common.C;
+import androidx.media3.common.ColorInfo;
+import androidx.media3.common.DrmInitData;
 import androidx.media3.common.Effect;
+import androidx.media3.common.Label;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
+import androidx.media3.common.Metadata;
 import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
@@ -95,8 +101,32 @@ public final class CppBridgeConvertersTest {
             "https://example.com/live.m3u8",
             "hls-id",
             null,
-            null,
             2,
+            false,
+            null,
+            null,
+            null,
+            null,
+            null,
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.localConfiguration).isNotNull();
+    assertThat(mediaItem.localConfiguration.mimeType).isEqualTo("application/x-mpegURL");
+  }
+
+  @Test
+  public void toMediaItem_normalizesHlsMimeTypeAliases() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/live",
+            "hls-id",
+            "application/vnd.apple.mpegurl",
+            0,
             false,
             null,
             null,
@@ -121,7 +151,6 @@ public final class CppBridgeConvertersTest {
             null,
             "no-uri-id",
             null,
-            null,
             0,
             false,
             null,
@@ -141,30 +170,11 @@ public final class CppBridgeConvertersTest {
   }
 
   @Test
-  public void fromMediaItem_preservesCustomCacheKey() {
-    MediaItem mediaItem =
-        new MediaItem.Builder()
-            .setUri("https://example.com/cache.mp4")
-            .setMediaId("cache-id")
-            .setMimeType("video/mp4")
-            .setCustomCacheKey("cache-key-from-platform")
-            .build();
-
-    CppMediaItem cppMediaItem = CppBridgeConverters.fromMediaItem(mediaItem);
-
-    assertThat(cppMediaItem.mediaId).isEqualTo("cache-id");
-    assertThat(cppMediaItem.mimeType).isEqualTo("video/mp4");
-    assertThat(cppMediaItem.customCacheKey).isEqualTo("cache-key-from-platform");
-    assertThat(cppMediaItem.sourceType).isEqualTo(5);
-  }
-
-  @Test
   public void toMediaItem_mapsAdsConfiguration() {
     CppMediaItem item =
         new CppMediaItem(
             "https://example.com/content.m3u8",
             "ads-id",
-            null,
             null,
             2,
             false,
@@ -192,6 +202,140 @@ public final class CppBridgeConvertersTest {
     } finally {
       CppOpaqueObjectRegistry.unregister("ads-token-1");
     }
+  }
+
+  @Test
+  public void toMediaItem_usesObjectValueFallbackForTagAndAdsId() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/content.m3u8",
+            "object-value-id",
+            null,
+            2,
+            true,
+            null,
+            null,
+            new CppObjectValue(
+                true, "java.lang.Long", CppObjectValue.TYPE_LONG, null, 44L, 0.0, false),
+            null,
+            null,
+            new CppAdsConfiguration(
+                "https://example.com/ads-tag.vmap",
+                null,
+                null,
+                new CppObjectValue(
+                    true,
+                    "java.lang.Boolean",
+                    CppObjectValue.TYPE_BOOLEAN,
+                    null,
+                    0L,
+                    0.0,
+                    true)),
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.localConfiguration).isNotNull();
+    assertThat(mediaItem.localConfiguration.tag).isEqualTo(44L);
+    assertThat(mediaItem.localConfiguration.adsConfiguration).isNotNull();
+    assertThat(mediaItem.localConfiguration.adsConfiguration.adsId).isEqualTo(true);
+  }
+
+  @Test
+  public void toMediaItem_buildsRequestMetadataExtrasFromDecodedValues() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/content.m3u8",
+            "request-extras-id",
+            null,
+            2,
+            false,
+            null,
+            null,
+            null,
+            new CppRequestMetadata(
+                "https://example.com/request",
+                "search terms",
+                true,
+                5,
+                null,
+                new CppBundleValue[] {
+                  new CppBundleValue(
+                      "enabled", CppBundleValue.TYPE_BOOLEAN, null, 0L, 0.0, true, null),
+                  new CppBundleValue(
+                      "episode", CppBundleValue.TYPE_LONG, null, 42L, 0.0, false, null),
+                  new CppBundleValue(
+                      "gain", CppBundleValue.TYPE_DOUBLE, null, 0L, 1.5, false, null),
+                  new CppBundleValue(
+                      "payload",
+                      CppBundleValue.TYPE_BYTE_ARRAY,
+                      null,
+                      0L,
+                      0.0,
+                      false,
+                      new byte[] {1, 2, 3}),
+                  new CppBundleValue(
+                      "source",
+                      CppBundleValue.TYPE_STRING,
+                      "cppbridge",
+                      0L,
+                      0.0,
+                      false,
+                      null)
+                }),
+            null,
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.requestMetadata.mediaUri.toString())
+        .isEqualTo("https://example.com/request");
+    assertThat(mediaItem.requestMetadata.searchQuery).isEqualTo("search terms");
+    assertThat(mediaItem.requestMetadata.extras.getBoolean("enabled")).isTrue();
+    assertThat(mediaItem.requestMetadata.extras.getLong("episode")).isEqualTo(42L);
+    assertThat(mediaItem.requestMetadata.extras.getDouble("gain")).isEqualTo(1.5);
+    assertThat(mediaItem.requestMetadata.extras.getByteArray("payload"))
+        .isEqualTo(new byte[] {1, 2, 3});
+    assertThat(mediaItem.requestMetadata.extras.getString("source")).isEqualTo("cppbridge");
+  }
+
+  @Test
+  public void toMediaItem_buildsRequestMetadataExtrasWhenPresenceFlagIsFalse() {
+    CppMediaItem item =
+        new CppMediaItem(
+            "https://example.com/content.mpd",
+            "request-extras-id",
+            null,
+            1,
+            false,
+            null,
+            null,
+            null,
+            new CppRequestMetadata(
+                null,
+                null,
+                false,
+                0,
+                null,
+                new CppBundleValue[] {
+                  new CppBundleValue(
+                      "source", CppBundleValue.TYPE_STRING, "decoded", 0L, 0.0, false, null)
+                }),
+            null,
+            new CppSubtitleConfiguration[0],
+            null,
+            null,
+            null);
+
+    MediaItem mediaItem = CppBridgeConverters.toMediaItem(item);
+
+    assertThat(mediaItem.requestMetadata.extras.getString("source")).isEqualTo("decoded");
   }
 
   @Test
@@ -289,14 +433,57 @@ public final class CppBridgeConvertersTest {
             "group-1",
             new Format.Builder()
                 .setId("video-1")
+                .setLabel("Main Video")
+                .setLabels(
+                    Arrays.asList(new Label("en", "Main Video"), new Label("es", "Video principal")))
                 .setSampleMimeType("video/avc")
                 .setContainerMimeType("video/mp4")
                 .setCodecs("avc1.640028")
+                .setMetadata(new Metadata(new Metadata.Entry() {}, new Metadata.Entry() {}))
+                .setCustomData("custom-format-payload")
+                .setMaxInputSize(4096)
+                .setMaxNumReorderSamples(3)
+                .setInitializationData(Arrays.asList(new byte[] {1, 2, 3}, new byte[] {4, 5, 6, 7}))
+                .setDrmInitData(
+                    new DrmInitData(
+                        "cenc",
+                        new DrmInitData.SchemeData(
+                            C.WIDEVINE_UUID,
+                            "https://license.example/video",
+                            "video/mp4",
+                            new byte[] {8, 9})))
+                .setSubsampleOffsetUs(987_654)
+                .setHasPrerollSamples(true)
                 .setWidth(1920)
                 .setHeight(1080)
+                .setDecodedWidth(1936)
+                .setDecodedHeight(1096)
                 .setFrameRate(23.976f)
                 .setAverageBitrate(4_000_000)
-                .setRoleFlags(C.ROLE_FLAG_MAIN)
+                .setPeakBitrate(5_000_000)
+                .setRotationDegrees(90)
+                .setPixelWidthHeightRatio(1.25f)
+                .setProjectionData(new byte[] {9, 8, 7, 6})
+                .setStereoMode(C.STEREO_MODE_LEFT_RIGHT)
+                .setColorInfo(
+                    new ColorInfo.Builder()
+                        .setColorSpace(C.COLOR_SPACE_BT709)
+                        .setColorRange(C.COLOR_RANGE_LIMITED)
+                        .setColorTransfer(C.COLOR_TRANSFER_SDR)
+                        .setHdrStaticInfo(new byte[] {10, 11, 12})
+                        .setLumaBitdepth(10)
+                        .setChromaBitdepth(10)
+                        .build())
+                .setMaxSubLayers(4)
+                .setPcmEncoding(C.ENCODING_PCM_16BIT)
+                .setEncoderDelay(12)
+                .setEncoderPadding(34)
+                .setCueReplacementBehavior(Format.CUE_REPLACEMENT_BEHAVIOR_REPLACE)
+                .setTileCountHorizontal(5)
+                .setTileCountVertical(6)
+                .setCryptoType(C.CRYPTO_TYPE_FRAMEWORK)
+                .setRoleFlags(C.ROLE_FLAG_MAIN | C.ROLE_FLAG_AUXILIARY)
+                .setAuxiliaryTrackType(C.AUXILIARY_TRACK_TYPE_DEPTH_LINEAR)
                 .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
                 .build(),
             new Format.Builder()
@@ -359,12 +546,78 @@ public final class CppBridgeConvertersTest {
     assertThat(groups[0].tracks[0].id).isEqualTo("video-1");
     assertThat(groups[0].tracks[0].containerMimeType).isEqualTo("video/mp4");
     assertThat(groups[0].tracks[0].codecs).isEqualTo("avc1.640028");
+    assertThat(groups[0].tracks[0].bitrate).isEqualTo(5_000_000);
+    assertThat(groups[0].tracks[0].averageBitrate).isEqualTo(4_000_000);
+    assertThat(groups[0].tracks[0].peakBitrate).isEqualTo(5_000_000);
+    assertThat(groups[0].tracks[0].metadataEntryCount).isEqualTo(2);
+    assertThat(groups[0].tracks[0].metadataToken).isNotNull();
+    assertThat(groups[0].tracks[0].labelLanguages).asList().containsExactly("en", "es");
+    assertThat(groups[0].tracks[0].labelValues)
+        .asList()
+        .containsExactly("Main Video", "Video principal");
+    assertThat(groups[0].tracks[0].customDataToken).isNotNull();
+    assertThat(groups[0].tracks[0].maxInputSize).isEqualTo(4096);
+    assertThat(groups[0].tracks[0].maxNumReorderSamples).isEqualTo(3);
+    assertThat(groups[0].tracks[0].initializationDataCount).isEqualTo(2);
+    assertThat(groups[0].tracks[0].initializationDataTotalBytes).isEqualTo(7);
+    assertThat(groups[0].tracks[0].initializationData).hasLength(2);
+    assertThat(groups[0].tracks[0].initializationData[0]).isEqualTo(new byte[] {1, 2, 3});
+    assertThat(groups[0].tracks[0].initializationData[1]).isEqualTo(new byte[] {4, 5, 6, 7});
+    assertThat(groups[0].tracks[0].drmSchemeType).isEqualTo("cenc");
+    assertThat(groups[0].tracks[0].drmSchemeDataCount).isEqualTo(1);
+    assertThat(groups[0].tracks[0].drmSchemeUuids)
+        .asList()
+        .containsExactly(C.WIDEVINE_UUID.toString());
+    assertThat(groups[0].tracks[0].drmSchemeLicenseServerUrls)
+        .asList()
+        .containsExactly("https://license.example/video");
+    assertThat(groups[0].tracks[0].drmSchemeMimeTypes).asList().containsExactly("video/mp4");
+    assertThat(groups[0].tracks[0].drmSchemeData).hasLength(1);
+    assertThat(groups[0].tracks[0].drmSchemeData[0]).isEqualTo(new byte[] {8, 9});
+    assertThat(groups[0].tracks[0].drmSchemeDataHasData).asList().containsExactly(1);
+    assertThat(groups[0].tracks[0].subsampleOffsetUs).isEqualTo(987_654);
+    assertThat(groups[0].tracks[0].hasPrerollSamples).isTrue();
+    assertThat(groups[0].tracks[0].decodedWidth).isEqualTo(1936);
+    assertThat(groups[0].tracks[0].decodedHeight).isEqualTo(1096);
     assertThat(groups[0].tracks[0].frameRate).isEqualTo(23.976f);
-    assertThat(groups[0].tracks[0].roleFlags).isEqualTo(C.ROLE_FLAG_MAIN);
+    assertThat(groups[0].tracks[0].rotationDegrees).isEqualTo(90);
+    assertThat(groups[0].tracks[0].pixelWidthHeightRatio).isEqualTo(1.25f);
+    assertThat(groups[0].tracks[0].projectionDataLength).isEqualTo(4);
+    assertThat(groups[0].tracks[0].projectionData).isEqualTo(new byte[] {9, 8, 7, 6});
+    assertThat(groups[0].tracks[0].stereoMode).isEqualTo(C.STEREO_MODE_LEFT_RIGHT);
+    assertThat(groups[0].tracks[0].colorStandard).isEqualTo(C.COLOR_SPACE_BT709);
+    assertThat(groups[0].tracks[0].colorRange).isEqualTo(C.COLOR_RANGE_LIMITED);
+    assertThat(groups[0].tracks[0].colorTransfer).isEqualTo(C.COLOR_TRANSFER_SDR);
+    assertThat(groups[0].tracks[0].colorHdrStaticInfo).isEqualTo(new byte[] {10, 11, 12});
+    assertThat(groups[0].tracks[0].colorLumaBitdepth).isEqualTo(10);
+    assertThat(groups[0].tracks[0].colorChromaBitdepth).isEqualTo(10);
+    assertThat(groups[0].tracks[0].maxSubLayers).isEqualTo(4);
+    assertThat(groups[0].tracks[0].pcmEncoding).isEqualTo(C.ENCODING_PCM_16BIT);
+    assertThat(groups[0].tracks[0].encoderDelay).isEqualTo(12);
+    assertThat(groups[0].tracks[0].encoderPadding).isEqualTo(34);
+    assertThat(groups[0].tracks[0].cueReplacementBehavior)
+        .isEqualTo(Format.CUE_REPLACEMENT_BEHAVIOR_REPLACE);
+    assertThat(groups[0].tracks[0].tileCountHorizontal).isEqualTo(5);
+    assertThat(groups[0].tracks[0].tileCountVertical).isEqualTo(6);
+    assertThat(groups[0].tracks[0].cryptoType).isEqualTo(C.CRYPTO_TYPE_FRAMEWORK);
+    assertThat(groups[0].tracks[0].roleFlags).isEqualTo(C.ROLE_FLAG_MAIN | C.ROLE_FLAG_AUXILIARY);
+    assertThat(groups[0].tracks[0].auxiliaryTrackType)
+        .isEqualTo(C.AUXILIARY_TRACK_TYPE_DEPTH_LINEAR);
     assertThat(groups[0].tracks[0].selectionFlags).isEqualTo(C.SELECTION_FLAG_DEFAULT);
     assertThat(groups[0].tracks[0].formatSupport).isEqualTo(C.FORMAT_HANDLED);
     assertThat(groups[0].tracks[0].selected).isTrue();
     assertThat(groups[0].tracks[1].supported).isTrue();
+    assertThat(groups[0].tracks[1].averageBitrate).isEqualTo(2_000_000);
+    assertThat(groups[0].tracks[1].peakBitrate).isEqualTo(Format.NO_VALUE);
+    assertThat(groups[0].tracks[1].metadataEntryCount).isEqualTo(0);
+    assertThat(groups[0].tracks[1].initializationDataCount).isEqualTo(0);
+    assertThat(groups[0].tracks[1].initializationDataTotalBytes).isEqualTo(0);
+    assertThat(groups[0].tracks[1].drmSchemeDataCount).isEqualTo(0);
+    assertThat(groups[0].tracks[1].subsampleOffsetUs).isEqualTo(Format.OFFSET_SAMPLE_RELATIVE);
+    assertThat(groups[0].tracks[1].hasPrerollSamples).isFalse();
+    assertThat(groups[0].tracks[1].colorStandard).isEqualTo(Format.NO_VALUE);
+    assertThat(groups[0].tracks[1].colorRange).isEqualTo(Format.NO_VALUE);
+    assertThat(groups[0].tracks[1].colorTransfer).isEqualTo(Format.NO_VALUE);
     assertThat(groups[0].tracks[1].formatSupport).isEqualTo(C.FORMAT_EXCEEDS_CAPABILITIES);
     assertThat(groups[0].tracks[0].supportedWithinCapabilities).isTrue();
     assertThat(groups[0].tracks[1].supportedWithinCapabilities).isFalse();
@@ -429,6 +682,7 @@ public final class CppBridgeConvertersTest {
             .setUri("https://example.com/playlist.m3u8")
             .setMediaId("roundtrip-id")
             .setMimeType("application/x-mpegURL")
+            .setCustomCacheKey("cache-key-from-platform")
             .setSubtitleConfigurations(
                 Arrays.asList(
                     new MediaItem.SubtitleConfiguration.Builder(
@@ -461,6 +715,7 @@ public final class CppBridgeConvertersTest {
     assertThat(cppItem.uri).isEqualTo("https://example.com/playlist.m3u8");
     assertThat(cppItem.mediaId).isEqualTo("roundtrip-id");
     assertThat(cppItem.mimeType).isEqualTo("application/x-mpegURL");
+    assertThat(cppItem.customCacheKey).isEqualTo("cache-key-from-platform");
     assertThat(cppItem.sourceType).isEqualTo(2);
     assertThat(cppItem.subtitleConfigurations).hasLength(1);
     assertThat(cppItem.subtitleConfigurations[0].language).isEqualTo("en");
@@ -468,6 +723,38 @@ public final class CppBridgeConvertersTest {
     assertThat(cppItem.clippingConfiguration.startPositionMs).isEqualTo(1000);
     assertThat(cppItem.liveConfiguration).isNotNull();
     assertThat(cppItem.liveConfiguration.targetOffsetMs).isEqualTo(3000);
+  }
+
+  @Test
+  public void fromMediaItem_mapsObjectValueMetadataBackToCppDescriptor() {
+    MediaItem mediaItem =
+        new MediaItem.Builder()
+            .setUri("https://example.com/object-values.m3u8")
+            .setTag(123L)
+            .setAdsConfiguration(
+                new MediaItem.AdsConfiguration.Builder(
+                        Uri.parse("https://example.com/ads-tag.vmap"))
+                    .setAdsId(false)
+                    .build())
+            .build();
+
+    CppMediaItem cppItem = CppBridgeConverters.fromMediaItem(mediaItem);
+
+    assertThat(cppItem.tagPresent).isTrue();
+    assertThat(cppItem.tagString).isEqualTo("123");
+    assertThat(cppItem.tagToken).isNotNull();
+    assertThat(cppItem.tagValue.present).isTrue();
+    assertThat(cppItem.tagValue.className).isEqualTo("java.lang.Long");
+    assertThat(cppItem.tagValue.valueType).isEqualTo(CppObjectValue.TYPE_LONG);
+    assertThat(cppItem.tagValue.longValue).isEqualTo(123L);
+    assertThat(cppItem.adsConfiguration).isNotNull();
+    assertThat(cppItem.adsConfiguration.adsId).isEqualTo("false");
+    assertThat(cppItem.adsConfiguration.adsIdToken).isNotNull();
+    assertThat(cppItem.adsConfiguration.adsIdValue.present).isTrue();
+    assertThat(cppItem.adsConfiguration.adsIdValue.className).isEqualTo("java.lang.Boolean");
+    assertThat(cppItem.adsConfiguration.adsIdValue.valueType)
+        .isEqualTo(CppObjectValue.TYPE_BOOLEAN);
+    assertThat(cppItem.adsConfiguration.adsIdValue.booleanValue).isFalse();
   }
 
   @Test
@@ -481,31 +768,89 @@ public final class CppBridgeConvertersTest {
     CppMediaItem ssItem =
         CppBridgeConverters.fromMediaItem(
             new MediaItem.Builder().setUri("https://example.com/live.ism/manifest").build());
+    CppMediaItem progressiveItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder().setUri("https://example.com/file.mp4").build());
     CppMediaItem genericManifestItem =
         CppBridgeConverters.fromMediaItem(
             new MediaItem.Builder().setUri("https://example.com/api/manifest").build());
-    CppMediaItem progressiveWithQueryItem =
-        CppBridgeConverters.fromMediaItem(
-            new MediaItem.Builder()
-                .setUri("https://example.com/video.mp4?token=abc#fragment")
-                .build());
-    CppMediaItem progressiveAudioItem =
-        CppBridgeConverters.fromMediaItem(
-            new MediaItem.Builder().setUri("https://example.com/audio.flac").build());
+    CppMediaItem emptyItem = CppBridgeConverters.fromMediaItem(new MediaItem.Builder().build());
 
     assertThat(dashItem.sourceType).isEqualTo(1);
     assertThat(hlsItem.sourceType).isEqualTo(2);
     assertThat(ssItem.sourceType).isEqualTo(3);
-    assertThat(genericManifestItem.sourceType).isEqualTo(0);
-    assertThat(progressiveWithQueryItem.sourceType).isEqualTo(5);
-    assertThat(progressiveAudioItem.sourceType).isEqualTo(5);
+    assertThat(progressiveItem.sourceType).isEqualTo(5);
+    assertThat(genericManifestItem.sourceType).isEqualTo(5);
+    assertThat(emptyItem.sourceType).isEqualTo(0);
+  }
+
+  @Test
+  public void fromMediaItem_infersSourceTypeFromMimeTypeAliases() {
+    CppMediaItem hlsItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/live")
+                .setMimeType("application/vnd.apple.mpegurl")
+                .build());
+    CppMediaItem lowerCaseHlsItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/live")
+                .setMimeType("application/x-mpegurl")
+                .build());
+    CppMediaItem progressiveItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/file")
+                .setMimeType("audio/mp4")
+                .build());
+
+    assertThat(hlsItem.sourceType).isEqualTo(2);
+    assertThat(lowerCaseHlsItem.sourceType).isEqualTo(2);
+    assertThat(progressiveItem.sourceType).isEqualTo(5);
+  }
+
+  @Test
+  public void fromMediaItem_infersProgressiveSourceTypeFromCommonMimeTypes() {
+    CppMediaItem videoItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/file")
+                .setMimeType("video/mp4")
+                .build());
+    CppMediaItem audioItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/file")
+                .setMimeType("audio/flac")
+                .build());
+
+    assertThat(videoItem.sourceType).isEqualTo(5);
+    assertThat(audioItem.sourceType).isEqualTo(5);
+  }
+
+  @Test
+  public void fromMediaItem_infersSourceTypeFromUriBeforeQueryAndFragment() {
+    CppMediaItem progressiveItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/download/MOVIE.MP4?download=1#preview")
+                .build());
+
+    assertThat(progressiveItem.sourceType).isEqualTo(5);
   }
 
   @Test
   public void fromMediaMetadata_mapsExpandedTextFields() {
+    Bundle extras = new Bundle();
+    extras.putBoolean("available", true);
+    extras.putByteArray("blob", new byte[] {9, 8, 7});
+    extras.putDouble("rating", 4.5);
+    extras.putLong("season", 2L);
+    extras.putString("studio", "Studio");
     MediaMetadata metadata =
         new MediaMetadata.Builder()
-            .setTitle("Title")
+            .setTitle(new SpannableString("Title"))
             .setArtist("Artist")
             .setAlbumTitle("Album")
             .setAlbumArtist("Album Artist")
@@ -535,6 +880,7 @@ public final class CppBridgeConvertersTest {
             .setCompilation("Compilation")
             .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
             .setStation("Station")
+            .setExtras(extras)
             .build();
 
     CppMediaMetadata converted = CppBridgeConverters.fromMediaMetadata(metadata);
@@ -569,6 +915,192 @@ public final class CppBridgeConvertersTest {
     assertThat(converted.compilation).isEqualTo("Compilation");
     assertThat(converted.mediaType).isEqualTo(MediaMetadata.MEDIA_TYPE_MUSIC);
     assertThat(converted.station).isEqualTo("Station");
+    assertStringObjectValue(converted.titleValue, SpannableString.class.getName(), "Title");
+    assertStringObjectValue(converted.artistValue, String.class.getName(), "Artist");
+    assertStringObjectValue(converted.albumTitleValue, String.class.getName(), "Album");
+    assertStringObjectValue(converted.albumArtistValue, String.class.getName(), "Album Artist");
+    assertStringObjectValue(converted.displayTitleValue, String.class.getName(), "Display");
+    assertStringObjectValue(converted.subtitleValue, String.class.getName(), "Subtitle");
+    assertStringObjectValue(converted.descriptionValue, String.class.getName(), "Description");
+    assertStringObjectValue(converted.writerValue, String.class.getName(), "Writer");
+    assertStringObjectValue(converted.authorValue, String.class.getName(), "Author");
+    assertStringObjectValue(converted.composerValue, String.class.getName(), "Composer");
+    assertStringObjectValue(converted.conductorValue, String.class.getName(), "Conductor");
+    assertStringObjectValue(converted.genreValue, String.class.getName(), "Genre");
+    assertStringObjectValue(converted.compilationValue, String.class.getName(), "Compilation");
+    assertStringObjectValue(converted.stationValue, String.class.getName(), "Station");
+    assertThat(converted.extrasPresent).isTrue();
+    assertThat(converted.extrasKeyCount).isEqualTo(5);
+    assertThat(converted.extrasToken).isNotNull();
+    assertThat(converted.extrasValues).hasLength(5);
+    assertThat(converted.extrasValues[0].key).isEqualTo("available");
+    assertThat(converted.extrasValues[0].valueType).isEqualTo(CppBundleValue.TYPE_BOOLEAN);
+    assertThat(converted.extrasValues[0].booleanValue).isTrue();
+    assertThat(converted.extrasValues[1].key).isEqualTo("blob");
+    assertThat(converted.extrasValues[1].valueType).isEqualTo(CppBundleValue.TYPE_BYTE_ARRAY);
+    assertThat(converted.extrasValues[1].byteArrayValue).isEqualTo(new byte[] {9, 8, 7});
+    assertThat(converted.extrasValues[2].key).isEqualTo("rating");
+    assertThat(converted.extrasValues[2].valueType).isEqualTo(CppBundleValue.TYPE_DOUBLE);
+    assertThat(converted.extrasValues[2].doubleValue).isEqualTo(4.5);
+    assertThat(converted.extrasValues[3].key).isEqualTo("season");
+    assertThat(converted.extrasValues[3].valueType).isEqualTo(CppBundleValue.TYPE_LONG);
+    assertThat(converted.extrasValues[3].longValue).isEqualTo(2L);
+    assertThat(converted.extrasValues[4].key).isEqualTo("studio");
+    assertThat(converted.extrasValues[4].valueType).isEqualTo(CppBundleValue.TYPE_STRING);
+    assertThat(converted.extrasValues[4].stringValue).isEqualTo("Studio");
+  }
+
+  @Test
+  public void toMediaMetadata_buildsExtrasFromDecodedValues() {
+    CppMediaMetadata metadata =
+        new CppMediaMetadata(
+            "Title",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1L,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            null,
+            null,
+            true,
+            2,
+            null,
+            new CppBundleValue[] {
+              new CppBundleValue(
+                  "episode", CppBundleValue.TYPE_LONG, null, 17L, 0.0, false, null),
+              new CppBundleValue(
+                  "title", CppBundleValue.TYPE_STRING, "Decoded", 0L, 0.0, false, null)
+            });
+
+    MediaMetadata converted = CppBridgeConverters.toMediaMetadata(metadata);
+
+    assertThat(converted.title.toString()).isEqualTo("Title");
+    assertThat(converted.extras.getLong("episode")).isEqualTo(17L);
+    assertThat(converted.extras.getString("title")).isEqualTo("Decoded");
+  }
+
+  @Test
+  public void toMediaMetadata_usesObjectValuesForTextFields() {
+    CppMediaMetadata metadata =
+        mediaMetadataWithTextObjectValues(
+            stringObjectValue(String.class.getName(), "Object Title"),
+            new CppObjectValue(
+                true, Long.class.getName(), CppObjectValue.TYPE_LONG, null, 42L, 0.0, false),
+            new CppObjectValue(
+                true,
+                Boolean.class.getName(),
+                CppObjectValue.TYPE_BOOLEAN,
+                null,
+                0L,
+                0.0,
+                true));
+
+    MediaMetadata converted = CppBridgeConverters.toMediaMetadata(metadata);
+
+    assertThat(converted.title.toString()).isEqualTo("Object Title");
+    assertThat(converted.genre.toString()).isEqualTo("42");
+    assertThat(converted.station.toString()).isEqualTo("true");
+  }
+
+  @Test
+  public void toMediaMetadata_buildsExtrasWhenPresenceFlagIsFalse() {
+    CppMediaMetadata metadata =
+        new CppMediaMetadata(
+            "Title",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1L,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            -1,
+            null,
+            null,
+            null,
+            null,
+            -1,
+            null,
+            null,
+            false,
+            0,
+            null,
+            new CppBundleValue[] {
+              new CppBundleValue(
+                  "title", CppBundleValue.TYPE_STRING, "Decoded", 0L, 0.0, false, null)
+            });
+
+    MediaMetadata converted = CppBridgeConverters.toMediaMetadata(metadata);
+
+    assertThat(converted.extras.getString("title")).isEqualTo("Decoded");
   }
 
   @Test
@@ -766,5 +1298,87 @@ public final class CppBridgeConvertersTest {
     assertThat(CppMediaSourceFactoryRegistry.register(factory)).isEqualTo("factory-new-token");
 
     CppMediaSourceFactoryRegistry.unregister("factory-new-token");
+  }
+
+  private static CppObjectValue stringObjectValue(String className, String stringValue) {
+    return new CppObjectValue(
+        true, className, CppObjectValue.TYPE_STRING, stringValue, 0L, 0.0, false);
+  }
+
+  private static void assertStringObjectValue(
+      CppObjectValue value, String expectedClassName, String expectedStringValue) {
+    assertThat(value.present).isTrue();
+    assertThat(value.className).isEqualTo(expectedClassName);
+    assertThat(value.valueType).isEqualTo(CppObjectValue.TYPE_STRING);
+    assertThat(value.stringValue).isEqualTo(expectedStringValue);
+  }
+
+  private static CppMediaMetadata mediaMetadataWithTextObjectValues(
+      CppObjectValue titleValue, CppObjectValue genreValue, CppObjectValue stationValue) {
+    return new CppMediaMetadata(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        -1,
+        -1L,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        -1,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        -1,
+        -1,
+        null,
+        null,
+        null,
+        null,
+        -1,
+        null,
+        null,
+        false,
+        0,
+        null,
+        new CppBundleValue[0],
+        titleValue,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        genreValue,
+        null,
+        stationValue);
   }
 }

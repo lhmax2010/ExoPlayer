@@ -10,6 +10,7 @@ public final class CppRequestMetadata {
   public final boolean extrasPresent;
   public final int extrasKeyCount;
   @Nullable public final String extrasToken;
+  public final CppBundleValue[] extrasValues;
 
   public CppRequestMetadata(
       @Nullable String mediaUri,
@@ -17,10 +18,21 @@ public final class CppRequestMetadata {
       boolean extrasPresent,
       int extrasKeyCount,
       @Nullable String extrasToken) {
+    this(mediaUri, searchQuery, extrasPresent, extrasKeyCount, extrasToken, null);
+  }
+
+  public CppRequestMetadata(
+      @Nullable String mediaUri,
+      @Nullable String searchQuery,
+      boolean extrasPresent,
+      int extrasKeyCount,
+      @Nullable String extrasToken,
+      @Nullable CppBundleValue[] extrasValues) {
     this.mediaUri = mediaUri;
     this.searchQuery = searchQuery;
     this.extrasPresent = extrasPresent;
     this.extrasKeyCount = extrasKeyCount;
     this.extrasToken = extrasToken;
+    this.extrasValues = extrasValues != null ? extrasValues : new CppBundleValue[0];
   }
 }

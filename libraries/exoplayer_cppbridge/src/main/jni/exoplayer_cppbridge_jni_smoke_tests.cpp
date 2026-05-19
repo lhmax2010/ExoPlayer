@@ -3,6 +3,22 @@
 using namespace androidx::media3::cppbridge;
 using namespace androidx::media3::cppbridge::internal;
 
+int ByteChecksum(const std::vector<uint8_t>& values) {
+  int checksum = 0;
+  for (uint8_t value : values) {
+    checksum += static_cast<int>(value);
+  }
+  return checksum;
+}
+
+int ByteArrayChecksum(const std::vector<std::vector<uint8_t>>& values) {
+  int checksum = 0;
+  for (const auto& value : values) {
+    checksum += ByteChecksum(value);
+  }
+  return checksum;
+}
+
 class CapturingPlayerListener : public PlayerListener {
  public:
   void OnPlaybackStateChanged(const PlaybackSnapshot&) override {}
@@ -109,13 +125,6 @@ class CapturingPlayerListener : public PlayerListener {
         !tracks.groups.empty() && !tracks.groups[0].group_token.empty();
     first_track_count =
         tracks.groups.empty() ? 0 : static_cast<int>(tracks.groups[0].tracks.size());
-    first_track_label =
-        !tracks.groups.empty() && !tracks.groups[0].tracks.empty()
-            ? tracks.groups[0].tracks[0].label
-            : "";
-    first_track_label_token_present =
-        !tracks.groups.empty() && !tracks.groups[0].tracks.empty() &&
-        !tracks.groups[0].tracks[0].label_token.empty();
     first_track_selected =
         !tracks.groups.empty() && !tracks.groups[0].tracks.empty() && tracks.groups[0].tracks[0].selected;
     first_track_supported =
@@ -123,6 +132,9 @@ class CapturingPlayerListener : public PlayerListener {
     first_track_supported_within_capabilities =
         !tracks.groups.empty() && !tracks.groups[0].tracks.empty() &&
         tracks.groups[0].tracks[0].supported_within_capabilities;
+    first_track_label_token_present =
+        !tracks.groups.empty() && !tracks.groups[0].tracks.empty() &&
+        !tracks.groups[0].tracks[0].label_token.empty();
     second_track_group_id = tracks.groups.size() > 1 ? tracks.groups[1].id : "";
     second_track_group_token_present =
         tracks.groups.size() > 1 && !tracks.groups[1].group_token.empty();
@@ -219,7 +231,6 @@ class CapturingPlayerListener : public PlayerListener {
   std::string first_track_group_id;
   bool first_track_group_token_present = false;
   int first_track_count = 0;
-  std::string first_track_label;
   bool first_track_label_token_present = false;
   bool first_track_selected = false;
   bool first_track_supported = false;
@@ -249,6 +260,35 @@ class CapturingPlayerListener : public PlayerListener {
   int available_commands_callback_count = 0;
   int events_callback_count = 0;
 };
+
+void AppendObjectValueSummary(
+    std::string* summary,
+    const std::string& prefix,
+    const ObjectValueInfo& value) {
+  if (summary == nullptr) {
+    return;
+  }
+  *summary += "," + prefix + "Present=" + std::to_string(value.present ? 1 : 0);
+  *summary += "," + prefix + "Class=" + value.class_name;
+  *summary += "," + prefix + "Type=" + std::to_string(value.value_type);
+  switch (value.value_type) {
+    case ObjectValueInfo::kString:
+    case ObjectValueInfo::kOther:
+      *summary += "," + prefix + "String=" + value.string_value;
+      break;
+    case ObjectValueInfo::kLong:
+      *summary += "," + prefix + "Long=" + std::to_string(value.long_value);
+      break;
+    case ObjectValueInfo::kDouble:
+      *summary += "," + prefix + "Double=" + std::to_string(value.double_value);
+      break;
+    case ObjectValueInfo::kBoolean:
+      *summary += "," + prefix + "Bool=" + std::to_string(value.boolean_value ? 1 : 0);
+      break;
+    default:
+      break;
+  }
+}
 
 extern "C" {
 
@@ -285,6 +325,111 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBu
 }
 
 JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeObjectValueInfoParsingSmokeTest(
+    JNIEnv* env,
+    jclass) {
+  std::vector<std::string> escaped_string_fields =
+      SplitString("1|java.lang.String|1|hello\\|world|0|0.0|0", '|');
+  ObjectValueInfo string_value = ParseObjectValueInfo(escaped_string_fields, 0);
+
+  std::vector<std::string> scalar_fields = {
+      "1", "java.lang.Long", "2", "", "42", "0.0", "0",
+      "1", "java.lang.Double", "3", "", "0", "2.5", "0",
+      "1", "java.lang.Boolean", "4", "", "0", "0.0", "1",
+      "0", "", "0", "", "0", "0.0", "0",
+      "1", "java.lang.Object", "5", "object-value", "0", "0.0", "0",
+      "1", "java.lang.Double", "3", "", "0", "bad-double", "0"};
+  ObjectValueInfo long_value = ParseObjectValueInfo(scalar_fields, 0);
+  ObjectValueInfo double_value = ParseObjectValueInfo(scalar_fields, 7);
+  ObjectValueInfo boolean_value = ParseObjectValueInfo(scalar_fields, 14);
+  ObjectValueInfo null_value = ParseObjectValueInfo(scalar_fields, 21);
+  ObjectValueInfo other_value = ParseObjectValueInfo(scalar_fields, 28);
+  ObjectValueInfo invalid_double_value = ParseObjectValueInfo(scalar_fields, 35);
+  ObjectValueInfo truncated_value = ParseObjectValueInfo({"1"}, 0);
+
+  std::string summary = "objectValueParsing=1";
+  AppendObjectValueSummary(&summary, "string", string_value);
+  AppendObjectValueSummary(&summary, "long", long_value);
+  AppendObjectValueSummary(&summary, "double", double_value);
+  AppendObjectValueSummary(&summary, "bool", boolean_value);
+  AppendObjectValueSummary(&summary, "null", null_value);
+  AppendObjectValueSummary(&summary, "other", other_value);
+  AppendObjectValueSummary(&summary, "invalidDouble", invalid_double_value);
+  AppendObjectValueSummary(&summary, "truncated", truncated_value);
+  return NewStringUtfChecked(env, summary, "nativeObjectValueInfoParsingSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeMediaItemObjectValueConversionSmokeTest(
+    JNIEnv* env,
+    jclass) {
+  MediaItemDescriptor media_item;
+  media_item.uri = "https://example.com/object-value.m3u8";
+  media_item.media_id = "object-value-item";
+  media_item.source_type = MediaSourceType::kHls;
+  media_item.tag_present = true;
+  media_item.tag_value.present = true;
+  media_item.tag_value.class_name = "java.lang.Long";
+  media_item.tag_value.value_type = ObjectValueInfo::kLong;
+  media_item.tag_value.long_value = 77;
+  media_item.ads_configuration.ad_tag_uri = "https://ads.example.com/object-value.xml";
+  media_item.ads_configuration.ads_id_value.present = true;
+  media_item.ads_configuration.ads_id_value.class_name = "java.lang.Boolean";
+  media_item.ads_configuration.ads_id_value.value_type = ObjectValueInfo::kBoolean;
+  media_item.ads_configuration.ads_id_value.boolean_value = true;
+
+  jobject java_item = CreateJavaMediaItem(env, media_item);
+  if (java_item == nullptr) {
+    return nullptr;
+  }
+  MediaItemDescriptor round_trip = FromJavaMediaItem(env, java_item);
+  DeleteLocalRefIfNotNull(env, java_item);
+
+  std::string summary = "mediaItemObjectValueConversion=1";
+  summary += ",mediaId=" + round_trip.media_id;
+  summary += ",sourceType=" + std::to_string(static_cast<int>(round_trip.source_type));
+  summary += ",tagPresent=" + std::to_string(round_trip.tag_present ? 1 : 0);
+  AppendObjectValueSummary(&summary, "tagValue", round_trip.tag_value);
+  summary += ",adTagUri=" + round_trip.ads_configuration.ad_tag_uri;
+  AppendObjectValueSummary(
+      &summary, "adsIdValue", round_trip.ads_configuration.ads_id_value);
+  return NewStringUtfChecked(env, summary, "nativeMediaItemObjectValueConversionSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeMediaMetadataObjectValueConversionSmokeTest(
+    JNIEnv* env,
+    jclass) {
+  MediaMetadataSnapshot metadata;
+  metadata.title_value.present = true;
+  metadata.title_value.class_name = "java.lang.String";
+  metadata.title_value.value_type = ObjectValueInfo::kString;
+  metadata.title_value.string_value = "object-title";
+  metadata.genre_value.present = true;
+  metadata.genre_value.class_name = "java.lang.Long";
+  metadata.genre_value.value_type = ObjectValueInfo::kLong;
+  metadata.genre_value.long_value = 42;
+  metadata.station_value.present = true;
+  metadata.station_value.class_name = "java.lang.Boolean";
+  metadata.station_value.value_type = ObjectValueInfo::kBoolean;
+  metadata.station_value.boolean_value = true;
+
+  jobject java_metadata = CreateJavaMediaMetadata(env, metadata);
+  if (java_metadata == nullptr) {
+    return nullptr;
+  }
+  MediaMetadataSnapshot round_trip = FromJavaMediaMetadata(env, java_metadata);
+  DeleteLocalRefIfNotNull(env, java_metadata);
+
+  std::string summary = "mediaMetadataObjectValueConversion=1";
+  AppendObjectValueSummary(&summary, "titleValue", round_trip.title_value);
+  AppendObjectValueSummary(&summary, "genreValue", round_trip.genre_value);
+  AppendObjectValueSummary(&summary, "stationValue", round_trip.station_value);
+  return NewStringUtfChecked(
+      env, summary, "nativeMediaMetadataObjectValueConversionSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTracksSnapshotConversionSmokeTest(
     JNIEnv* env,
     jclass) {
@@ -306,7 +451,10 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       "CppTrackInfo",
       "<init>",
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-      "Ljava/lang/String;IIIFIIIIIIZZZ)V");
+      "Ljava/lang/String;IIIIIIIIIJZIIIIFIF"
+      "IIIIIIIIIIIIIIIIIIIZZZLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "Ljava/lang/String;[[BLjava/lang/String;[Ljava/lang/String;[Ljava/lang/String;"
+      "[Ljava/lang/String;[[B[BII[BI[I)V");
   jmethodID track_group_ctor = GetMethodChecked(
       env,
       track_group_class,
@@ -381,18 +529,61 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       nullptr,
       nullptr,
       static_cast<jint>(2500000),
+      static_cast<jint>(2000000),
+      static_cast<jint>(2500000),
+      static_cast<jint>(2),
+      static_cast<jint>(4096),
+      static_cast<jint>(3),
+      static_cast<jint>(2),
+      static_cast<jint>(7),
+      static_cast<jint>(1),
+      static_cast<jlong>(987654),
+      static_cast<jboolean>(JNI_TRUE),
       static_cast<jint>(1920),
       static_cast<jint>(1080),
+      static_cast<jint>(1936),
+      static_cast<jint>(1096),
       static_cast<jfloat>(30.0f),
+      static_cast<jint>(90),
+      static_cast<jfloat>(1.25f),
+      static_cast<jint>(4),
+      static_cast<jint>(2),
+      static_cast<jint>(1),
+      static_cast<jint>(2),
+      static_cast<jint>(3),
+      static_cast<jint>(4),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
+      static_cast<jint>(1),
+      static_cast<jint>(5),
+      static_cast<jint>(6),
+      static_cast<jint>(2),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(1),
       static_cast<jboolean>(JNI_TRUE),
       static_cast<jboolean>(JNI_TRUE),
-      static_cast<jboolean>(JNI_TRUE));
+      static_cast<jboolean>(JNI_TRUE),
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      nullptr,
+      static_cast<jint>(0),
+      nullptr);
   jobject video_sd = NewObjectChecked(
       env,
       track_info_class,
@@ -406,18 +597,61 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       nullptr,
       nullptr,
       static_cast<jint>(1200000),
+      static_cast<jint>(1000000),
+      static_cast<jint>(1200000),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jlong>(9223372036854775807LL),
+      static_cast<jboolean>(JNI_FALSE),
       static_cast<jint>(1280),
       static_cast<jint>(720),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jfloat>(30.0f),
       static_cast<jint>(0),
+      static_cast<jfloat>(1.0f),
       static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(0),
+      static_cast<jint>(1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(1),
       static_cast<jboolean>(JNI_FALSE),
       static_cast<jboolean>(JNI_TRUE),
-      static_cast<jboolean>(JNI_TRUE));
+      static_cast<jboolean>(JNI_TRUE),
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      nullptr,
+      static_cast<jint>(0),
+      nullptr);
   jobject audio_main = NewObjectChecked(
       env,
       track_info_class,
@@ -431,18 +665,61 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       nullptr,
       nullptr,
       static_cast<jint>(192000),
+      static_cast<jint>(160000),
+      static_cast<jint>(192000),
+      static_cast<jint>(1),
+      static_cast<jint>(1024),
+      static_cast<jint>(-1),
+      static_cast<jint>(1),
+      static_cast<jint>(3),
+      static_cast<jint>(0),
+      static_cast<jlong>(9223372036854775807LL),
+      static_cast<jboolean>(JNI_FALSE),
       static_cast<jint>(0),
       static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jfloat>(0.0f),
+      static_cast<jint>(0),
+      static_cast<jfloat>(1.0f),
+      static_cast<jint>(0),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(48000),
       static_cast<jint>(2),
+      static_cast<jint>(2),
+      static_cast<jint>(12),
+      static_cast<jint>(34),
+      static_cast<jint>(0),
+      static_cast<jint>(1),
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(0),
       static_cast<jint>(1),
       static_cast<jboolean>(JNI_FALSE),
       static_cast<jboolean>(JNI_TRUE),
-      static_cast<jboolean>(JNI_TRUE));
+      static_cast<jboolean>(JNI_TRUE),
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      static_cast<jint>(-1),
+      static_cast<jint>(-1),
+      nullptr,
+      static_cast<jint>(0),
+      nullptr);
   if (video_hd == nullptr || video_sd == nullptr || audio_main == nullptr) {
     DeleteLocalRefIfNotNull(env, video_hd);
     DeleteLocalRefIfNotNull(env, video_sd);
@@ -719,10 +996,46 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
       summary += ",track0ContainerMimeType=" + track0.container_mime_type;
       summary += ",track0Codecs=" + track0.codecs;
       summary += ",track0Bitrate=" + std::to_string(track0.bitrate);
+      summary += ",track0AverageBitrate=" + std::to_string(track0.average_bitrate);
+      summary += ",track0PeakBitrate=" + std::to_string(track0.peak_bitrate);
+      summary += ",track0MetadataEntryCount=" +
+          std::to_string(track0.metadata_entry_count);
+      summary += ",track0MaxInputSize=" + std::to_string(track0.max_input_size);
+      summary += ",track0MaxNumReorderSamples=" +
+          std::to_string(track0.max_num_reorder_samples);
+      summary += ",track0InitializationData=" +
+          std::to_string(track0.initialization_data_count) + ":" +
+          std::to_string(track0.initialization_data_total_bytes);
+      summary += ",track0DrmSchemeDataCount=" +
+          std::to_string(track0.drm_scheme_data_count);
+      summary += ",track0SubsampleOffsetUs=" +
+          std::to_string(track0.subsample_offset_us);
+      summary += ",track0HasPrerollSamples=" +
+          std::to_string(track0.has_preroll_samples ? 1 : 0);
       summary += ",track0Width=" + std::to_string(track0.width);
       summary += ",track0Height=" + std::to_string(track0.height);
+      summary += ",track0DecodedSize=" + std::to_string(track0.decoded_width) + "x" +
+          std::to_string(track0.decoded_height);
       summary += ",track0FrameRate=" + std::to_string(track0.frame_rate);
+      summary += ",track0RotationDegrees=" + std::to_string(track0.rotation_degrees);
+      summary += ",track0PixelRatio=" +
+          std::to_string(track0.pixel_width_height_ratio);
+      summary += ",track0ProjectionDataLength=" +
+          std::to_string(track0.projection_data_length);
+      summary += ",track0StereoMode=" + std::to_string(track0.stereo_mode);
+      summary += ",track0Color=" + std::to_string(track0.color_standard) + ":" +
+          std::to_string(track0.color_range) + ":" +
+          std::to_string(track0.color_transfer);
+      summary += ",track0MaxSubLayers=" + std::to_string(track0.max_sub_layers);
+      summary += ",track0PcmEncoding=" + std::to_string(track0.pcm_encoding);
+      summary += ",track0EncoderTrim=" + std::to_string(track0.encoder_delay) + ":" +
+          std::to_string(track0.encoder_padding);
       summary += ",track0AccessibilityChannel=" + std::to_string(track0.accessibility_channel);
+      summary += ",track0CueReplacementBehavior=" +
+          std::to_string(track0.cue_replacement_behavior);
+      summary += ",track0Tiles=" + std::to_string(track0.tile_count_horizontal) + "x" +
+          std::to_string(track0.tile_count_vertical);
+      summary += ",track0CryptoType=" + std::to_string(track0.crypto_type);
       summary += ",track0RoleFlags=" + std::to_string(track0.role_flags);
       summary += ",track0SelectionFlags=" + std::to_string(track0.selection_flags);
       summary += ",track0Selected=" + std::to_string(track0.selected ? 1 : 0);
@@ -757,6 +1070,18 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
           std::to_string(track0.label_token.empty() ? 0 : 1);
       summary += ",group1Track0Language=" + track0.language;
       summary += ",group1Track0MimeType=" + track0.mime_type;
+      summary += ",group1Track0AverageBitrate=" +
+          std::to_string(track0.average_bitrate);
+      summary += ",group1Track0PeakBitrate=" + std::to_string(track0.peak_bitrate);
+      summary += ",group1Track0MetadataEntryCount=" +
+          std::to_string(track0.metadata_entry_count);
+      summary += ",group1Track0InitializationData=" +
+          std::to_string(track0.initialization_data_count) + ":" +
+          std::to_string(track0.initialization_data_total_bytes);
+      summary += ",group1Track0PcmEncoding=" + std::to_string(track0.pcm_encoding);
+      summary += ",group1Track0EncoderTrim=" +
+          std::to_string(track0.encoder_delay) + ":" +
+          std::to_string(track0.encoder_padding);
       summary += ",group1Track0ChannelCount=" + std::to_string(track0.channel_count);
       summary += ",group1Track0SampleRate=" + std::to_string(track0.sample_rate);
       summary += ",group1Track0RoleFlags=" + std::to_string(track0.role_flags);
@@ -790,6 +1115,105 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTr
   DeleteLocalRefIfNotNull(env, track_group_class);
   DeleteLocalRefIfNotNull(env, tracks_class);
   return NewStringUtfChecked(env, summary, "nativeTracksSnapshotConversionSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeTracksFullPayloadConversionSmokeTest(
+    JNIEnv* env,
+    jclass) {
+  TracksSnapshot input;
+  input.contains_video = true;
+  input.video_selected = true;
+  input.video_supported = true;
+  TrackGroupSnapshot group;
+  group.id = "full-format-group";
+  group.group_token = "generated-opaque-object-token-full-format-group";
+  group.type = 2;
+  group.selected = true;
+  group.supported = true;
+  TrackInfo track;
+  track.id = "full-format-video";
+  track.language = "en";
+  track.label = "Full Format Video";
+  track.label_token = "generated-opaque-object-token-full-format-label";
+  track.mime_type = "video/hevc";
+  track.container_mime_type = "video/mp4";
+  track.codecs = "hvc1.2.4.L153.B0";
+  track.metadata_entry_count = 2;
+  track.metadata_token = "generated-opaque-object-token-full-format-metadata";
+  track.labels = {{"en", "Full Format Video"}, {"es", "Video completo"}};
+  track.custom_data_token = "generated-opaque-object-token-full-format-custom-data";
+  track.auxiliary_track_type = 2;
+  track.initialization_data = {{0x01, 0x02, 0x03}, {0x04, 0x05, 0x06, 0x07}};
+  track.drm_scheme_type = "cenc";
+  track.drm_scheme_data = {{
+      "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed",
+      "https://license.example/widevine",
+      "video/mp4",
+      {0x08, 0x09, 0x0A},
+  }};
+  track.drm_scheme_data[0].has_data = true;
+  track.projection_data = {0x15, 0x16, 0x17};
+  track.color_standard = 6;
+  track.color_range = 1;
+  track.color_transfer = 7;
+  track.color_hdr_static_info = {0x0B, 0x0C, 0x0D, 0x0E};
+  track.color_luma_bitdepth = 10;
+  track.color_chroma_bitdepth = 10;
+  track.selected = true;
+  track.supported = true;
+  track.supported_within_capabilities = true;
+  group.tracks.push_back(track);
+  input.groups.push_back(group);
+
+  jobject java_tracks = CreateJavaTracks(env, input);
+  if (java_tracks == nullptr) {
+    return nullptr;
+  }
+  TracksSnapshot output = FromJavaTracks(env, java_tracks);
+  DeleteLocalRefIfNotNull(env, java_tracks);
+  std::string summary = "groupCount=" + std::to_string(output.groups.size());
+  if (!output.groups.empty() && !output.groups[0].tracks.empty()) {
+    const TrackInfo& output_track = output.groups[0].tracks[0];
+    summary += ",trackId=" + output_track.id;
+    summary += ",metadataTokenPresent=" +
+        std::to_string(output_track.metadata_token.empty() ? 0 : 1);
+    summary += ",labelCount=" + std::to_string(output_track.labels.size());
+    if (!output_track.labels.empty()) {
+      summary += ",label0Language=" + output_track.labels[0].language;
+      summary += ",label0Value=" + output_track.labels[0].value;
+    }
+    if (output_track.labels.size() > 1) {
+      summary += ",label1Language=" + output_track.labels[1].language;
+      summary += ",label1Value=" + output_track.labels[1].value;
+    }
+    summary += ",customDataTokenPresent=" +
+        std::to_string(output_track.custom_data_token.empty() ? 0 : 1);
+    summary += ",auxiliaryTrackType=" + std::to_string(output_track.auxiliary_track_type);
+    summary += ",initializationData=" +
+        std::to_string(output_track.initialization_data_count) + ":" +
+        std::to_string(output_track.initialization_data_total_bytes) + ":" +
+        std::to_string(ByteArrayChecksum(output_track.initialization_data));
+    summary += ",drmSchemeType=" + output_track.drm_scheme_type;
+    summary += ",drmSchemeDataCount=" + std::to_string(output_track.drm_scheme_data_count);
+    if (!output_track.drm_scheme_data.empty()) {
+      const DrmSchemeDataInfo& drm_data = output_track.drm_scheme_data[0];
+      summary += ",drmUuid=" + drm_data.uuid;
+      summary += ",drmLicenseUrl=" + drm_data.license_server_url;
+      summary += ",drmMimeType=" + drm_data.mime_type;
+      summary += ",drmDataChecksum=" + std::to_string(ByteChecksum(drm_data.data));
+      summary += ",drmHasData=" + std::to_string(drm_data.has_data ? 1 : 0);
+    }
+    summary += ",projectionData=" +
+        std::to_string(output_track.projection_data_length) + ":" +
+        std::to_string(ByteChecksum(output_track.projection_data));
+    summary += ",colorHdrStaticInfo=" +
+        std::to_string(output_track.color_hdr_static_info.size()) + ":" +
+        std::to_string(ByteChecksum(output_track.color_hdr_static_info));
+    summary += ",colorBitdepth=" + std::to_string(output_track.color_luma_bitdepth) + ":" +
+        std::to_string(output_track.color_chroma_bitdepth);
+  }
+  return NewStringUtfChecked(env, summary, "nativeTracksFullPayloadConversionSmokeTest");
 }
 
 JNIEXPORT jstring JNICALL
@@ -1193,9 +1617,6 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeLi
   summary += ",firstTrackGroupTokenPresent=" +
       std::to_string(listener.first_track_group_token_present ? 1 : 0);
   summary += ",firstTrackCount=" + std::to_string(listener.first_track_count);
-  summary += ",firstTrackLabel=" + listener.first_track_label;
-  summary += ",firstTrackLabelTokenPresent=" +
-      std::to_string(listener.first_track_label_token_present ? 1 : 0);
   summary += ",secondTrackGroupId=" + listener.second_track_group_id;
   summary += ",secondTrackGroupTokenPresent=" +
       std::to_string(listener.second_track_group_token_present ? 1 : 0);
@@ -1203,6 +1624,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeLi
   summary += ",secondTrackLabel=" + listener.second_track_label;
   summary += ",secondTrackLabelTokenPresent=" +
       std::to_string(listener.second_track_label_token_present ? 1 : 0);
+  summary += ",firstTrackLabelTokenPresent=" +
+      std::to_string(listener.first_track_label_token_present ? 1 : 0);
   summary += ",firstTrackSelected=" + std::to_string(listener.first_track_selected ? 1 : 0);
   summary += ",firstTrackSupported=" + std::to_string(listener.first_track_supported ? 1 : 0);
   summary += ",firstTrackSupportedWithinCapabilities=" +
@@ -1492,8 +1915,10 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeBu
     jclass,
     jobject context) {
   ExoPlayerSdkPlayerBuilder builder;
-  builder.SetMediaSourceFactoryToken("test-injected-media-source-factory")
-      .SetUserAgent("Builder Injected Factory UA");
+  PlayerConfig::MediaSourceFactoryConfig media_source_factory_config;
+  media_source_factory_config.factory_token = "test-injected-media-source-factory";
+  media_source_factory_config.user_agent = "Builder Injected Factory UA";
+  builder.SetMediaSourceFactoryConfig(media_source_factory_config);
 
   const PlayerConfig& config = builder.GetConfig();
   std::unique_ptr<ExoPlayerSdkPlayer> player = builder.Build(env, context);
@@ -1705,6 +2130,17 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativePr
   bridge->SetPriorityTaskManager(env, nullptr);
   std::vector<std::string> cleared = BridgeGetPriorityTaskManagerStateForTest(env, bridge);
   bridge->Release(env);
+  PlayerConfig player_config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, player_config);
+  bool sdk_clear_priority_task_manager_safe = false;
+  if (player != nullptr) {
+    player->SetPriorityTaskManager(priority_task_manager.get());
+    player->SetPriorityTaskManagerEnabled(true);
+    player->ClearPriorityTaskManager();
+    player->Release();
+    sdk_clear_priority_task_manager_safe = true;
+  }
   priority_task_manager->Remove(77);
   bool proceed_after_remove = priority_task_manager->ProceedNonBlocking(77);
   priority_task_manager->Release();
@@ -1728,6 +2164,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativePr
   summary += ",clearedPriority=";
   summary += cleared.size() > 3 ? cleared[3] : "";
   summary += ",proceedAfterRemove=" + std::to_string(proceed_after_remove ? 1 : 0);
+  summary += ",sdkClearPriorityTaskManagerSafe=" +
+      std::to_string(sdk_clear_priority_task_manager_safe ? 1 : 0);
   return NewStringUtfChecked(env, summary, "nativePriorityTaskManagerWrapperSmokeTest");
 }
 

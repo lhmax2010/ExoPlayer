@@ -11,7 +11,10 @@ android {
     namespace 'androidx.media3.exoplayer.cppbridge'
 
     sourceSets {
-        androidTest.assets.srcDir '../test_data/src/test/assets'
+        androidTest.assets.srcDirs += [
+                '../test_data/src/test/assets/media/dash/emsg',
+                '../test_data/src/test/assets/media/hls/cea608',
+        ]
     }
 
     defaultConfig {
@@ -41,7 +44,9 @@ dependencies {
     androidTestImplementation project(modulePrefix + 'lib-exoplayer-hls')
     androidTestImplementation project(modulePrefix + 'lib-exoplayer-rtsp')
     androidTestImplementation project(modulePrefix + 'lib-exoplayer-smoothstreaming')
-    androidTestImplementation project(modulePrefix + 'test-utils')
+    androidTestImplementation(project(modulePrefix + 'test-utils')) {
+        exclude module: modulePrefix.substring(1) + 'library-core'
+    }
     androidTestImplementation 'androidx.test:runner:' + androidxTestRunnerVersion
     androidTestImplementation 'androidx.test.ext:junit:' + androidxTestJUnitVersion
     androidTestImplementation 'com.google.truth:truth:' + truthVersion

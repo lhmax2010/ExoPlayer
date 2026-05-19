@@ -1,6 +1,6 @@
 # Knowledge Graph
 
-Last updated: 2026-03-18
+Last updated: 2026-05-19
 
 This file is a handoff graph for future engineers or AI agents. It is optimized for fast context
 loading, not for narrative reading.
@@ -84,13 +84,16 @@ loading, not for narrative reading.
 - source layout
 - JNI translation unit split
 - reduced bridge API surface
-- reduced analytics aggregate plus forty-five concrete reduced `AnalyticsListener` event paths for
+- reduced analytics aggregate plus seventy-one concrete reduced `AnalyticsListener` event paths for
   `onAudioUnderrun`, `onDroppedVideoFrames`, `onBandwidthEstimate`, `onLoadStarted`,
   `onLoadCompleted`, `onAudioInputFormatChanged`, `onAudioDecoderInitialized`,
   `onVideoDecoderInitialized`, `onAudioDecoderReleased`, `onVideoDecoderReleased`,
   analytics `onRenderedFirstFrame`, analytics `onVideoSizeChanged`,
   analytics `onAudioPositionAdvancing`, analytics `onVideoFrameProcessingOffset`,
+  analytics audio attributes, Stage 4 remaining load/format/decoder/DRM/renderer/scrubbing/player
+  release callbacks,
   analytics `onVolumeChanged`, analytics `onAudioSessionIdChanged`,
+  analytics `onAudioAttributesChanged`,
   analytics `onSkipSilenceEnabledChanged`, analytics `onDeviceVolumeChanged`,
   analytics `onPlaybackStateChanged`, analytics `onIsPlayingChanged`,
   analytics `onPlayWhenReadyChanged`, analytics `onPlaybackSuppressionReasonChanged`,
@@ -111,7 +114,7 @@ loading, not for narrative reading.
 - `Tracks`
 - `MediaMetadata`
 - `Cue`
-- full Java `AnalyticsListener` parity
+- richer/full-object Java `AnalyticsListener` payload parity
 - richer image output parity beyond reduced frame metadata, bitmap-layout metadata, and callback behavior
 - richer video effects parity beyond the current reduced effect set and boundary/default-value coverage
 - broader arbitrary `MediaSource.Factory` injection beyond token-registered and registry-generated-token baseline support
