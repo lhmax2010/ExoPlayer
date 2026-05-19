@@ -189,7 +189,7 @@ Recommended execution order for a fresh environment:
 
 1. Run one full validation script variant.
 2. If smoke passes, launch the demo.
-3. Compare the observed demo status output against the checklist below.
+3. Compare the observed simple-player demo controls against the checklist below.
 4. Write raw outputs into `TEST_RESULTS_TEMPLATE.md`.
 5. Write the overall pass/fail judgment into `VALIDATION_RESULTS_SUMMARY.md`.
 

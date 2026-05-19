@@ -22,8 +22,8 @@ The expected Android 16 emulator baseline before RPI4 validation is:
 - `CppBridgeNativeSmokeTest`: `26/26` passed
 - `CppBridgeNativePlayerInstrumentationTest`: `112/112` passed
 - connected total: `138/138` passed
-- demo UI smoke: Play/Pause/Stop plus Playback/Tracks/Item/Timeline/Metadata/Cues status queries
-  updated native `status_text`
+- demo UI target: single-screen player with no scroll/log panel; HTTP/HLS/DASH buttons load and play
+  immediately, and Pause/Resume/Seek/Speed controls remain visible
 
 ## 1A. Quick Start
 
@@ -314,25 +314,17 @@ adb -s "$RPI4_SERIAL" shell pidof androidx.media3.demo.cppbridge \
 
 Manual playback focus:
 
-1. Press `HTTP`, then `Play`.
-2. Confirm video renders and audio behaves as expected for the board.
-3. Press `Pause`, `Play`, `Seek Fwd`, `Seek Back`, `Seek To`, and `Stop`.
-4. Press `Playback`, `Tracks`, `Item`, `Timeline`, `Metadata`, and `Cues`; confirm the status panel
-   changes after each press.
-5. Press `HLS`, then `Play`; confirm playback starts.
-6. Press `DASH`, then `Play`; confirm playback starts.
-7. Press `Mixed Playlist`, then use `Next` and `Prev`; confirm item transitions.
-8. If subtitles are required, use `Load + Subtitle` and then `Text EN` / `Text +`.
-
-Expected status markers:
-
-- HTTP loaded through C++: status contains `Loaded media via C++ API`.
-- Playback query: status contains `state=`, `playing=`, `itemIndex=`, `itemCount=`, and `sourceType=`.
-- Tracks query: status contains track group details, or `No track groups` before media is prepared.
-- Item query: status contains `mediaId=`, `uri=`, `sourceType=`, and `mimeType=`.
-- Timeline query: status contains `windowCount=`, `periodCount=`, and `empty=`.
-- Metadata query: status contains `title=`, `artist=`, and `extrasKeyCount=`.
-- Cues query: status contains `cueCount=` and `presentationTimeUs=`.
+1. Confirm the app opens as a single-screen player. There should be no scroll area and no visible
+   debug log/status panel.
+2. Press `HTTP`; playback should load and start immediately.
+3. Press `Pause`, then `Resume`; confirm playback pauses and resumes.
+4. Press `Seek Back`, `Seek Fwd`, and `Start`; confirm seeking works.
+5. Press `0.5x`, `1.0x`, `1.5x`, and `2.0x`; confirm speed changes take effect.
+6. Press `HLS`; playback should load and start immediately.
+7. Press `DASH`; playback should load and start immediately.
+8. Press `Playlist`, then use `Next` and `Prev`; confirm item transitions.
+9. If track selection is required, use `Audio +`, `Text +`, and `Text EN`.
+10. Use `File` for a local/USB content URI progressive playback check when needed.
 
 The instrumentation suite already validates deterministic local HTTP/HLS/DASH, HTTP data-source
 configuration, and custom source-factory SmoothStreaming / RTSP paths. The RPI4 manual demo check is
@@ -420,9 +412,9 @@ Fill this during board testing:
 | HTTP progressive | default HTTP button | starts video/audio; controls respond |  |  |
 | HLS | default HLS button | manifest loads; playback starts |  |  |
 | DASH | default DASH button | manifest loads; playback starts |  |  |
-| Mixed playlist | `Mixed Playlist` button | `Next` / `Prev` switch items |  |  |
-| External subtitle | `Load + Subtitle` | subtitle track visible or selectable |  |  |
-| USB/local file | `Pick USB/File` | content URI loads as progressive |  |  |
+| Mixed playlist | `Playlist` button | `Next` / `Prev` switch items |  |  |
+| Track controls | `Audio +`, `Text +`, `Text EN` | track selection controls respond without crash |  |  |
+| USB/local file | `File` button | content URI loads as progressive |  |  |
 
 ## 9. Pass Criteria
 
@@ -432,9 +424,9 @@ RPI4 validation is considered pass when:
   `26/26`, `112/112`, `138/138`.
 - Demo installs and launches.
 - HTTP progressive, HLS, and DASH playback start through the demo without native crash or JNI error.
-- Basic controls respond: play, pause, seek, stop/release.
-- Query buttons respond: Playback, Tracks, Item, Timeline, Metadata, and Cues all update the status
-  panel.
+- Basic controls respond: resume, pause, seek back, seek forward, start, speed, next/previous,
+  track-selection buttons, and stop.
+- The demo remains a single-screen player with no scrolling and no visible debug log/status panel.
 - Logcat has no bridge crash, `UnsatisfiedLinkError`, fatal JNI exception, or repeated decoder crash.
 
 RPI4 validation is considered blocked when:
