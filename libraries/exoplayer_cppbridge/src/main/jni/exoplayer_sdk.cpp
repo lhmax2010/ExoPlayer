@@ -3451,6 +3451,12 @@ ExoPlayerSdkPlayerBuilder& ExoPlayerSdkPlayerBuilder::SetMediaSourceFactoryToken
   return *this;
 }
 
+ExoPlayerSdkPlayerBuilder& ExoPlayerSdkPlayerBuilder::SetAudioOutputProviderToken(
+    const std::string& audio_output_provider_token) {
+  config_.audio_output_provider_token = audio_output_provider_token;
+  return *this;
+}
+
 ExoPlayerSdkPlayerBuilder& ExoPlayerSdkPlayerBuilder::SetMediaSourceFactoryConfig(
     const PlayerConfig::MediaSourceFactoryConfig& media_source_factory_config) {
   config_.media_source_factory_config = media_source_factory_config;

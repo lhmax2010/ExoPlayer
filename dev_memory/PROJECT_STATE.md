@@ -32,8 +32,10 @@ Latest local validation on this machine, refreshed on `2026-05-19`:
 - JNI/value smoke: `Pass`
 - Player/runtime smoke: `Pass`
 - Demo build: `Pass`
-- Demo manual validation: not manually exercised in this pass
-- Logcat review: not separately audited in this pass
+- Demo manual validation: demo installed and `MainActivity` launched on Android 16 emulator;
+  UIAutomator/adb taps verified Play, Pause, Stop, Playback, Tracks, Item, Timeline, Metadata, and
+  Cues status updates through the native bridge
+- Logcat review: high-signal crash/error filters were clean after the emulator demo UI smoke
 
 Commands that passed:
 
@@ -41,6 +43,10 @@ Commands that passed:
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
 - `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest`
 - `./gradlew :demo-cppbridge:assembleDebug`
+- `bash scripts/cppbridge/run_validation.sh --serial emulator-5554`
+- `python3 scripts/cppbridge/run_validation.py --local-only`
+- `bash scripts/cppbridge/run_validation.sh --local-only`
+- `./gradlew :lib-exoplayer-cppbridge:assemble -PcppbridgeIncludeTestEntrypoints=OFF`
 - `python3 -m unittest discover -s scripts/cppbridge -p '*_test.py'`
 - `python3 scripts/cppbridge/api_parity_inventory.py --check`
 - `git diff --check`
@@ -48,7 +54,11 @@ Commands that passed:
 Interpretation:
 
 - The current Android 16 emulator run verified the smoke suite end to end.
-- The current Android 16 emulator run reported `132/132` connected instrumentation tests passed.
+- The current Android 16 emulator run reported `138/138` connected instrumentation tests passed:
+  `26/26` for `CppBridgeNativeSmokeTest` and `112/112` for
+  `CppBridgeNativePlayerInstrumentationTest`.
+- RPI4 board validation is not executed yet because the board is currently unreachable; use
+  `docs/cppbridge/RPI4_TESTING_GUIDE.md` when manual access returns.
 - Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
   `api.txt` parity.
 - The 2026-05-18 Stage 1 inventory report is now checked in at
@@ -64,7 +74,8 @@ Interpretation:
 Current androidTest count found in the workspace:
 
 - Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
-  `CppBridgeNativePlayerInstrumentationTest.java`: `132`
+  `CppBridgeNativePlayerInstrumentationTest.java`: `138`
+- Total `@Test` count across cppbridge Android instrumentation and JVM unit sources: `168`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -144,9 +155,22 @@ This is consistent with a large smoke-first validation strategy.
   and station; C++ `MediaMetadataSnapshot` mirrors them through `ObjectValueInfo` while preserving
   token-first and string fallback semantics.
 - Stage 1 full API inventory closed the direct `Player.Listener#onIsLoadingChanged` gap through
-  C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; current exact gap report shows
-  `Player`/`ExoPlayer` method gaps `0`, direct `Player.Listener` callback gaps `0`, and one
-  remaining `ExoPlayer.Builder` gap: `setAudioOutputProvider`.
+  C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; Stage 6 then closed the remaining
+  exact `ExoPlayer.Builder#setAudioOutputProvider` inventory gap with a token-injected
+  app-owned `AudioOutputProvider` path. The audio-output-provider registry now mirrors the media
+  source factory token registry behavior for explicit tokens, generated token reuse, and null/empty
+  fallback. Current exact gap report shows `Player`/`ExoPlayer`, `ExoPlayer.Builder`, and direct
+  `Player.Listener` gaps all at `0`.
+- Stage 6 stabilization also deduplicates C++ opaque-token collection and smoke-covers
+  `OpaqueTokenBatch::Release` clear/idempotency behavior, while keeping cleanup explicit.
+- Stage 6 validation scripts now have a `--local-only` path for no-device environments, covering
+  API inventory, JVM UT, AndroidTest packaging, and demo packaging in one command; the connected
+  path now verifies the requested `--serial` is actually online before running Gradle.
+- Android 16/API 36 emulator validation is clean for Stage 6: `138/138` connected tests passed, and
+  the demo process launched successfully on `emulator-5554`. A follow-up demo UI smoke launched
+  with `skip_default_load`, clicked control/query buttons, observed native `status_text` summaries
+  such as `state=1`, `windowCount=0`, `title=`, and `cueCount=0`, and found no fatal JNI/native/demo
+  crash markers in logcat.
 - Stage 4 has completed reduced `AnalyticsListener` method-name coverage. It started with the
   independent `AnalyticsListener#onAudioAttributesChanged` callback carrying
   `AudioAttributesDescriptor`, then added 25 remaining reduced analytics callbacks for load,
@@ -160,6 +184,8 @@ For the next AI:
 
 - Treat this project as "reduced endpoint is broad and heavily smoke-documented".
 - Treat the current local environment as validated for the smoke suite on Android 16.
+- Treat RPI4 validation as pending manual execution, with the checklist in
+  `docs/cppbridge/RPI4_TESTING_GUIDE.md`.
 - The highest-risk next work moved past the first callback-style bridge slice, the
   codec-parameter multi-listener immediate-notification edge case, the planned Stage 3 reduced
   object/value-model slices, and Stage 4 reduced analytics callback completeness; remaining work is

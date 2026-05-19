@@ -129,10 +129,10 @@ class ApiParityInventoryTest(unittest.TestCase):
     def test_uncovered_methods_respects_known_aliases(self):
         missing = inventory.uncovered_methods(
             {"getCurrentTracks", "setAudioOutputProvider"},
-            {"getTracks"},
+            {"getTracks", "setAudioOutputProviderToken"},
         )
 
-        self.assertEqual(missing, ["setAudioOutputProvider"])
+        self.assertEqual(missing, [])
 
 
 if __name__ == "__main__":

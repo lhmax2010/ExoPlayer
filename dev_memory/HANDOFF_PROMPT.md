@@ -46,8 +46,15 @@ Important context:
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
 - Latest local validation passed on 2026-05-19 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`132/132`),
-  `:demo-cppbridge:assembleDebug`, and `git diff --check`.
+  `assembleDebugAndroidTest`, `testDebugUnitTest`, full connected validation through
+  `scripts/cppbridge/run_validation.sh --serial emulator-5554` (`138/138`: `26/26`
+  `CppBridgeNativeSmokeTest` plus `112/112` `CppBridgeNativePlayerInstrumentationTest`),
+  `:demo-cppbridge:assembleDebug`, production-only assemble with
+  `-PcppbridgeIncludeTestEntrypoints=OFF`, Python script/unit checks, and `git diff --check`.
+  The demo installed and `MainActivity` launched on the emulator. A later emulator demo UI smoke
+  launched with `skip_default_load`, clicked Play/Pause/Stop and Playback/Tracks/Item/Timeline/
+  Metadata/Cues buttons, observed native `status_text` summaries, and found no high-signal fatal
+  JNI/native/demo crash markers in logcat.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
   `nativeAuxiliaryCallbackParitySmokeTest_reportsCodecVideoAndCameraCallbacks` covering the main
@@ -119,11 +126,22 @@ Important context:
   `CONTENT_TYPE_OTHER` back to C++ `MediaSourceType::kProgressive`.
 - The 2026-05-18 Stage 1 inventory added `scripts/cppbridge/api_parity_inventory.py` and
   `docs/cppbridge/API_PARITY_GAP_REPORT.md`. Current exact inventory status is:
-  `Player`/`ExoPlayer` method gaps `0`, `Player.Listener` callback gaps `0`, and one
-  `ExoPlayer.Builder` gap: `setAudioOutputProvider`.
+  `Player`/`ExoPlayer` method gaps `0`, `Player.Listener` callback gaps `0`, and
+  `ExoPlayer.Builder` gaps `0`. Stage 6 closes `setAudioOutputProvider` through a
+  token-injected app-owned `AudioOutputProvider` path, with smokes for explicit registered tokens,
+  generated token reuse, and missing-token fallback.
 - Direct `Player.Listener#onIsLoadingChanged` is now bridged through
   `OnIsLoadingChanged` / `nativeOnIsLoadingChanged`, with `nativeListenerSmokeTest` checking
   `isLoadingCb=1` and `isLoading=1`.
+- Stage 6 also deduplicates C++ opaque-token collection and adds an `OpaqueTokenBatch::Release`
+  smoke for clear/idempotency behavior. Cleanup is still explicit and should happen after native
+  code is done with any Java round-trip token.
+- `scripts/cppbridge/run_validation.py` and `.sh` now support `--local-only` for no-device
+  validation. It runs API inventory plus local unit/build/package checks without requiring adb, and
+  the normal connected path now fails early if `--serial` does not match an online device.
+- RPI4 board validation is deferred until the board is reachable. Use
+  `docs/cppbridge/RPI4_TESTING_GUIDE.md` for the manual RPI4 checklist; do not treat the Android 16
+  emulator pass as board validation.
 - The planned Stage 3 reduced object/value-model slices are complete. Stage 4 reduced
   listener/analytics method-name coverage is also complete; the highest-value next development
   work is Stage 5 playback/source integration or later-stage full Java object parity for

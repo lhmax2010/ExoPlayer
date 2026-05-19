@@ -12,13 +12,13 @@ status notes in:
 
 | Area | Status | Evidence | Owner | Notes |
 | --- | --- | --- | --- | --- |
-| Build / native link | Pass | `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`; `:lib-exoplayer-cppbridge:testDebugUnitTest`; `:demo-cppbridge:assembleDebug` | Codex | Native testhooks and demo build linked successfully. |
-| JNI/value smoke | Pass | included in full `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` | Codex | Full Android 16 connected suite passed. |
-| Player/runtime smoke | Pass | `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` reported `132/132` tests passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track full-payload parity, decoded extras value-model markers, timeline / MediaItem / MediaMetadata object value metadata, Stage 4 analytics callback coverage, HTTP/HLS/DASH C++ playback smoke, Stage 5 HTTP data-source config smoke, and Stage 5 custom source-factory SmoothStreaming / RTSP smoke. |
-| API parity inventory | Pass | `python3 scripts/cppbridge/api_parity_inventory.py --check` | Codex | Generated report is current; exact `Player`/`ExoPlayer` and direct `Player.Listener` gaps are now `0`, with one remaining builder gap: `setAudioOutputProvider`. |
-| Demo manual validation | Pass with notes | `:demo-cppbridge:assembleDebug` | Codex | Demo compiled; manual UI playback was not separately exercised in this pass. |
-| Logcat review | Pass with notes | no test failure or JNI exception surfaced during Gradle instrumentation | Codex | Dedicated logcat audit was not separately captured. |
-| Release recommendation | Pass with notes | build + unit + connected smoke + demo build all passed | Codex | Reduced bridge is smoke-validated; continue development for deeper full-object parity and callback edge cases. |
+| Build / native link | Pass | `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`; `:lib-exoplayer-cppbridge:testDebugUnitTest`; `:demo-cppbridge:assembleDebug`; `scripts/cppbridge/run_validation.py --local-only`; `scripts/cppbridge/run_validation.sh --local-only`; `:lib-exoplayer-cppbridge:assemble -PcppbridgeIncludeTestEntrypoints=OFF`; `scripts/cppbridge/run_validation.sh --serial emulator-5554` | Codex | Native testhooks, production-only core bridge, demo build, local-only checks, and Android 16 connected validation all link/package successfully. |
+| JNI/value smoke | Pass | `CppBridgeNativeSmokeTest` on Android 16 AVD: `26/26` passed | Codex | Stage 6 audio-output-provider and opaque-token batch-release smokes are included in the connected run. |
+| Player/runtime smoke | Pass | `CppBridgeNativePlayerInstrumentationTest` on Android 16 AVD: `112/112` passed; connected total `138/138` passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track full-payload parity, decoded extras value-model markers, timeline / MediaItem / MediaMetadata object value metadata, Stage 4 analytics callback coverage, HTTP/HLS/DASH C++ playback smoke, Stage 5 HTTP data-source config smoke, Stage 5 custom source-factory SmoothStreaming / RTSP smoke, and Stage 6 audio-output-provider plus opaque-token batch smoke coverage. |
+| API parity inventory | Pass | `python3 scripts/cppbridge/api_parity_inventory.py --check` | Codex | Generated report is current; exact `Player`/`ExoPlayer`, `ExoPlayer.Builder`, and direct `Player.Listener` gaps are now `0`. |
+| Demo manual validation | Pass with notes | `:demo-cppbridge:installDebug`; Android 16 emulator `MainActivity`; UIAutomator-driven Play/Pause/Stop and query buttons | Codex | Demo launched with `skip_default_load`; controls and C++ query buttons updated `status_text` with native summaries. Remote media playback remains covered by instrumentation and later RPI4 manual testing. |
+| Logcat review | Pass | no test failure, JNI fatal, `UnsatisfiedLinkError`, native fatal signal, tombstone, or demo ANR surfaced during Gradle instrumentation or demo UI smoke | Codex | Dedicated full log archive was not written, but high-signal crash/error filters were clean. |
+| Release recommendation | Pass with notes | latest local, production-only, and Android 16 connected emulator validation passed | Codex | Emulator coverage is clean. RPI4 remains a manual board-validation gate because the board is currently unavailable. |
 
 Status values:
 
@@ -39,16 +39,18 @@ Status values:
 | Gradle | Gradle `8.13` |
 | Android SDK | `/home/linhao/Android/Sdk`, platforms include `android-35` and `android-36.1` |
 | NDK / CMake | NDK `27.0.12077973` and `30.0.14904198`; CMake `4.1.2` available |
-| Device / emulator | AVD `cppbridge_android16_api36`, Google APIs x86_64, Android 16.0 |
-| `ANDROID_SERIAL` | default single connected emulator during the run |
+| Device / emulator | AVD `cppbridge_android16_api36`, Google APIs x86_64, Android 16 / API 36, serial `emulator-5554` |
+| `ANDROID_SERIAL` | unset; validation used explicit `--serial emulator-5554` |
 
 ## 3. Smoke Suite Rollup
 
 | Suite | Result | Key evidence | Follow-up needed |
 | --- | --- | --- | --- |
-| `CppBridgeNativeSmokeTest` | Pass | covered by full `connectedDebugAndroidTest` | none for this pass |
-| `CppBridgeNativePlayerInstrumentationTest` | Pass | covered by full `connectedDebugAndroidTest`; total connected suite `132/132` passed | none for this pass |
-| `run_validation.sh` aggregate result | Pass with notes | equivalent manual Gradle commands were run directly instead of the wrapper | run wrapper later if a single archived transcript is needed |
+| `CppBridgeNativeSmokeTest` | Pass | Android 16 connected class run: `26/26` passed | none for emulator; repeat on RPI4 when available |
+| `CppBridgeNativePlayerInstrumentationTest` | Pass | Android 16 connected class run: `112/112` passed | none for emulator; repeat on RPI4 when available |
+| `run_validation.py --local-only` aggregate result | Pass | local no-device validation path | no connected instrumentation by design |
+| `run_validation.sh --local-only` aggregate result | Pass | local no-device validation path | no connected instrumentation by design |
+| `run_validation.sh --serial emulator-5554` aggregate result | Pass | Android 16 connected total: `138/138` passed | RPI4 board validation remains manual |
 
 ## 3A. 2026-05-15 through 2026-05-18 Parity Addendum
 
@@ -69,6 +71,8 @@ Status values:
 | HTTP/HLS/DASH C++ playback | `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi` | Pass | Covers local MockWebServer playback for HTTP progressive, HLS, and DASH via C++ `SetMediaItem` / `Prepare` / `Play`; verifies source type round-trip markers `5`, `2`, and `1`. |
 | Stage 5 HTTP data-source config playback | `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig` | Pass | Covers C++ `PlayerConfig` HTTP headers, user-agent, timeout, and redirect settings during real local progressive playback, with MockWebServer verifying the request headers and UA. |
 | Stage 5 custom source-factory playback | `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig` | Pass | Covers C++ `PlayerConfig` factory-token injection with a Java `FakeMediaSourceFactory`, then prepares SmoothStreaming and RTSP `MediaItemDescriptor` source types through C++ `SetMediaItem` / `Prepare` / `Play`. |
+| Stage 6 audio-output-provider builder injection | `nativeBuilderAudioOutputProviderInjectionSmokeTest_buildsWithRegisteredProviderToken`; `nativeBuilderAudioOutputProviderGeneratedTokenSmokeTest_buildsWithGeneratedProviderToken`; `nativeBuilderAudioOutputProviderFallbackSmokeTest_buildsWhenTokenIsMissing` | Pass | Covered by the Android 16 connected `CppBridgeNativeSmokeTest` run. |
+| Stage 6 opaque-token batch release | `nativeOpaqueTokenBatchReleaseSmokeTest_dedupesAndClearsCollectedTokens` | Pass | Covered by the Android 16 connected `CppBridgeNativeSmokeTest` run. |
 | Coverage top-up | existing surface / playlist / query / device / builder / priority smokes | Pass | Direct coverage added for raw `Surface` overloads, `RemoveMediaItem`, `MoveMediaItems`, playlist navigation getters, SDK and bridge tracks getters, device volume/mute setters, builder `SetMediaSourceFactoryConfig`, codec-parameter bridge registration/clear, and SDK `ClearPriorityTaskManager`. |
 
 Recommended spot checks for the explicit opaque-token cleanup smoke:
@@ -230,11 +234,11 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 
 | Check | Result | Notes |
 | --- | --- | --- |
-| Demo app installs | Pending |  |
-| Demo app launches | Pending |  |
-| Player controls respond | Pending |  |
-| C++ callbacks visible in logs/output | Pending |  |
-| No crash / ANR during manual flow | Pending |  |
+| Demo app installs | Pass | Installed on Android 16 emulator through `run_validation.sh --serial emulator-5554` and again with `:demo-cppbridge:installDebug`. |
+| Demo app launches | Pass | `adb -s emulator-5554 shell am start -n androidx.media3.demo.cppbridge/.MainActivity --ez skip_default_load true`; process observed as `10520`. |
+| Player controls respond | Pass | UIAutomator/adb taps on Play, Pause, and Stop updated `status_text` with `state=1`, `playing=0`, and playlist summary markers. |
+| C++ bridge query output visible in UI/logs | Pass | Playback, Tracks, Item, Timeline, Metadata, and Cues buttons updated `status_text`; logcat showed `cppbridge` query calls such as `getPlaybackState`, `getTracks`, `getCurrentMediaItem`, `getTimelineSnapshotData`, `getMediaMetadata`, and `getCurrentCues`. |
+| No crash / ANR during manual flow | Pass | Logcat filters for `FATAL EXCEPTION`, `JNI DETECTED ERROR`, `UnsatisfiedLinkError`, `Fatal signal`, `tombstone`, and demo ANR returned no matches. |
 
 ## 7. Blocking Issues
 
@@ -244,7 +248,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 
 ## 8. Recommended Next Step
 
-- Summary: reduced bridge smoke suite is passing locally on Android 16 after the runtime/audio/codec/getter/callback parity addendum.
-- Ship / continue development decision: continue development; next target is deeper full-object parity and callback edge cases beyond the first reduced callback slice.
+- Summary: reduced bridge smoke suite is passing locally on Android 16 after the Stage 6 builder/token lifecycle addenda; connected emulator total is `138/138`, and demo UI controls/query buttons respond on the Android 16 emulator.
+- Ship / continue development decision: continue development; RPI4 remains manual validation after board access returns, while future feature work should target deeper full-object parity beyond the reduced descriptors.
 - Owner: Codex
-- Date: 2026-05-15
+- Date: 2026-05-19

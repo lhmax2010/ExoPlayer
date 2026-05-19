@@ -26,18 +26,32 @@ Current readiness snapshot:
 - demo now exposes manual queries for tracks, current item, timeline, metadata, and cues
 - Stage 5 playback-path smoke now covers C++ `MediaItem.customCacheKey` preservation and reduced
   DRM descriptor preservation through token-injected fake `MediaSource.Factory` preparation
+- Stage 6 builder smoke now covers token-injected `AudioOutputProvider` selection through
+  `ExoPlayerSdkPlayerBuilder::SetAudioOutputProviderToken`, including explicit registered tokens,
+  generated token reuse, and missing-token fallback
+- C++ opaque-token collection now deduplicates repeated token references, with
+  `nativeOpaqueTokenBatchReleaseSmokeTest_dedupesAndClearsCollectedTokens` covering
+  `OpaqueTokenBatch::Release` clear/idempotency behavior
 - native build now separates core bridge code from smoke/player-test/demo entrypoints through
   `exoplayer_cppbridge_jni` and `exoplayer_cppbridge_jni_testhooks`
-- explicit opaque-token cleanup helpers now exist for the main C++ query APIs, but they are
-  developer-facing convenience helpers rather than a separately validated tester flow in this pass
+- `run_validation.py` and `run_validation.sh` support `--local-only` for no-device API
+  inventory, JVM unit, AndroidTest package, and demo package checks
+- explicit opaque-token cleanup helpers now exist for the main C++ query APIs. Token collection is
+  deduplicated, but cleanup is still opt-in and should be called after native-side inspection is
+  complete
 - repeatable API parity inventory is available through
   `python3 scripts/cppbridge/api_parity_inventory.py --check`
-- latest local validation on 2026-05-19 passed on the Android 16 AVD
-  `cppbridge_android16_api36`
-- the current connected suite contains 132 instrumentation tests after the runtime/audio/codec/
-  auxiliary-callback, TrackInfo format-payload, HTTP/HLS/DASH playback, HTTP data-source config
-  playback, custom source-factory SmoothStreaming / RTSP playback, decoded extras, and Timeline /
-  MediaItem / MediaMetadata object-value parity addenda
+- latest Android 16 emulator validation on 2026-05-19 used AVD
+  `cppbridge_android16_api36` on serial `emulator-5554` and passed the connected smoke suite:
+  `CppBridgeNativeSmokeTest` `26/26`, `CppBridgeNativePlayerInstrumentationTest` `112/112`,
+  connected total `138/138`
+- RPI4 board validation is intentionally deferred until the board is reachable; use
+  `RPI4_TESTING_GUIDE.md` for that manual pass
+- the current source tree contains 168 `@Test` methods across the cppbridge unit and
+  instrumentation sources after the runtime/audio/codec/auxiliary-callback, TrackInfo
+  format-payload, HTTP/HLS/DASH playback, HTTP data-source config playback, custom source-factory
+  SmoothStreaming / RTSP playback, decoded extras, Timeline / MediaItem / MediaMetadata
+  object-value, and Stage 6 builder/token lifecycle addenda
 
 ## 1. Validation Goals
 
@@ -142,10 +156,22 @@ Useful options:
 ./scripts/cppbridge/run_validation.sh --serial emulator-5554
 ./scripts/cppbridge/run_validation.sh --launch-demo
 ./scripts/cppbridge/run_validation.sh --test-class androidx.media3.exoplayer.cppbridge.CppBridgeNativeSmokeTest
+./scripts/cppbridge/run_validation.sh --local-only
 python3 ./scripts/cppbridge/run_validation.py --serial emulator-5554
 python3 ./scripts/cppbridge/run_validation.py --launch-demo
 python3 ./scripts/cppbridge/run_validation.py --test-class androidx.media3.exoplayer.cppbridge.CppBridgeNativeSmokeTest
+python3 ./scripts/cppbridge/run_validation.py --local-only
 ```
+
+No-device validation:
+
+- use `--local-only` when `adb devices` is empty or when you only need build/unit/package checks
+- `--local-only` does not execute connected instrumentation and should not replace the Android 16
+  connected suite before release tagging
+- when `--serial` is supplied, the validation scripts now fail early unless that specific serial is
+  online in `adb devices`
+- for RPI4 bring-up, run the same full validation script with the board serial after following
+  `docs/cppbridge/RPI4_TESTING_GUIDE.md`
 
 ### Demo only
 
@@ -227,11 +253,12 @@ Native target note:
 - `exoplayer_cppbridge_jni` contains the production bridge core
 - `exoplayer_cppbridge_jni_testhooks` contains smoke, player-test, and demo JNI entrypoints
 - the default validation build includes both targets
-- Stage 5 source/DRM ownership note: the bridge owns the reduced media-item descriptors,
+- Stage 5/6 source and output ownership note: the bridge owns the reduced media-item descriptors,
   source-type/mime inference, HTTP config values, factory-token selection, `customCacheKey`, and
-  DRM configuration descriptors. The app/platform still owns concrete cache instances/offline
-  downloads, DRM session/license/provisioning behavior, and any concrete `MediaSource.Factory`
-  object registered behind a token.
+  DRM configuration descriptors, plus `AudioOutputProvider` token selection. The app/platform
+  still owns concrete cache instances/offline downloads, DRM session/license/provisioning
+  behavior, and any concrete `MediaSource.Factory` or `AudioOutputProvider` object registered
+  behind a token.
 
 Current high-value parity smokes in this class include:
 

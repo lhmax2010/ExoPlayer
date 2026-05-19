@@ -70,6 +70,7 @@ struct PlayerConfig {
   int priority = 0;
   bool use_priority_task_manager = false;
   int64_t target_preload_duration_us = -9223372036854775807LL;
+  std::string audio_output_provider_token;
 };
 
 struct AuxEffectInfoDescriptor {
@@ -694,7 +695,8 @@ struct AnalyticsSnapshot {
 inline void AddOpaqueObjectToken(
     std::vector<std::string>* tokens,
     const std::string& token) {
-  if (tokens != nullptr && !token.empty()) {
+  if (tokens != nullptr && !token.empty() &&
+      std::find(tokens->begin(), tokens->end(), token) == tokens->end()) {
     tokens->push_back(token);
   }
 }

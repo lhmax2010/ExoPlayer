@@ -112,6 +112,10 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         header_values != nullptr;
     jstring user_agent = NewStringUtfChecked(
         env, config.media_source_factory_config.user_agent, "CppMediaSourceFactoryConfig.userAgent");
+    jstring audio_output_provider_token = NewStringUtfChecked(
+        env,
+        config.audio_output_provider_token,
+        "CppPlayerConfig.audioOutputProviderToken");
     jobject java_media_source_factory_config = NewObjectChecked(
         env,
         media_source_factory_config_class,
@@ -132,12 +136,14 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         static_cast<jlong>(config.media_source_factory_config.live_max_offset_ms),
         static_cast<jfloat>(config.media_source_factory_config.live_min_speed),
         static_cast<jfloat>(config.media_source_factory_config.live_max_speed));
-    if (factory_token == nullptr || user_agent == nullptr || !header_names_ok ||
+    if (factory_token == nullptr || user_agent == nullptr ||
+        audio_output_provider_token == nullptr || !header_names_ok ||
         !header_values_ok || java_media_source_factory_config == nullptr) {
       DeleteLocalRefIfNotNull(env, factory_token);
       DeleteLocalRefIfNotNull(env, header_names);
       DeleteLocalRefIfNotNull(env, header_values);
       DeleteLocalRefIfNotNull(env, user_agent);
+      DeleteLocalRefIfNotNull(env, audio_output_provider_token);
       DeleteLocalRefIfNotNull(env, java_media_source_factory_config);
       env->DeleteLocalRef(media_source_factory_config_class);
       env->DeleteLocalRef(config_class);
@@ -150,7 +156,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         config_class,
         "CppPlayerConfig",
         "<init>",
-        "(ZZZLandroidx/media3/exoplayer/cppbridge/CppMediaSourceFactoryConfig;JJIIZJ)V");
+        "(ZZZLandroidx/media3/exoplayer/cppbridge/CppMediaSourceFactoryConfig;JJIIZJLjava/lang/String;)V");
     jobject java_config = NewObjectChecked(
         env,
         config_class,
@@ -165,13 +171,15 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
         static_cast<jint>(config.wake_mode),
         static_cast<jint>(config.priority),
         static_cast<jboolean>(config.use_priority_task_manager),
-        static_cast<jlong>(config.target_preload_duration_us));
+        static_cast<jlong>(config.target_preload_duration_us),
+        audio_output_provider_token);
     if (java_config == nullptr) {
       DeleteLocalRefIfNotNull(env, java_media_source_factory_config);
       DeleteLocalRefIfNotNull(env, factory_token);
       DeleteLocalRefIfNotNull(env, header_names);
       DeleteLocalRefIfNotNull(env, header_values);
       DeleteLocalRefIfNotNull(env, user_agent);
+      DeleteLocalRefIfNotNull(env, audio_output_provider_token);
       env->DeleteLocalRef(media_source_factory_config_class);
       env->DeleteLocalRef(config_class);
       env->DeleteLocalRef(bridge_class);
@@ -200,6 +208,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       DeleteLocalRefIfNotNull(env, header_names);
       DeleteLocalRefIfNotNull(env, header_values);
       DeleteLocalRefIfNotNull(env, user_agent);
+      DeleteLocalRefIfNotNull(env, audio_output_provider_token);
       env->DeleteLocalRef(media_source_factory_config_class);
       env->DeleteLocalRef(config_class);
       env->DeleteLocalRef(bridge_class);
@@ -216,6 +225,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       DeleteLocalRefIfNotNull(env, header_names);
       DeleteLocalRefIfNotNull(env, header_values);
       DeleteLocalRefIfNotNull(env, user_agent);
+      DeleteLocalRefIfNotNull(env, audio_output_provider_token);
       env->DeleteLocalRef(media_source_factory_config_class);
       env->DeleteLocalRef(config_class);
       env->DeleteLocalRef(bridge_class);
@@ -229,6 +239,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     DeleteLocalRefIfNotNull(env, header_names);
     DeleteLocalRefIfNotNull(env, header_values);
     DeleteLocalRefIfNotNull(env, user_agent);
+    DeleteLocalRefIfNotNull(env, audio_output_provider_token);
     DeleteLocalRefIfNotNull(env, media_source_factory_config_class);
     DeleteLocalRefIfNotNull(env, config_class);
     DeleteLocalRefIfNotNull(env, bridge_class);

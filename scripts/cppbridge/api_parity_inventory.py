@@ -63,6 +63,7 @@ API_TO_CPP_ALIASES = {
     "getCurrentCues": {"getCurrentCues"},
     "build": {"build", "create"},
     "setMediaSourceFactory": {"setMediaSourceFactoryConfig", "setMediaSourceFactoryToken"},
+    "setAudioOutputProvider": {"setAudioOutputProviderToken"},
 }
 
 NON_PLAYER_RUNTIME_EXTENSIONS = {
@@ -403,10 +404,9 @@ def generate_markdown(inventory: Inventory) -> str:
             "",
             "## Immediate Phase 1 Conclusions",
             "",
-            "- Exact method-level `Player` and `Player.Listener` parity is closed in this inventory.",
+            "- Exact method-level `Player`, `ExoPlayer.Builder`, and `Player.Listener` parity is",
+            "  closed in this inventory.",
             "- Remaining high-value work is semantic object parity, not just adding more method names.",
-            "- `ExoPlayer.Builder#setAudioOutputProvider` is a concrete builder-level gap to review",
-            "  before the source/runtime integration stage.",
             "- Stages 2 and 3 should use the object/value inventory above as their checklist seed.",
             "",
         ]
