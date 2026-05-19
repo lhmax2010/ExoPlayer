@@ -1724,6 +1724,66 @@ public final class CppBridgeNativePlayerInstrumentationTest {
   }
 
   @Test
+  public void nativeCustomCacheKeyPlaybackSmokeTest_preservesCacheKeyThroughPlaybackPath() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-cache-fake-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeCustomCacheKeyPlaybackSmokeTest(context, token);
+
+      assertThat(summary).contains("factoryToken=" + token);
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("runtimePlayerReady=1");
+      assertThat(summary).contains("prepared=1");
+      assertThat(summary).contains("errorCode=0");
+      assertThat(summary).contains("mediaId=stage5-cache-item");
+      assertThat(summary).contains("mimeType=video/mp4");
+      assertThat(summary).contains("sourceType=5");
+      assertThat(summary).contains("customCacheKey=stage5-cache-key");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-cache-item,subtitleCount=0");
+      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
+    }
+  }
+
+  @Test
+  public void nativeDrmPlaybackSmokeTest_preservesDrmConfigThroughPlaybackPath() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-drm-fake-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary = CppBridgeNativePlayerTestHelper.nativeDrmPlaybackSmokeTest(context, token);
+
+      assertThat(summary).contains("factoryToken=" + token);
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("runtimePlayerReady=1");
+      assertThat(summary).contains("prepared=1");
+      assertThat(summary).contains("errorCode=0");
+      assertThat(summary).contains("mediaId=stage5-drm-item");
+      assertThat(summary).contains("mimeType=application/dash+xml");
+      assertThat(summary).contains("sourceType=1");
+      assertThat(summary).contains("hasDrmConfiguration=1");
+      assertThat(summary).contains("drmScheme=edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
+      assertThat(summary).contains("drmLicenseUri=https://license.example.com/stage5");
+      assertThat(summary).contains("drmHeaderCount=2");
+      assertThat(summary).contains("drmHeader0=X-Drm-Stage:5");
+      assertThat(summary).contains("drmHeader1=X-Drm-Trace:cppbridge");
+      assertThat(summary).contains("drmForcedSessionTrackTypeCount=2");
+      assertThat(summary).contains("drmKeySetIdLength=4");
+      assertThat(summary).contains("drmMultiSession=1");
+      assertThat(summary).contains("drmForceDefaultLicenseUri=1");
+      assertThat(summary).contains("drmPlayClearContentWithoutKey=0");
+      assertThat(summary).contains("debugSummary=mediaId=stage5-drm-item");
+      assertThat(extractIntMarker(summary, "factoryIdentity=")).isGreaterThan(0);
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
+    }
+  }
+
+  @Test
   public void nativeMediaSourceFactoryConfigSmokeTest_returnsConfigSummary() {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
@@ -2180,6 +2240,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("mediaId=current-item");
     assertThat(summary).contains("uri=https://example.com/current-item.m3u8");
     assertThat(summary).contains("mimeType=application/x-mpegURL");
+    assertThat(summary).contains("customCacheKey=current-cache-key");
     assertThat(summary).contains("sourceType=2");
     assertThat(summary).contains("tagPresent=1");
     assertThat(summary).contains("tagString=current-tag");

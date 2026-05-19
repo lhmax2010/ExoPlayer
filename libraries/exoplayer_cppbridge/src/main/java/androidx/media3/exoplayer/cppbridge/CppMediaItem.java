@@ -8,6 +8,7 @@ public final class CppMediaItem {
   public final String uri;
   @Nullable public final String mediaId;
   @Nullable public final String mimeType;
+  @Nullable public final String customCacheKey;
   public final int sourceType;
   public final boolean tagPresent;
   @Nullable public final String tagString;
@@ -40,6 +41,42 @@ public final class CppMediaItem {
         uri,
         mediaId,
         mimeType,
+        null,
+        sourceType,
+        tagPresent,
+        tagString,
+        tagToken,
+        null,
+        mediaMetadata,
+        requestMetadata,
+        adsConfiguration,
+        subtitleConfigurations,
+        clippingConfiguration,
+        liveConfiguration,
+        drmConfiguration);
+  }
+
+  public CppMediaItem(
+      String uri,
+      @Nullable String mediaId,
+      @Nullable String mimeType,
+      @Nullable String customCacheKey,
+      int sourceType,
+      boolean tagPresent,
+      @Nullable String tagString,
+      @Nullable String tagToken,
+      @Nullable CppMediaMetadata mediaMetadata,
+      @Nullable CppRequestMetadata requestMetadata,
+      @Nullable CppAdsConfiguration adsConfiguration,
+      CppSubtitleConfiguration[] subtitleConfigurations,
+      @Nullable CppClippingConfiguration clippingConfiguration,
+      @Nullable CppLiveConfiguration liveConfiguration,
+      @Nullable CppDrmConfiguration drmConfiguration) {
+    this(
+        uri,
+        mediaId,
+        mimeType,
+        customCacheKey,
         sourceType,
         tagPresent,
         tagString,
@@ -70,9 +107,46 @@ public final class CppMediaItem {
       @Nullable CppClippingConfiguration clippingConfiguration,
       @Nullable CppLiveConfiguration liveConfiguration,
       @Nullable CppDrmConfiguration drmConfiguration) {
+    this(
+        uri,
+        mediaId,
+        mimeType,
+        null,
+        sourceType,
+        tagPresent,
+        tagString,
+        tagToken,
+        tagValue,
+        mediaMetadata,
+        requestMetadata,
+        adsConfiguration,
+        subtitleConfigurations,
+        clippingConfiguration,
+        liveConfiguration,
+        drmConfiguration);
+  }
+
+  public CppMediaItem(
+      String uri,
+      @Nullable String mediaId,
+      @Nullable String mimeType,
+      @Nullable String customCacheKey,
+      int sourceType,
+      boolean tagPresent,
+      @Nullable String tagString,
+      @Nullable String tagToken,
+      @Nullable CppObjectValue tagValue,
+      @Nullable CppMediaMetadata mediaMetadata,
+      @Nullable CppRequestMetadata requestMetadata,
+      @Nullable CppAdsConfiguration adsConfiguration,
+      CppSubtitleConfiguration[] subtitleConfigurations,
+      @Nullable CppClippingConfiguration clippingConfiguration,
+      @Nullable CppLiveConfiguration liveConfiguration,
+      @Nullable CppDrmConfiguration drmConfiguration) {
     this.uri = uri;
     this.mediaId = mediaId;
     this.mimeType = mimeType;
+    this.customCacheKey = customCacheKey;
     this.sourceType = sourceType;
     this.tagPresent = tagPresent;
     this.tagString = tagString;

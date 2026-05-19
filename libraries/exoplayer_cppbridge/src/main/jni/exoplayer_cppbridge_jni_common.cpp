@@ -1117,7 +1117,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       item_class,
       "CppMediaItem",
       "<init>",
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IZLjava/lang/String;Ljava/lang/String;"
+      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IZLjava/lang/String;Ljava/lang/String;"
       "Landroidx/media3/exoplayer/cppbridge/CppObjectValue;"
       "Landroidx/media3/exoplayer/cppbridge/CppMediaMetadata;"
       "Landroidx/media3/exoplayer/cppbridge/CppRequestMetadata;"
@@ -1178,6 +1178,11 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       media_item.mime_type.empty()
           ? nullptr
           : NewStringUtfChecked(env, media_item.mime_type, "CppMediaItem.mimeType");
+  jstring custom_cache_key =
+      media_item.custom_cache_key.empty()
+          ? nullptr
+          : NewStringUtfChecked(
+                env, media_item.custom_cache_key, "CppMediaItem.customCacheKey");
   jstring tag_string =
       media_item.tag_string.empty()
           ? nullptr
@@ -1188,11 +1193,13 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
           : NewStringUtfChecked(env, media_item.tag_token, "CppMediaItem.tagToken");
   if (uri == nullptr || (!media_item.media_id.empty() && media_id == nullptr) ||
       (!media_item.mime_type.empty() && mime_type == nullptr) ||
+      (!media_item.custom_cache_key.empty() && custom_cache_key == nullptr) ||
       (!media_item.tag_string.empty() && tag_string == nullptr) ||
       (!media_item.tag_token.empty() && tag_token == nullptr)) {
     DeleteLocalRefIfNotNull(env, uri);
     DeleteLocalRefIfNotNull(env, media_id);
     DeleteLocalRefIfNotNull(env, mime_type);
+    DeleteLocalRefIfNotNull(env, custom_cache_key);
     DeleteLocalRefIfNotNull(env, tag_string);
     DeleteLocalRefIfNotNull(env, tag_token);
     env->DeleteLocalRef(subtitle_class);
@@ -1245,6 +1252,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       env->DeleteLocalRef(subtitle_class);
       env->DeleteLocalRef(clipping_class);
@@ -1283,6 +1291,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       env->DeleteLocalRef(subtitle_class);
       env->DeleteLocalRef(clipping_class);
@@ -1324,6 +1333,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       env->DeleteLocalRef(subtitle_class);
@@ -1353,6 +1363,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       env->DeleteLocalRef(subtitle_class);
@@ -1372,6 +1383,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
     DeleteLocalRefIfNotNull(env, uri);
     DeleteLocalRefIfNotNull(env, media_id);
     DeleteLocalRefIfNotNull(env, mime_type);
+    DeleteLocalRefIfNotNull(env, custom_cache_key);
     DeleteLocalRefIfNotNull(env, metadata);
     DeleteLocalRefIfNotNull(env, request_metadata);
     DeleteLocalRefIfNotNull(env, ads);
@@ -1417,6 +1429,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       DeleteLocalRefIfNotNull(env, ads);
@@ -1452,6 +1465,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       DeleteLocalRefIfNotNull(env, ads);
@@ -1477,6 +1491,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       DeleteLocalRefIfNotNull(env, ads);
@@ -1528,6 +1543,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, subtitles);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
@@ -1563,6 +1579,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       DeleteLocalRefIfNotNull(env, ads);
@@ -1594,6 +1611,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       DeleteLocalRefIfNotNull(env, ads);
@@ -1641,6 +1659,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
       DeleteLocalRefIfNotNull(env, uri);
       DeleteLocalRefIfNotNull(env, media_id);
       DeleteLocalRefIfNotNull(env, mime_type);
+      DeleteLocalRefIfNotNull(env, custom_cache_key);
       DeleteLocalRefIfNotNull(env, metadata);
       DeleteLocalRefIfNotNull(env, request_metadata);
       DeleteLocalRefIfNotNull(env, ads);
@@ -1670,6 +1689,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
     DeleteLocalRefIfNotNull(env, uri);
     DeleteLocalRefIfNotNull(env, media_id);
     DeleteLocalRefIfNotNull(env, mime_type);
+    DeleteLocalRefIfNotNull(env, custom_cache_key);
     DeleteLocalRefIfNotNull(env, tag_string);
     DeleteLocalRefIfNotNull(env, tag_token);
     DeleteLocalRefIfNotNull(env, metadata);
@@ -1696,6 +1716,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
                                   uri,
                                   media_id,
                                   mime_type,
+                                  custom_cache_key,
                                   ToJavaSourceType(media_item.source_type),
                                   static_cast<jboolean>(media_item.tag_present),
                                   tag_string,
@@ -1716,6 +1737,7 @@ jobject CreateJavaMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) 
   if (mime_type != nullptr) {
     env->DeleteLocalRef(mime_type);
   }
+  DeleteLocalRefIfNotNull(env, custom_cache_key);
   DeleteLocalRefIfNotNull(env, tag_string);
   DeleteLocalRefIfNotNull(env, tag_token);
   DeleteLocalRefIfNotNull(env, tag_value);
@@ -3496,6 +3518,8 @@ MediaItemDescriptor FromJavaMediaItem(JNIEnv* env, jobject object) {
   descriptor.uri = GetStringFieldValue(env, object, clazz, "CppMediaItem", "uri");
   descriptor.media_id = GetStringFieldValue(env, object, clazz, "CppMediaItem", "mediaId");
   descriptor.mime_type = GetStringFieldValue(env, object, clazz, "CppMediaItem", "mimeType");
+  descriptor.custom_cache_key =
+      GetStringFieldValue(env, object, clazz, "CppMediaItem", "customCacheKey");
   descriptor.source_type =
       static_cast<MediaSourceType>(GetIntFieldValue(env, object, clazz, "CppMediaItem", "sourceType"));
   descriptor.tag_present = GetBooleanFieldValue(env, object, clazz, "CppMediaItem", "tagPresent");

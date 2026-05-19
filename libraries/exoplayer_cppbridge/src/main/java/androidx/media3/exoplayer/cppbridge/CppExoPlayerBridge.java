@@ -2929,6 +2929,10 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
                   : "";
           @Nullable String localMimeType =
               mediaItem.localConfiguration != null ? mediaItem.localConfiguration.mimeType : "";
+          @Nullable String customCacheKey =
+              mediaItem.localConfiguration != null
+                  ? mediaItem.localConfiguration.customCacheKey
+                  : "";
           @Nullable String drmLicenseUri =
               mediaItem.localConfiguration != null
                       && mediaItem.localConfiguration.drmConfiguration != null
@@ -2997,6 +3001,8 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
               + liveMaxPlaybackSpeed
               + ",mimeType="
               + localMimeType
+              + ",customCacheKey="
+              + customCacheKey
               + ",drmScheme="
               + drmScheme
               + ",drmLicenseUri="

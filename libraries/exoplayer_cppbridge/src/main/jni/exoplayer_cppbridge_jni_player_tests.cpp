@@ -4020,6 +4020,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   MediaItemDescriptor media_item;
   media_item.uri = "https://example.com/current-item.m3u8";
   media_item.media_id = "current-item";
+  media_item.custom_cache_key = "current-cache-key";
   media_item.source_type = MediaSourceType::kHls;
   media_item.tag_present = true;
   media_item.tag_string = "current-tag";
@@ -4107,6 +4108,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeC
   summary += ",mediaId=" + current_media_item.media_id;
   summary += ",uri=" + current_media_item.uri;
   summary += ",mimeType=" + current_media_item.mime_type;
+  summary += ",customCacheKey=" + current_media_item.custom_cache_key;
   summary += ",sourceType=" + std::to_string(static_cast<int>(current_media_item.source_type));
   summary += ",tagPresent=" + std::to_string(current_media_item.tag_present ? 1 : 0);
   summary += ",tagString=" + current_media_item.tag_string;
@@ -8364,6 +8366,138 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeM
   summary += ",generatedTokenPath=1";
   return NewStringUtfChecked(
       env, summary, "nativeMediaSourceFactoryGeneratedTokenSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeCustomCacheKeyPlaybackSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context,
+    jstring token) {
+  PlayerConfig config;
+  config.media_source_factory_config.factory_token = JStringToString(env, token);
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "custom-cache-error:createPlayer",
+        "nativeCustomCacheKeyPlaybackSmokeTest.error");
+  }
+  MediaItemDescriptor media_item;
+  media_item.uri = "https://example.com/stage5/cache.mp4";
+  media_item.media_id = "stage5-cache-item";
+  media_item.mime_type = "video/mp4";
+  media_item.custom_cache_key = "stage5-cache-key";
+  media_item.source_type = MediaSourceType::kProgressive;
+  std::string runtime_summary =
+      BuildRuntimeDrivenPlayerSummary(player.get(), media_item, false, 2000);
+  PlayerConfig::MediaSourceFactoryConfig resolved = player->GetMediaSourceFactoryConfig();
+  MediaItemDescriptor current_media_item = player->GetCurrentMediaItem();
+  PlayerError error = player->GetPlayerError();
+  std::string debug_summary = player->GetCurrentMediaItemDebugSummary();
+  std::string summary = "factoryToken=" + resolved.factory_token;
+  summary += ",injectedFactoryUsed=" +
+      std::to_string(resolved.injected_factory_used_for_test ? 1 : 0);
+  summary += ",factoryIdentity=" +
+      std::to_string(resolved.injected_factory_identity_for_test);
+  summary += "," + runtime_summary;
+  summary += ",errorCode=" + std::to_string(error.error_code);
+  summary += ",mediaId=" + current_media_item.media_id;
+  summary += ",uri=" + current_media_item.uri;
+  summary += ",mimeType=" + current_media_item.mime_type;
+  summary += ",sourceType=" +
+      std::to_string(static_cast<int>(current_media_item.source_type));
+  summary += ",customCacheKey=" + current_media_item.custom_cache_key;
+  summary += ",debugSummary=" + debug_summary;
+  player->Release();
+  return NewStringUtfChecked(env, summary, "nativeCustomCacheKeyPlaybackSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeDrmPlaybackSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context,
+    jstring token) {
+  PlayerConfig config;
+  config.media_source_factory_config.factory_token = JStringToString(env, token);
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env, "drm-playback-error:createPlayer", "nativeDrmPlaybackSmokeTest.error");
+  }
+  MediaItemDescriptor media_item;
+  media_item.uri = "https://example.com/stage5/drm.mpd";
+  media_item.media_id = "stage5-drm-item";
+  media_item.mime_type = "application/dash+xml";
+  media_item.source_type = MediaSourceType::kDash;
+  media_item.drm_configuration.scheme_uuid =
+      "edef8ba9-79d6-4ace-a3c8-27dcd51d21ed";
+  media_item.drm_configuration.license_uri = "https://license.example.com/stage5";
+  media_item.drm_configuration.license_request_header_names = {
+      "X-Drm-Stage", "X-Drm-Trace"};
+  media_item.drm_configuration.license_request_header_values = {"5", "cppbridge"};
+  media_item.drm_configuration.forced_session_track_types = {1, 2};
+  media_item.drm_configuration.key_set_id = {0x05, 0x06, 0x07, 0x08};
+  media_item.drm_configuration.multi_session = true;
+  media_item.drm_configuration.force_default_license_uri = true;
+  media_item.drm_configuration.play_clear_content_without_key = false;
+  std::string runtime_summary =
+      BuildRuntimeDrivenPlayerSummary(player.get(), media_item, false, 2000);
+  PlayerConfig::MediaSourceFactoryConfig resolved = player->GetMediaSourceFactoryConfig();
+  MediaItemDescriptor current_media_item = player->GetCurrentMediaItem();
+  PlayerError error = player->GetPlayerError();
+  std::string debug_summary = player->GetCurrentMediaItemDebugSummary();
+  std::string summary = "factoryToken=" + resolved.factory_token;
+  summary += ",injectedFactoryUsed=" +
+      std::to_string(resolved.injected_factory_used_for_test ? 1 : 0);
+  summary += ",factoryIdentity=" +
+      std::to_string(resolved.injected_factory_identity_for_test);
+  summary += "," + runtime_summary;
+  summary += ",errorCode=" + std::to_string(error.error_code);
+  summary += ",mediaId=" + current_media_item.media_id;
+  summary += ",mimeType=" + current_media_item.mime_type;
+  summary += ",sourceType=" +
+      std::to_string(static_cast<int>(current_media_item.source_type));
+  summary += ",hasDrmConfiguration=" +
+      std::to_string(current_media_item.drm_configuration.scheme_uuid.empty() ? 0 : 1);
+  summary += ",drmScheme=" + current_media_item.drm_configuration.scheme_uuid;
+  summary += ",drmLicenseUri=" + current_media_item.drm_configuration.license_uri;
+  summary += ",drmHeaderCount=" +
+      std::to_string(
+          current_media_item.drm_configuration.license_request_header_names.size());
+  if (!current_media_item.drm_configuration.license_request_header_names.empty()
+      && !current_media_item.drm_configuration.license_request_header_values.empty()) {
+    summary +=
+        ",drmHeader0="
+        + current_media_item.drm_configuration.license_request_header_names[0] + ":"
+        + current_media_item.drm_configuration.license_request_header_values[0];
+  }
+  if (current_media_item.drm_configuration.license_request_header_names.size() > 1
+      && current_media_item.drm_configuration.license_request_header_values.size() > 1) {
+    summary +=
+        ",drmHeader1="
+        + current_media_item.drm_configuration.license_request_header_names[1] + ":"
+        + current_media_item.drm_configuration.license_request_header_values[1];
+  }
+  summary += ",drmForcedSessionTrackTypeCount=" +
+      std::to_string(
+          current_media_item.drm_configuration.forced_session_track_types.size());
+  summary += ",drmKeySetIdLength=" +
+      std::to_string(current_media_item.drm_configuration.key_set_id.size());
+  summary += ",drmMultiSession=" +
+      std::to_string(current_media_item.drm_configuration.multi_session ? 1 : 0);
+  summary += ",drmForceDefaultLicenseUri=" +
+      std::to_string(
+          current_media_item.drm_configuration.force_default_license_uri ? 1 : 0);
+  summary += ",drmPlayClearContentWithoutKey=" +
+      std::to_string(
+          current_media_item.drm_configuration.play_clear_content_without_key ? 1 : 0);
+  summary += ",debugSummary=" + debug_summary;
+  player->Release();
+  return NewStringUtfChecked(env, summary, "nativeDrmPlaybackSmokeTest");
 }
 
 JNIEXPORT jstring JNICALL

@@ -292,6 +292,7 @@ struct MediaItemDescriptor {
   std::string uri;
   std::string media_id;
   std::string mime_type;
+  std::string custom_cache_key;
   MediaSourceType source_type = MediaSourceType::kDefault;
   bool tag_present = false;
   std::string tag_string;

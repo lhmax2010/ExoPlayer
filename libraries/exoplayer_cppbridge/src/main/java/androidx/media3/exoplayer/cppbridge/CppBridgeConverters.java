@@ -112,6 +112,84 @@ final class CppBridgeConverters {
     }
   }
 
+  private static int inferSourceTypeFromMimeType(@androidx.annotation.Nullable String mimeType) {
+    String normalizedMimeType = normalizeMimeType(mimeType);
+    if (MimeTypes.APPLICATION_MPD.equals(normalizedMimeType)) {
+      return 1;
+    }
+    if (MimeTypes.APPLICATION_M3U8.equals(normalizedMimeType)) {
+      return 2;
+    }
+    if (MimeTypes.APPLICATION_SS.equals(normalizedMimeType)) {
+      return 3;
+    }
+    if (MimeTypes.APPLICATION_RTSP.equals(normalizedMimeType)) {
+      return 4;
+    }
+    if (MimeTypes.VIDEO_MP4.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_MP4.equals(normalizedMimeType)
+        || MimeTypes.APPLICATION_MP4.equals(normalizedMimeType)
+        || MimeTypes.VIDEO_WEBM.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_WEBM.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_MPEG.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_AAC.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_FLAC.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_OGG.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_OPUS.equals(normalizedMimeType)
+        || MimeTypes.AUDIO_WAV.equals(normalizedMimeType)
+        || MimeTypes.VIDEO_AVI.equals(normalizedMimeType)) {
+      return 5;
+    }
+    return 0;
+  }
+
+  private static int inferSourceTypeFromUri(@androidx.annotation.Nullable String uri) {
+    if (uri == null || uri.isEmpty()) {
+      return 0;
+    }
+    String normalizedUri = uri.toLowerCase();
+    if (normalizedUri.startsWith("rtsp://")) {
+      return 4;
+    }
+    int queryIndex = normalizedUri.indexOf('?');
+    int fragmentIndex = normalizedUri.indexOf('#');
+    int pathEnd = normalizedUri.length();
+    if (queryIndex >= 0) {
+      pathEnd = queryIndex;
+    }
+    if (fragmentIndex >= 0) {
+      pathEnd = Math.min(pathEnd, fragmentIndex);
+    }
+    String normalizedPath = normalizedUri.substring(0, pathEnd);
+    if (normalizedPath.contains(".mpd")) {
+      return 1;
+    }
+    if (normalizedPath.contains(".m3u8")) {
+      return 2;
+    }
+    if (normalizedPath.contains(".ism/manifest")
+        || normalizedPath.endsWith(".ism")
+        || normalizedPath.endsWith(".isml")) {
+      return 3;
+    }
+    if (normalizedPath.endsWith(".mp4")
+        || normalizedPath.endsWith(".m4a")
+        || normalizedPath.endsWith(".m4v")
+        || normalizedPath.endsWith(".mp3")
+        || normalizedPath.endsWith(".aac")
+        || normalizedPath.endsWith(".flac")
+        || normalizedPath.endsWith(".ogg")
+        || normalizedPath.endsWith(".opus")
+        || normalizedPath.endsWith(".wav")
+        || normalizedPath.endsWith(".webm")
+        || normalizedPath.endsWith(".mkv")
+        || normalizedPath.endsWith(".avi")
+        || normalizedPath.endsWith(".mov")) {
+      return 5;
+    }
+    return 0;
+  }
+
   private static int inferSourceType(
       @androidx.annotation.Nullable String uri, @androidx.annotation.Nullable String mimeType) {
     String normalizedUri = uri != null ? uri : "";
@@ -119,6 +197,14 @@ final class CppBridgeConverters {
     if (normalizedUri.isEmpty()
         && (normalizedMimeType == null || normalizedMimeType.isEmpty())) {
       return 0;
+    }
+    int sourceTypeFromMimeType = inferSourceTypeFromMimeType(normalizedMimeType);
+    if (sourceTypeFromMimeType != 0) {
+      return sourceTypeFromMimeType;
+    }
+    int sourceTypeFromUri = inferSourceTypeFromUri(normalizedUri);
+    if (sourceTypeFromUri != 0) {
+      return sourceTypeFromUri;
     }
     return toCppSourceType(
         Util.inferContentTypeForUriAndMimeType(Uri.parse(normalizedUri), normalizedMimeType));
@@ -328,6 +414,9 @@ final class CppBridgeConverters {
     if (mediaItem.mediaId != null) {
       builder.setMediaId(mediaItem.mediaId);
     }
+    if (mediaItem.customCacheKey != null) {
+      builder.setCustomCacheKey(mediaItem.customCacheKey);
+    }
     String inferredMimeType = inferMimeType(mediaItem);
     if (inferredMimeType != null) {
       builder.setMimeType(inferredMimeType);
@@ -482,6 +571,8 @@ final class CppBridgeConverters {
             ? localConfiguration.uri.toString()
             : "";
     @Nullable String mimeType = localConfiguration != null ? localConfiguration.mimeType : null;
+    @Nullable String customCacheKey =
+        localConfiguration != null ? localConfiguration.customCacheKey : null;
     boolean tagPresent = localConfiguration != null && localConfiguration.tag != null;
     @Nullable String tagString =
         localConfiguration != null && localConfiguration.tag != null
@@ -604,6 +695,7 @@ final class CppBridgeConverters {
         uri,
         mediaItem.mediaId,
         mimeType,
+        customCacheKey,
         inferSourceType(uri, mimeType),
         tagPresent,
         tagString,

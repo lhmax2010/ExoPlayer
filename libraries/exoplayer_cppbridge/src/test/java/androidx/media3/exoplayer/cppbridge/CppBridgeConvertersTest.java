@@ -43,6 +43,7 @@ public final class CppBridgeConvertersTest {
             "https://example.com/video.mpd",
             "media-id",
             "application/dash+xml",
+            "cache-key-advanced",
             1,
             false,
             null,
@@ -72,6 +73,7 @@ public final class CppBridgeConvertersTest {
     assertThat(mediaItem.mediaId).isEqualTo("media-id");
     assertThat(mediaItem.localConfiguration).isNotNull();
     assertThat(mediaItem.localConfiguration.mimeType).isEqualTo("application/dash+xml");
+    assertThat(mediaItem.localConfiguration.customCacheKey).isEqualTo("cache-key-advanced");
     assertThat(mediaItem.localConfiguration.subtitleConfigurations).hasSize(1);
     assertThat(mediaItem.localConfiguration.subtitleConfigurations.get(0).language).isEqualTo("en");
     assertThat(mediaItem.clippingConfiguration.startPositionMs).isEqualTo(1000);
@@ -680,6 +682,7 @@ public final class CppBridgeConvertersTest {
             .setUri("https://example.com/playlist.m3u8")
             .setMediaId("roundtrip-id")
             .setMimeType("application/x-mpegURL")
+            .setCustomCacheKey("cache-key-from-platform")
             .setSubtitleConfigurations(
                 Arrays.asList(
                     new MediaItem.SubtitleConfiguration.Builder(
@@ -712,6 +715,7 @@ public final class CppBridgeConvertersTest {
     assertThat(cppItem.uri).isEqualTo("https://example.com/playlist.m3u8");
     assertThat(cppItem.mediaId).isEqualTo("roundtrip-id");
     assertThat(cppItem.mimeType).isEqualTo("application/x-mpegURL");
+    assertThat(cppItem.customCacheKey).isEqualTo("cache-key-from-platform");
     assertThat(cppItem.sourceType).isEqualTo(2);
     assertThat(cppItem.subtitleConfigurations).hasLength(1);
     assertThat(cppItem.subtitleConfigurations[0].language).isEqualTo("en");
@@ -803,6 +807,36 @@ public final class CppBridgeConvertersTest {
 
     assertThat(hlsItem.sourceType).isEqualTo(2);
     assertThat(lowerCaseHlsItem.sourceType).isEqualTo(2);
+    assertThat(progressiveItem.sourceType).isEqualTo(5);
+  }
+
+  @Test
+  public void fromMediaItem_infersProgressiveSourceTypeFromCommonMimeTypes() {
+    CppMediaItem videoItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/file")
+                .setMimeType("video/mp4")
+                .build());
+    CppMediaItem audioItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/file")
+                .setMimeType("audio/flac")
+                .build());
+
+    assertThat(videoItem.sourceType).isEqualTo(5);
+    assertThat(audioItem.sourceType).isEqualTo(5);
+  }
+
+  @Test
+  public void fromMediaItem_infersSourceTypeFromUriBeforeQueryAndFragment() {
+    CppMediaItem progressiveItem =
+        CppBridgeConverters.fromMediaItem(
+            new MediaItem.Builder()
+                .setUri("https://example.com/download/MOVIE.MP4?download=1#preview")
+                .build());
+
     assertThat(progressiveItem.sourceType).isEqualTo(5);
   }
 
