@@ -1,6 +1,6 @@
 # C++ Bridge Document Index
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 This page is the handoff index for the `exoplayer_cppbridge` work. Use it to decide:
 

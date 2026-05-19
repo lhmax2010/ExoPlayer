@@ -1,6 +1,6 @@
 # Development Plan
 
-Date: 2026-05-18
+Date: 2026-05-19
 
 Goal: keep moving `exoplayer_cppbridge` from a broad, smoke-validated reduced bridge toward fuller
 Java API and object parity, without losing the existing validation discipline.
@@ -145,6 +145,17 @@ Current progress:
   bridge forwarding, SDK forwarding, and test simulation APIs are wired end to end.
 - Coverage: `nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent`
   validates multi-update last-value behavior plus remove-listener stop delivery on Android 16.
+- 2026-05-18: Stage 4 remaining `AnalyticsListener` method-name coverage is complete for the
+  reduced bridge surface. The bridge now exposes C++ callbacks for the remaining Java analytics
+  events: player-state/loading aliases, track-selection parameters, load canceled, downstream /
+  upstream format events, decoder-counters enabled/disabled events, audio/video codec and sink
+  errors, audio-track init/release, surface size, DRM lifecycle/key events, renderer ready,
+  dropped seeks while scrubbing, and player released.
+- Coverage: `nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents`
+  validates 25 newly bridged callbacks, representative payload fields, and remove-listener stop
+  delivery on Android 16. The Stage 4 reduced callback table has no unreviewed Java
+  `AnalyticsListener` method-name gaps; remaining analytics work is richer/full-object payload
+  fidelity beyond the reduced descriptors.
 
 ## Stage 5: Playback Source / Runtime Integration
 
@@ -157,6 +168,19 @@ Exit criteria:
 
 - Local or deterministic instrumentation smokes cover each supported source family.
 - Demo and docs explain what is bridge-owned versus app/platform-owned.
+
+Current progress:
+
+- 2026-05-19: first Stage 5 slice adds
+  `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig`. The test
+  registers a Java `FakeMediaSourceFactory`, selects it through C++ `PlayerConfig` factory-token
+  injection, then prepares SmoothStreaming and RTSP `MediaItemDescriptor` source types through the
+  C++ `SetMediaItem` / `Prepare` / `Play` path. This validates the custom factory integration path
+  for source families that need app/platform-owned media-source handling.
+- 2026-05-19: second Stage 5 slice adds
+  `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig`. The test configures
+  HTTP headers, user agent, timeouts, and redirect behavior from C++, plays a local progressive
+  stream, and verifies MockWebServer received the expected request headers and UA.
 
 ## Stage 6: SDK Stabilization And Delivery
 

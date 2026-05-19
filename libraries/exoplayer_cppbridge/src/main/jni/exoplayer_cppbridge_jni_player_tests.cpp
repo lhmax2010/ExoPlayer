@@ -596,6 +596,31 @@ class CapturingPlayerListener : public PlayerListener {
         "OnAnalyticsMediaMetadataChanged",
         "OnAnalyticsPlaylistMetadataChanged",
         "OnVideoInputFormatChanged",
+        "OnAnalyticsPlayerStateChanged",
+        "OnAnalyticsLoadingChanged",
+        "OnAnalyticsTrackSelectionParametersChanged",
+        "OnAnalyticsLoadCanceled",
+        "OnAnalyticsDownstreamFormatChanged",
+        "OnAnalyticsUpstreamDiscarded",
+        "OnAnalyticsAudioEnabled",
+        "OnAnalyticsAudioDisabled",
+        "OnAnalyticsAudioSinkError",
+        "OnAnalyticsAudioCodecError",
+        "OnAnalyticsAudioTrackInitialized",
+        "OnAnalyticsAudioTrackReleased",
+        "OnAnalyticsVideoEnabled",
+        "OnAnalyticsVideoDisabled",
+        "OnAnalyticsVideoCodecError",
+        "OnAnalyticsSurfaceSizeChanged",
+        "OnAnalyticsDrmSessionAcquired",
+        "OnAnalyticsDrmKeysLoaded",
+        "OnAnalyticsDrmSessionManagerError",
+        "OnAnalyticsDrmKeysRestored",
+        "OnAnalyticsDrmKeysRemoved",
+        "OnAnalyticsDrmSessionReleased",
+        "OnAnalyticsRendererReadyChanged",
+        "OnAnalyticsDroppedSeeksWhileScrubbing",
+        "OnAnalyticsPlayerReleased",
     };
     for (const char* name : kAnalyticsCallbackNames) {
       if (std::string_view(callback_name).find(name) != std::string_view::npos) {
@@ -1408,14 +1433,18 @@ class CapturingPlayerListener : public PlayerListener {
       const PlaybackSnapshot&,
       const AnalyticsEventsEvent& analytics_events) override {
     CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsEvents");
-    analytics_events_count = static_cast<int>(analytics_events.event_codes.size());
-    analytics_events_first_event =
-        analytics_events.event_codes.empty() ? 0 : analytics_events.event_codes.front();
-    analytics_events_contains_9 =
+    bool contains_test_sentinel =
         std::find(
             analytics_events.event_codes.begin(),
             analytics_events.event_codes.end(),
-            9) != analytics_events.event_codes.end();
+            9009) != analytics_events.event_codes.end();
+    if (!contains_test_sentinel) {
+      return;
+    }
+    analytics_events_count = static_cast<int>(analytics_events.event_codes.size());
+    analytics_events_first_event =
+        analytics_events.event_codes.empty() ? 0 : analytics_events.event_codes.front();
+    analytics_events_contains_9009 = contains_test_sentinel;
     analytics_events_callback_count++;
   }
 
@@ -1601,6 +1630,236 @@ class CapturingPlayerListener : public PlayerListener {
     video_input_format_changed_callback_count++;
   }
 
+  void OnAnalyticsPlayerStateChanged(
+      const PlaybackSnapshot&,
+      const AnalyticsPlayerStateChangedEvent& player_state_changed) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsPlayerStateChanged");
+    analytics_player_state_changed_play_when_ready =
+        player_state_changed.play_when_ready;
+    analytics_player_state_changed_playback_state =
+        player_state_changed.playback_state;
+    analytics_player_state_changed_callback_count++;
+  }
+
+  void OnAnalyticsLoadingChanged(
+      const PlaybackSnapshot&,
+      const AnalyticsLoadingChangedEvent& loading_changed) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsLoadingChanged");
+    analytics_loading_changed_is_loading = loading_changed.is_loading;
+    analytics_loading_changed_callback_count++;
+  }
+
+  void OnAnalyticsTrackSelectionParametersChanged(
+      const PlaybackSnapshot&,
+      const TrackSelectionParametersDescriptor& parameters) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsTrackSelectionParametersChanged");
+    analytics_track_selection_changed_preferred_text_language =
+        parameters.preferred_text_language;
+    analytics_track_selection_changed_disable_text = parameters.disable_text;
+    analytics_track_selection_changed_callback_count++;
+  }
+
+  void OnAnalyticsLoadCanceled(
+      const PlaybackSnapshot&,
+      const AnalyticsMediaLoadDataEvent& load_canceled) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsLoadCanceled");
+    analytics_load_canceled_uri = load_canceled.uri;
+    analytics_load_canceled_data_type = load_canceled.data_type;
+    analytics_load_canceled_track_type = load_canceled.track_type;
+    analytics_load_canceled_sample_mime_type = load_canceled.sample_mime_type;
+    analytics_load_canceled_media_start_time_ms = load_canceled.media_start_time_ms;
+    analytics_load_canceled_media_end_time_ms = load_canceled.media_end_time_ms;
+    analytics_load_canceled_callback_count++;
+  }
+
+  void OnAnalyticsDownstreamFormatChanged(
+      const PlaybackSnapshot&,
+      const AnalyticsMediaLoadDataEvent& downstream_format_changed) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDownstreamFormatChanged");
+    analytics_downstream_format_changed_track_type =
+        downstream_format_changed.track_type;
+    analytics_downstream_format_changed_sample_mime_type =
+        downstream_format_changed.sample_mime_type;
+    analytics_downstream_format_changed_callback_count++;
+  }
+
+  void OnAnalyticsUpstreamDiscarded(
+      const PlaybackSnapshot&,
+      const AnalyticsMediaLoadDataEvent& upstream_discarded) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsUpstreamDiscarded");
+    analytics_upstream_discarded_track_type = upstream_discarded.track_type;
+    analytics_upstream_discarded_sample_mime_type =
+        upstream_discarded.sample_mime_type;
+    analytics_upstream_discarded_callback_count++;
+  }
+
+  void OnAnalyticsAudioEnabled(
+      const PlaybackSnapshot&,
+      const AnalyticsDecoderCountersSnapshot& counters) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsAudioEnabled");
+    analytics_audio_enabled_decoder_init_count = counters.decoder_init_count;
+    analytics_audio_enabled_queued_input_buffer_count =
+        counters.queued_input_buffer_count;
+    analytics_audio_enabled_callback_count++;
+  }
+
+  void OnAnalyticsAudioDisabled(
+      const PlaybackSnapshot&,
+      const AnalyticsDecoderCountersSnapshot& counters) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsAudioDisabled");
+    analytics_audio_disabled_decoder_release_count = counters.decoder_release_count;
+    analytics_audio_disabled_dropped_buffer_count = counters.dropped_buffer_count;
+    analytics_audio_disabled_callback_count++;
+  }
+
+  void OnAnalyticsAudioSinkError(
+      const PlaybackSnapshot&,
+      const AnalyticsExceptionEvent& error) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsAudioSinkError");
+    analytics_audio_sink_error_class_name = error.class_name;
+    analytics_audio_sink_error_message = error.message;
+    analytics_audio_sink_error_callback_count++;
+  }
+
+  void OnAnalyticsAudioCodecError(
+      const PlaybackSnapshot&,
+      const AnalyticsExceptionEvent& error) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsAudioCodecError");
+    analytics_audio_codec_error_class_name = error.class_name;
+    analytics_audio_codec_error_message = error.message;
+    analytics_audio_codec_error_callback_count++;
+  }
+
+  void OnAnalyticsAudioTrackInitialized(
+      const PlaybackSnapshot&,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsAudioTrackInitialized");
+    analytics_audio_track_initialized_encoding = audio_track_config.encoding;
+    analytics_audio_track_initialized_sample_rate = audio_track_config.sample_rate;
+    analytics_audio_track_initialized_tunneling = audio_track_config.tunneling;
+    analytics_audio_track_initialized_callback_count++;
+  }
+
+  void OnAnalyticsAudioTrackReleased(
+      const PlaybackSnapshot&,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsAudioTrackReleased");
+    analytics_audio_track_released_encoding = audio_track_config.encoding;
+    analytics_audio_track_released_sample_rate = audio_track_config.sample_rate;
+    analytics_audio_track_released_offload = audio_track_config.offload;
+    analytics_audio_track_released_callback_count++;
+  }
+
+  void OnAnalyticsVideoEnabled(
+      const PlaybackSnapshot&,
+      const AnalyticsDecoderCountersSnapshot& counters) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsVideoEnabled");
+    analytics_video_enabled_decoder_init_count = counters.decoder_init_count;
+    analytics_video_enabled_total_processing_offset_us =
+        counters.total_video_frame_processing_offset_us;
+    analytics_video_enabled_callback_count++;
+  }
+
+  void OnAnalyticsVideoDisabled(
+      const PlaybackSnapshot&,
+      const AnalyticsDecoderCountersSnapshot& counters) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsVideoDisabled");
+    analytics_video_disabled_decoder_release_count = counters.decoder_release_count;
+    analytics_video_disabled_processing_offset_count =
+        counters.video_frame_processing_offset_count;
+    analytics_video_disabled_callback_count++;
+  }
+
+  void OnAnalyticsVideoCodecError(
+      const PlaybackSnapshot&,
+      const AnalyticsExceptionEvent& error) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsVideoCodecError");
+    analytics_video_codec_error_class_name = error.class_name;
+    analytics_video_codec_error_message = error.message;
+    analytics_video_codec_error_callback_count++;
+  }
+
+  void OnAnalyticsSurfaceSizeChanged(
+      const PlaybackSnapshot&,
+      int width,
+      int height) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsSurfaceSizeChanged");
+    analytics_surface_size_changed_width = width;
+    analytics_surface_size_changed_height = height;
+    analytics_surface_size_changed_callback_count++;
+  }
+
+  void OnAnalyticsDrmSessionAcquired(
+      const PlaybackSnapshot&,
+      const AnalyticsDrmSessionAcquiredEvent& drm_session_acquired) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDrmSessionAcquired");
+    analytics_drm_session_acquired_has_state = drm_session_acquired.has_state;
+    analytics_drm_session_acquired_state = drm_session_acquired.state;
+    analytics_drm_session_acquired_callback_count++;
+  }
+
+  void OnAnalyticsDrmKeysLoaded(
+      const PlaybackSnapshot&,
+      const AnalyticsDrmKeysLoadedEvent& drm_keys_loaded) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDrmKeysLoaded");
+    analytics_drm_keys_loaded_has_key_request_info =
+        drm_keys_loaded.has_key_request_info;
+    analytics_drm_keys_loaded_load_info_count = drm_keys_loaded.load_info_count;
+    analytics_drm_keys_loaded_scheme_data_count = drm_keys_loaded.scheme_data_count;
+    analytics_drm_keys_loaded_callback_count++;
+  }
+
+  void OnAnalyticsDrmSessionManagerError(
+      const PlaybackSnapshot&,
+      const AnalyticsExceptionEvent& error) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDrmSessionManagerError");
+    analytics_drm_session_manager_error_class_name = error.class_name;
+    analytics_drm_session_manager_error_message = error.message;
+    analytics_drm_session_manager_error_callback_count++;
+  }
+
+  void OnAnalyticsDrmKeysRestored(const PlaybackSnapshot&) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDrmKeysRestored");
+    analytics_drm_keys_restored_callback_count++;
+  }
+
+  void OnAnalyticsDrmKeysRemoved(const PlaybackSnapshot&) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDrmKeysRemoved");
+    analytics_drm_keys_removed_callback_count++;
+  }
+
+  void OnAnalyticsDrmSessionReleased(const PlaybackSnapshot&) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDrmSessionReleased");
+    analytics_drm_session_released_callback_count++;
+  }
+
+  void OnAnalyticsRendererReadyChanged(
+      const PlaybackSnapshot&,
+      const AnalyticsRendererReadyChangedEvent& renderer_ready_changed) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsRendererReadyChanged");
+    analytics_renderer_ready_changed_renderer_index =
+        renderer_ready_changed.renderer_index;
+    analytics_renderer_ready_changed_track_type =
+        renderer_ready_changed.renderer_track_type;
+    analytics_renderer_ready_changed_is_ready =
+        renderer_ready_changed.is_renderer_ready;
+    analytics_renderer_ready_changed_callback_count++;
+  }
+
+  void OnAnalyticsDroppedSeeksWhileScrubbing(
+      const PlaybackSnapshot&,
+      const AnalyticsDroppedSeeksWhileScrubbingEvent& dropped_seeks) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsDroppedSeeksWhileScrubbing");
+    analytics_dropped_seeks_while_scrubbing_dropped_seeks =
+        dropped_seeks.dropped_seeks;
+    analytics_dropped_seeks_while_scrubbing_callback_count++;
+  }
+
+  void OnAnalyticsPlayerReleased(const PlaybackSnapshot&) override {
+    CAPTURING_LISTENER_LOCK_NAMED("OnAnalyticsPlayerReleased");
+    analytics_player_released_callback_count++;
+  }
+
   uint64_t object_canary_head = kObjectCanaryHeadValue;
   int repeat_mode = 0;
   bool shuffle_enabled = false;
@@ -1766,7 +2025,7 @@ class CapturingPlayerListener : public PlayerListener {
   bool analytics_available_commands_contains_8 = false;
   int analytics_events_count = 0;
   int analytics_events_first_event = 0;
-  bool analytics_events_contains_9 = false;
+  bool analytics_events_contains_9009 = false;
   int64_t analytics_seek_back_increment_changed_ms = 0;
   int64_t analytics_seek_forward_increment_changed_ms = 0;
   int64_t analytics_max_seek_to_previous_position_changed_ms = 0;
@@ -1819,6 +2078,54 @@ class CapturingPlayerListener : public PlayerListener {
   int video_input_format_width = 0;
   int video_input_format_height = 0;
   float video_input_format_frame_rate = 0.0f;
+  bool analytics_player_state_changed_play_when_ready = false;
+  int analytics_player_state_changed_playback_state = 0;
+  bool analytics_loading_changed_is_loading = false;
+  std::string analytics_track_selection_changed_preferred_text_language;
+  bool analytics_track_selection_changed_disable_text = false;
+  std::string analytics_load_canceled_uri;
+  int analytics_load_canceled_data_type = 0;
+  int analytics_load_canceled_track_type = 0;
+  std::string analytics_load_canceled_sample_mime_type;
+  int64_t analytics_load_canceled_media_start_time_ms = 0;
+  int64_t analytics_load_canceled_media_end_time_ms = 0;
+  int analytics_downstream_format_changed_track_type = 0;
+  std::string analytics_downstream_format_changed_sample_mime_type;
+  int analytics_upstream_discarded_track_type = 0;
+  std::string analytics_upstream_discarded_sample_mime_type;
+  int analytics_audio_enabled_decoder_init_count = 0;
+  int analytics_audio_enabled_queued_input_buffer_count = 0;
+  int analytics_audio_disabled_decoder_release_count = 0;
+  int analytics_audio_disabled_dropped_buffer_count = 0;
+  std::string analytics_audio_sink_error_class_name;
+  std::string analytics_audio_sink_error_message;
+  std::string analytics_audio_codec_error_class_name;
+  std::string analytics_audio_codec_error_message;
+  int analytics_audio_track_initialized_encoding = 0;
+  int analytics_audio_track_initialized_sample_rate = 0;
+  bool analytics_audio_track_initialized_tunneling = false;
+  int analytics_audio_track_released_encoding = 0;
+  int analytics_audio_track_released_sample_rate = 0;
+  bool analytics_audio_track_released_offload = false;
+  int analytics_video_enabled_decoder_init_count = 0;
+  int64_t analytics_video_enabled_total_processing_offset_us = 0;
+  int analytics_video_disabled_decoder_release_count = 0;
+  int analytics_video_disabled_processing_offset_count = 0;
+  std::string analytics_video_codec_error_class_name;
+  std::string analytics_video_codec_error_message;
+  int analytics_surface_size_changed_width = 0;
+  int analytics_surface_size_changed_height = 0;
+  bool analytics_drm_session_acquired_has_state = false;
+  int analytics_drm_session_acquired_state = 0;
+  bool analytics_drm_keys_loaded_has_key_request_info = false;
+  int analytics_drm_keys_loaded_load_info_count = 0;
+  int analytics_drm_keys_loaded_scheme_data_count = 0;
+  std::string analytics_drm_session_manager_error_class_name;
+  std::string analytics_drm_session_manager_error_message;
+  int analytics_renderer_ready_changed_renderer_index = 0;
+  int analytics_renderer_ready_changed_track_type = 0;
+  bool analytics_renderer_ready_changed_is_ready = false;
+  int analytics_dropped_seeks_while_scrubbing_dropped_seeks = 0;
   int timeline_window_count = 0;
   int timeline_period_count = 0;
   bool timeline_empty = true;
@@ -2013,6 +2320,31 @@ class CapturingPlayerListener : public PlayerListener {
   int analytics_media_metadata_changed_callback_count = 0;
   int analytics_playlist_metadata_changed_callback_count = 0;
   int video_input_format_changed_callback_count = 0;
+  int analytics_player_state_changed_callback_count = 0;
+  int analytics_loading_changed_callback_count = 0;
+  int analytics_track_selection_changed_callback_count = 0;
+  int analytics_load_canceled_callback_count = 0;
+  int analytics_downstream_format_changed_callback_count = 0;
+  int analytics_upstream_discarded_callback_count = 0;
+  int analytics_audio_enabled_callback_count = 0;
+  int analytics_audio_disabled_callback_count = 0;
+  int analytics_audio_sink_error_callback_count = 0;
+  int analytics_audio_codec_error_callback_count = 0;
+  int analytics_audio_track_initialized_callback_count = 0;
+  int analytics_audio_track_released_callback_count = 0;
+  int analytics_video_enabled_callback_count = 0;
+  int analytics_video_disabled_callback_count = 0;
+  int analytics_video_codec_error_callback_count = 0;
+  int analytics_surface_size_changed_callback_count = 0;
+  int analytics_drm_session_acquired_callback_count = 0;
+  int analytics_drm_keys_loaded_callback_count = 0;
+  int analytics_drm_session_manager_error_callback_count = 0;
+  int analytics_drm_keys_restored_callback_count = 0;
+  int analytics_drm_keys_removed_callback_count = 0;
+  int analytics_drm_session_released_callback_count = 0;
+  int analytics_renderer_ready_changed_callback_count = 0;
+  int analytics_dropped_seeks_while_scrubbing_callback_count = 0;
+  int analytics_player_released_callback_count = 0;
   std::atomic<bool> capture_analytics_callbacks{true};
   std::atomic<int> smoke_repeat_callback_count{0};
   std::atomic<int> smoke_shuffle_callback_count{0};
@@ -6210,6 +6542,123 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
 }
 
 JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeAnalyticsStage4RemainingCallbacksSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context) {
+  PlayerConfig config;
+  std::unique_ptr<ExoPlayerSdkPlayer> player = ExoPlayerSdkPlayer::Create(env, context, config);
+  CapturingPlayerListener analytics_listener;
+  player->AddAnalyticsListener(&analytics_listener);
+  auto stage4_callback_count = [&]() {
+    return analytics_listener.analytics_player_state_changed_callback_count +
+        analytics_listener.analytics_loading_changed_callback_count +
+        analytics_listener.analytics_track_selection_changed_callback_count +
+        analytics_listener.analytics_load_canceled_callback_count +
+        analytics_listener.analytics_downstream_format_changed_callback_count +
+        analytics_listener.analytics_upstream_discarded_callback_count +
+        analytics_listener.analytics_audio_enabled_callback_count +
+        analytics_listener.analytics_audio_disabled_callback_count +
+        analytics_listener.analytics_audio_sink_error_callback_count +
+        analytics_listener.analytics_audio_codec_error_callback_count +
+        analytics_listener.analytics_audio_track_initialized_callback_count +
+        analytics_listener.analytics_audio_track_released_callback_count +
+        analytics_listener.analytics_video_enabled_callback_count +
+        analytics_listener.analytics_video_disabled_callback_count +
+        analytics_listener.analytics_video_codec_error_callback_count +
+        analytics_listener.analytics_surface_size_changed_callback_count +
+        analytics_listener.analytics_drm_session_acquired_callback_count +
+        analytics_listener.analytics_drm_keys_loaded_callback_count +
+        analytics_listener.analytics_drm_session_manager_error_callback_count +
+        analytics_listener.analytics_drm_keys_restored_callback_count +
+        analytics_listener.analytics_drm_keys_removed_callback_count +
+        analytics_listener.analytics_drm_session_released_callback_count +
+        analytics_listener.analytics_renderer_ready_changed_callback_count +
+        analytics_listener.analytics_dropped_seeks_while_scrubbing_callback_count +
+        analytics_listener.analytics_player_released_callback_count;
+  };
+  player->SimulateAnalyticsStage4RemainingEventsForTest();
+  int callback_count_before_remove = stage4_callback_count();
+  player->RemoveAnalyticsListener(&analytics_listener);
+  player->SimulateAnalyticsStage4RemainingEventsForTest();
+  int callback_count_after_remove = stage4_callback_count();
+  std::string summary = "beforeRemoveCb=" + std::to_string(callback_count_before_remove);
+  summary += ",afterRemoveCb=" + std::to_string(callback_count_after_remove);
+  summary += ",callbackStopped=" +
+      std::to_string(callback_count_after_remove == callback_count_before_remove ? 1 : 0);
+  summary += ",playerStatePlayWhenReady=" +
+      std::to_string(analytics_listener.analytics_player_state_changed_play_when_ready ? 1 : 0);
+  summary += ",playerState=" +
+      std::to_string(analytics_listener.analytics_player_state_changed_playback_state);
+  summary += ",loading=" +
+      std::to_string(analytics_listener.analytics_loading_changed_is_loading ? 1 : 0);
+  summary += ",trackTextLanguage=" +
+      analytics_listener.analytics_track_selection_changed_preferred_text_language;
+  summary += ",trackDisableText=" +
+      std::to_string(analytics_listener.analytics_track_selection_changed_disable_text ? 1 : 0);
+  summary += ",loadCanceledUri=" + analytics_listener.analytics_load_canceled_uri;
+  summary += ",loadCanceledSampleMimeType=" +
+      analytics_listener.analytics_load_canceled_sample_mime_type;
+  summary += ",downstreamSampleMimeType=" +
+      analytics_listener.analytics_downstream_format_changed_sample_mime_type;
+  summary += ",upstreamSampleMimeType=" +
+      analytics_listener.analytics_upstream_discarded_sample_mime_type;
+  summary += ",audioEnabledInitCount=" +
+      std::to_string(analytics_listener.analytics_audio_enabled_decoder_init_count);
+  summary += ",audioDisabledReleaseCount=" +
+      std::to_string(analytics_listener.analytics_audio_disabled_decoder_release_count);
+  summary += ",audioSinkError=" + analytics_listener.analytics_audio_sink_error_message;
+  summary += ",audioCodecError=" + analytics_listener.analytics_audio_codec_error_message;
+  summary += ",audioTrackInitSampleRate=" +
+      std::to_string(analytics_listener.analytics_audio_track_initialized_sample_rate);
+  summary += ",audioTrackReleasedOffload=" +
+      std::to_string(analytics_listener.analytics_audio_track_released_offload ? 1 : 0);
+  summary += ",videoEnabledProcessingOffsetUs=" +
+      std::to_string(analytics_listener.analytics_video_enabled_total_processing_offset_us);
+  summary += ",videoDisabledProcessingOffsetCount=" +
+      std::to_string(analytics_listener.analytics_video_disabled_processing_offset_count);
+  summary += ",videoCodecError=" + analytics_listener.analytics_video_codec_error_message;
+  summary += ",surfaceWidth=" +
+      std::to_string(analytics_listener.analytics_surface_size_changed_width);
+  summary += ",surfaceHeight=" +
+      std::to_string(analytics_listener.analytics_surface_size_changed_height);
+  summary += ",drmAcquiredHasState=" +
+      std::to_string(analytics_listener.analytics_drm_session_acquired_has_state ? 1 : 0);
+  summary += ",drmAcquiredState=" +
+      std::to_string(analytics_listener.analytics_drm_session_acquired_state);
+  summary += ",drmKeysLoadedHasInfo=" +
+      std::to_string(
+          analytics_listener.analytics_drm_keys_loaded_has_key_request_info ? 1 : 0);
+  summary += ",drmKeysLoadedLoadInfoCount=" +
+      std::to_string(analytics_listener.analytics_drm_keys_loaded_load_info_count);
+  summary += ",drmKeysLoadedSchemeDataCount=" +
+      std::to_string(analytics_listener.analytics_drm_keys_loaded_scheme_data_count);
+  summary += ",drmError=" +
+      analytics_listener.analytics_drm_session_manager_error_message;
+  summary += ",drmRestoredCb=" +
+      std::to_string(analytics_listener.analytics_drm_keys_restored_callback_count);
+  summary += ",drmRemovedCb=" +
+      std::to_string(analytics_listener.analytics_drm_keys_removed_callback_count);
+  summary += ",drmReleasedCb=" +
+      std::to_string(analytics_listener.analytics_drm_session_released_callback_count);
+  summary += ",rendererIndex=" +
+      std::to_string(analytics_listener.analytics_renderer_ready_changed_renderer_index);
+  summary += ",rendererTrackType=" +
+      std::to_string(analytics_listener.analytics_renderer_ready_changed_track_type);
+  summary += ",rendererReady=" +
+      std::to_string(analytics_listener.analytics_renderer_ready_changed_is_ready ? 1 : 0);
+  summary += ",droppedSeeks=" +
+      std::to_string(
+          analytics_listener.analytics_dropped_seeks_while_scrubbing_dropped_seeks);
+  summary += ",playerReleasedCb=" +
+      std::to_string(analytics_listener.analytics_player_released_callback_count);
+  return NewStringUtfChecked(
+      env,
+      summary,
+      "nativeAnalyticsStage4RemainingCallbacksSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
 Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeAnalyticsSkipSilenceEnabledChangedSmokeTest(
     JNIEnv* env,
     jclass,
@@ -6655,10 +7104,10 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
   CapturingPlayerListener analytics_listener;
   player->AddAnalyticsListener(&analytics_listener);
   AnalyticsEventsEvent first_analytics_events;
-  first_analytics_events.event_codes = {100, 101};
+  first_analytics_events.event_codes = {100, 101, 9009};
   player->SimulateAnalyticsEventsForTest(first_analytics_events);
   AnalyticsEventsEvent second_analytics_events;
-  second_analytics_events.event_codes = {7, 8, 9};
+  second_analytics_events.event_codes = {7, 8, 9009};
   player->SimulateAnalyticsEventsForTest(second_analytics_events);
   int callback_count_before_remove = analytics_listener.analytics_events_callback_count;
   player->RemoveAnalyticsListener(&analytics_listener);
@@ -6672,8 +7121,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeA
       analytics_listener.analytics_events_callback_count == callback_count_before_remove ? 1 : 0);
   summary += ",eventCount=" + std::to_string(analytics_listener.analytics_events_count);
   summary += ",firstEvent=" + std::to_string(analytics_listener.analytics_events_first_event);
-  summary += ",contains9=" +
-      std::to_string(analytics_listener.analytics_events_contains_9 ? 1 : 0);
+  summary += ",contains9009=" +
+      std::to_string(analytics_listener.analytics_events_contains_9009 ? 1 : 0);
   return NewStringUtfChecked(
       env,
       summary,
@@ -7645,6 +8094,105 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeH
       &summary);
   player->Release();
   return NewStringUtfChecked(env, summary, "nativeHttpHlsDashPlaybackSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeHttpDataSourceConfigPlaybackSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context,
+    jstring http_url) {
+  PlayerConfig config;
+  config.media_source_factory_config.default_request_header_names = {
+      "X-CppBridge-Stage", "X-CppBridge-Source"};
+  config.media_source_factory_config.default_request_header_values = {
+      "5", "http-config"};
+  config.media_source_factory_config.user_agent = "cppbridge-stage5-agent";
+  config.media_source_factory_config.connect_timeout_ms = 12345;
+  config.media_source_factory_config.read_timeout_ms = 23456;
+  config.media_source_factory_config.allow_cross_protocol_redirects = true;
+
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "http-data-source-config-playback-error:createPlayer",
+        "nativeHttpDataSourceConfigPlaybackSmokeTest.error");
+  }
+
+  PlayerConfig::MediaSourceFactoryConfig resolved = player->GetMediaSourceFactoryConfig();
+  std::string summary = "headerCount=" +
+      std::to_string(resolved.default_request_header_names.size());
+  summary += ",userAgent=" + resolved.user_agent;
+  summary += ",connectTimeoutMs=" + std::to_string(resolved.connect_timeout_ms);
+  summary += ",readTimeoutMs=" + std::to_string(resolved.read_timeout_ms);
+  summary += ",allowCrossProtocolRedirects=" +
+      std::to_string(resolved.allow_cross_protocol_redirects ? 1 : 0);
+  summary += ";";
+  AppendStreamPlaybackScenarioSummary(
+      player.get(),
+      {
+          "httpConfig",
+          JStringToString(env, http_url),
+          "http-config-stage5-item",
+          "audio/mp4",
+          MediaSourceType::kProgressive,
+      },
+      &summary);
+  player->Release();
+  return NewStringUtfChecked(
+      env, summary, "nativeHttpDataSourceConfigPlaybackSmokeTest");
+}
+
+JNIEXPORT jstring JNICALL
+Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeCustomMediaSourceFactoryPlaybackSmokeTest(
+    JNIEnv* env,
+    jclass,
+    jobject context,
+    jstring factory_token) {
+  PlayerConfig config;
+  config.media_source_factory_config.factory_token = JStringToString(env, factory_token);
+  std::unique_ptr<ExoPlayerSdkPlayer> player =
+      ExoPlayerSdkPlayer::Create(env, context, config);
+  if (player == nullptr) {
+    return NewStringUtfChecked(
+        env,
+        "custom-source-factory-playback-error:createPlayer",
+        "nativeCustomMediaSourceFactoryPlaybackSmokeTest.error");
+  }
+
+  PlayerConfig::MediaSourceFactoryConfig resolved = player->GetMediaSourceFactoryConfig();
+  std::string summary = "factoryToken=" + resolved.factory_token;
+  summary += ",injectedFactoryUsed=" +
+      std::to_string(resolved.injected_factory_used_for_test ? 1 : 0);
+  summary += ",factoryIdentity=" +
+      std::to_string(resolved.injected_factory_identity_for_test);
+  summary += ";";
+  AppendStreamPlaybackScenarioSummary(
+      player.get(),
+      {
+          "smooth",
+          "https://example.com/stage5/smooth.ism/manifest",
+          "smooth-stage5-item",
+          "application/vnd.ms-sstr+xml",
+          MediaSourceType::kSmoothStreaming,
+      },
+      &summary);
+  summary += ";";
+  AppendStreamPlaybackScenarioSummary(
+      player.get(),
+      {
+          "rtsp",
+          "rtsp://localhost/stage5",
+          "rtsp-stage5-item",
+          "application/x-rtsp",
+          MediaSourceType::kRtsp,
+      },
+      &summary);
+  player->Release();
+  return NewStringUtfChecked(
+      env, summary, "nativeCustomMediaSourceFactoryPlaybackSmokeTest");
 }
 
 JNIEXPORT jstring JNICALL

@@ -2317,6 +2317,10 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     env->DeleteLocalRef(codecs);
   }
 
+  void SimulateAnalyticsStage4RemainingEventsForTest(JNIEnv* env) override {
+    CallBridgeVoid(env, "simulateAnalyticsStage4RemainingEventsForTest", "()V");
+  }
+
   void SimulateAudioCodecParametersChangedForTest(
       JNIEnv* env,
       const CodecParametersDescriptor& codec_parameters) override {
@@ -3494,6 +3498,170 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       video_input_format_changed.height = height;
       video_input_format_changed.frame_rate = frame_rate;
       listener->OnVideoInputFormatChanged(GetSnapshot(env), video_input_format_changed);
+    });
+  }
+
+  void OnAnalyticsPlayerStateChanged(
+      const AnalyticsPlayerStateChangedEvent& player_state_changed) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsPlayerStateChanged(GetSnapshot(env), player_state_changed);
+    });
+  }
+
+  void OnAnalyticsLoadingChanged(const AnalyticsLoadingChangedEvent& loading_changed) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsLoadingChanged(GetSnapshot(env), loading_changed);
+    });
+  }
+
+  void OnAnalyticsTrackSelectionParametersChanged(
+      const TrackSelectionParametersDescriptor& parameters) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsTrackSelectionParametersChanged(GetSnapshot(env), parameters);
+    });
+  }
+
+  void OnAnalyticsLoadCanceled(const AnalyticsMediaLoadDataEvent& load_canceled) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsLoadCanceled(GetSnapshot(env), load_canceled);
+    });
+  }
+
+  void OnAnalyticsDownstreamFormatChanged(
+      const AnalyticsMediaLoadDataEvent& downstream_format_changed) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDownstreamFormatChanged(
+          GetSnapshot(env), downstream_format_changed);
+    });
+  }
+
+  void OnAnalyticsUpstreamDiscarded(const AnalyticsMediaLoadDataEvent& upstream_discarded) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsUpstreamDiscarded(GetSnapshot(env), upstream_discarded);
+    });
+  }
+
+  void OnAnalyticsAudioEnabled(
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsAudioEnabled(GetSnapshot(env), decoder_counters);
+    });
+  }
+
+  void OnAnalyticsAudioDisabled(
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsAudioDisabled(GetSnapshot(env), decoder_counters);
+    });
+  }
+
+  void OnAnalyticsAudioSinkError(const AnalyticsExceptionEvent& error) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsAudioSinkError(GetSnapshot(env), error);
+    });
+  }
+
+  void OnAnalyticsAudioCodecError(const AnalyticsExceptionEvent& error) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsAudioCodecError(GetSnapshot(env), error);
+    });
+  }
+
+  void OnAnalyticsAudioTrackInitialized(
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsAudioTrackInitialized(GetSnapshot(env), audio_track_config);
+    });
+  }
+
+  void OnAnalyticsAudioTrackReleased(
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsAudioTrackReleased(GetSnapshot(env), audio_track_config);
+    });
+  }
+
+  void OnAnalyticsVideoEnabled(
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsVideoEnabled(GetSnapshot(env), decoder_counters);
+    });
+  }
+
+  void OnAnalyticsVideoDisabled(
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsVideoDisabled(GetSnapshot(env), decoder_counters);
+    });
+  }
+
+  void OnAnalyticsVideoCodecError(const AnalyticsExceptionEvent& error) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsVideoCodecError(GetSnapshot(env), error);
+    });
+  }
+
+  void OnAnalyticsSurfaceSizeChanged(int width, int height) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsSurfaceSizeChanged(GetSnapshot(env), width, height);
+    });
+  }
+
+  void OnAnalyticsDrmSessionAcquired(
+      const AnalyticsDrmSessionAcquiredEvent& drm_session_acquired) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDrmSessionAcquired(GetSnapshot(env), drm_session_acquired);
+    });
+  }
+
+  void OnAnalyticsDrmKeysLoaded(
+      const AnalyticsDrmKeysLoadedEvent& drm_keys_loaded) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDrmKeysLoaded(GetSnapshot(env), drm_keys_loaded);
+    });
+  }
+
+  void OnAnalyticsDrmSessionManagerError(const AnalyticsExceptionEvent& error) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDrmSessionManagerError(GetSnapshot(env), error);
+    });
+  }
+
+  void OnAnalyticsDrmKeysRestored() {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDrmKeysRestored(GetSnapshot(env));
+    });
+  }
+
+  void OnAnalyticsDrmKeysRemoved() {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDrmKeysRemoved(GetSnapshot(env));
+    });
+  }
+
+  void OnAnalyticsDrmSessionReleased() {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDrmSessionReleased(GetSnapshot(env));
+    });
+  }
+
+  void OnAnalyticsRendererReadyChanged(
+      const AnalyticsRendererReadyChangedEvent& renderer_ready_changed) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsRendererReadyChanged(GetSnapshot(env), renderer_ready_changed);
+    });
+  }
+
+  void OnAnalyticsDroppedSeeksWhileScrubbing(
+      const AnalyticsDroppedSeeksWhileScrubbingEvent& dropped_seeks) {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsDroppedSeeksWhileScrubbing(GetSnapshot(env), dropped_seeks);
+    });
+  }
+
+  void OnAnalyticsPlayerReleased() {
+    WithListenerEnv([&](PlayerListener* listener, JNIEnv* env) {
+      listener->OnAnalyticsPlayerReleased(GetSnapshot(env));
     });
   }
 
@@ -4889,6 +5057,421 @@ void BridgeOnVideoInputFormatChanged(
         width,
         height,
         frame_rate);
+  });
+}
+
+AnalyticsMediaLoadDataEvent MakeAnalyticsMediaLoadDataEvent(
+    JNIEnv* env,
+    jstring uri,
+    int data_type,
+    int track_type,
+    jstring sample_mime_type,
+    int track_selection_reason,
+    int64_t media_start_time_ms,
+    int64_t media_end_time_ms) {
+  AnalyticsMediaLoadDataEvent event;
+  event.uri = JStringToString(env, uri);
+  event.data_type = data_type;
+  event.track_type = track_type;
+  event.sample_mime_type = JStringToString(env, sample_mime_type);
+  event.track_selection_reason = track_selection_reason;
+  event.media_start_time_ms = media_start_time_ms;
+  event.media_end_time_ms = media_end_time_ms;
+  return event;
+}
+
+AnalyticsDecoderCountersSnapshot MakeAnalyticsDecoderCountersSnapshot(
+    int decoder_init_count,
+    int decoder_release_count,
+    int queued_input_buffer_count,
+    int rendered_output_buffer_count,
+    int dropped_buffer_count,
+    int skipped_output_buffer_count,
+    int video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us) {
+  AnalyticsDecoderCountersSnapshot counters;
+  counters.decoder_init_count = decoder_init_count;
+  counters.decoder_release_count = decoder_release_count;
+  counters.queued_input_buffer_count = queued_input_buffer_count;
+  counters.rendered_output_buffer_count = rendered_output_buffer_count;
+  counters.dropped_buffer_count = dropped_buffer_count;
+  counters.skipped_output_buffer_count = skipped_output_buffer_count;
+  counters.video_frame_processing_offset_count = video_frame_processing_offset_count;
+  counters.total_video_frame_processing_offset_us = total_video_frame_processing_offset_us;
+  return counters;
+}
+
+AnalyticsExceptionEvent MakeAnalyticsExceptionEvent(
+    JNIEnv* env,
+    jstring class_name,
+    jstring message) {
+  AnalyticsExceptionEvent error;
+  error.class_name = JStringToString(env, class_name);
+  error.message = JStringToString(env, message);
+  return error;
+}
+
+AnalyticsAudioTrackConfigSnapshot MakeAnalyticsAudioTrackConfigSnapshot(
+    int encoding,
+    int sample_rate,
+    int channel_config,
+    bool tunneling,
+    bool offload,
+    int buffer_size) {
+  AnalyticsAudioTrackConfigSnapshot config;
+  config.encoding = encoding;
+  config.sample_rate = sample_rate;
+  config.channel_config = channel_config;
+  config.tunneling = tunneling;
+  config.offload = offload;
+  config.buffer_size = buffer_size;
+  return config;
+}
+
+void BridgeOnAnalyticsPlayerStateChanged(
+    jlong native_handle,
+    bool play_when_ready,
+    int playback_state) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    AnalyticsPlayerStateChangedEvent event;
+    event.play_when_ready = play_when_ready;
+    event.playback_state = playback_state;
+    bridge.OnAnalyticsPlayerStateChanged(event);
+  });
+}
+
+void BridgeOnAnalyticsLoadingChanged(jlong native_handle, bool is_loading) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    AnalyticsLoadingChangedEvent event;
+    event.is_loading = is_loading;
+    bridge.OnAnalyticsLoadingChanged(event);
+  });
+}
+
+void BridgeOnAnalyticsTrackSelectionParametersChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jobject parameters) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsTrackSelectionParametersChanged(
+        FromJavaTrackSelectionParameters(env, parameters));
+  });
+}
+
+void BridgeOnAnalyticsLoadCanceled(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring uri,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    int64_t media_start_time_ms,
+    int64_t media_end_time_ms) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsLoadCanceled(
+        MakeAnalyticsMediaLoadDataEvent(
+            env,
+            uri,
+            data_type,
+            track_type,
+            sample_mime_type,
+            track_selection_reason,
+            media_start_time_ms,
+            media_end_time_ms));
+  });
+}
+
+void BridgeOnAnalyticsDownstreamFormatChanged(
+    JNIEnv* env,
+    jlong native_handle,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    int64_t media_start_time_ms,
+    int64_t media_end_time_ms) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsDownstreamFormatChanged(
+        MakeAnalyticsMediaLoadDataEvent(
+            env,
+            nullptr,
+            data_type,
+            track_type,
+            sample_mime_type,
+            track_selection_reason,
+            media_start_time_ms,
+            media_end_time_ms));
+  });
+}
+
+void BridgeOnAnalyticsUpstreamDiscarded(
+    JNIEnv* env,
+    jlong native_handle,
+    jint data_type,
+    jint track_type,
+    jstring sample_mime_type,
+    jint track_selection_reason,
+    int64_t media_start_time_ms,
+    int64_t media_end_time_ms) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsUpstreamDiscarded(
+        MakeAnalyticsMediaLoadDataEvent(
+            env,
+            nullptr,
+            data_type,
+            track_type,
+            sample_mime_type,
+            track_selection_reason,
+            media_start_time_ms,
+            media_end_time_ms));
+  });
+}
+
+void BridgeOnAnalyticsAudioEnabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsAudioEnabled(
+        MakeAnalyticsDecoderCountersSnapshot(
+            decoder_init_count,
+            decoder_release_count,
+            queued_input_buffer_count,
+            rendered_output_buffer_count,
+            dropped_buffer_count,
+            skipped_output_buffer_count,
+            video_frame_processing_offset_count,
+            total_video_frame_processing_offset_us));
+  });
+}
+
+void BridgeOnAnalyticsAudioDisabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsAudioDisabled(
+        MakeAnalyticsDecoderCountersSnapshot(
+            decoder_init_count,
+            decoder_release_count,
+            queued_input_buffer_count,
+            rendered_output_buffer_count,
+            dropped_buffer_count,
+            skipped_output_buffer_count,
+            video_frame_processing_offset_count,
+            total_video_frame_processing_offset_us));
+  });
+}
+
+void BridgeOnAnalyticsAudioSinkError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsAudioSinkError(MakeAnalyticsExceptionEvent(env, class_name, message));
+  });
+}
+
+void BridgeOnAnalyticsAudioCodecError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsAudioCodecError(MakeAnalyticsExceptionEvent(env, class_name, message));
+  });
+}
+
+void BridgeOnAnalyticsAudioTrackInitialized(
+    jlong native_handle,
+    jint encoding,
+    jint sample_rate,
+    jint channel_config,
+    bool tunneling,
+    bool offload,
+    jint buffer_size) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsAudioTrackInitialized(
+        MakeAnalyticsAudioTrackConfigSnapshot(
+            encoding, sample_rate, channel_config, tunneling, offload, buffer_size));
+  });
+}
+
+void BridgeOnAnalyticsAudioTrackReleased(
+    jlong native_handle,
+    jint encoding,
+    jint sample_rate,
+    jint channel_config,
+    bool tunneling,
+    bool offload,
+    jint buffer_size) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsAudioTrackReleased(
+        MakeAnalyticsAudioTrackConfigSnapshot(
+            encoding, sample_rate, channel_config, tunneling, offload, buffer_size));
+  });
+}
+
+void BridgeOnAnalyticsVideoEnabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsVideoEnabled(
+        MakeAnalyticsDecoderCountersSnapshot(
+            decoder_init_count,
+            decoder_release_count,
+            queued_input_buffer_count,
+            rendered_output_buffer_count,
+            dropped_buffer_count,
+            skipped_output_buffer_count,
+            video_frame_processing_offset_count,
+            total_video_frame_processing_offset_us));
+  });
+}
+
+void BridgeOnAnalyticsVideoDisabled(
+    jlong native_handle,
+    jint decoder_init_count,
+    jint decoder_release_count,
+    jint queued_input_buffer_count,
+    jint rendered_output_buffer_count,
+    jint dropped_buffer_count,
+    jint skipped_output_buffer_count,
+    jint video_frame_processing_offset_count,
+    int64_t total_video_frame_processing_offset_us) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsVideoDisabled(
+        MakeAnalyticsDecoderCountersSnapshot(
+            decoder_init_count,
+            decoder_release_count,
+            queued_input_buffer_count,
+            rendered_output_buffer_count,
+            dropped_buffer_count,
+            skipped_output_buffer_count,
+            video_frame_processing_offset_count,
+            total_video_frame_processing_offset_us));
+  });
+}
+
+void BridgeOnAnalyticsVideoCodecError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsVideoCodecError(MakeAnalyticsExceptionEvent(env, class_name, message));
+  });
+}
+
+void BridgeOnAnalyticsSurfaceSizeChanged(jlong native_handle, jint width, jint height) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsSurfaceSizeChanged(width, height);
+  });
+}
+
+void BridgeOnAnalyticsDrmSessionAcquired(
+    jlong native_handle,
+    bool has_state,
+    jint state) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    AnalyticsDrmSessionAcquiredEvent event;
+    event.has_state = has_state;
+    event.state = state;
+    bridge.OnAnalyticsDrmSessionAcquired(event);
+  });
+}
+
+void BridgeOnAnalyticsDrmKeysLoaded(
+    jlong native_handle,
+    bool has_key_request_info,
+    jint load_info_count,
+    jint scheme_data_count) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    AnalyticsDrmKeysLoadedEvent event;
+    event.has_key_request_info = has_key_request_info;
+    event.load_info_count = load_info_count;
+    event.scheme_data_count = scheme_data_count;
+    bridge.OnAnalyticsDrmKeysLoaded(event);
+  });
+}
+
+void BridgeOnAnalyticsDrmSessionManagerError(
+    JNIEnv* env,
+    jlong native_handle,
+    jstring class_name,
+    jstring message) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsDrmSessionManagerError(
+        MakeAnalyticsExceptionEvent(env, class_name, message));
+  });
+}
+
+void BridgeOnAnalyticsDrmKeysRestored(jlong native_handle) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsDrmKeysRestored();
+  });
+}
+
+void BridgeOnAnalyticsDrmKeysRemoved(jlong native_handle) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsDrmKeysRemoved();
+  });
+}
+
+void BridgeOnAnalyticsDrmSessionReleased(jlong native_handle) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsDrmSessionReleased();
+  });
+}
+
+void BridgeOnAnalyticsRendererReadyChanged(
+    jlong native_handle,
+    jint renderer_index,
+    jint renderer_track_type,
+    bool is_renderer_ready) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    AnalyticsRendererReadyChangedEvent event;
+    event.renderer_index = renderer_index;
+    event.renderer_track_type = renderer_track_type;
+    event.is_renderer_ready = is_renderer_ready;
+    bridge.OnAnalyticsRendererReadyChanged(event);
+  });
+}
+
+void BridgeOnAnalyticsDroppedSeeksWhileScrubbing(
+    jlong native_handle,
+    jint dropped_seeks) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    AnalyticsDroppedSeeksWhileScrubbingEvent event;
+    event.dropped_seeks = dropped_seeks;
+    bridge.OnAnalyticsDroppedSeeksWhileScrubbing(event);
+  });
+}
+
+void BridgeOnAnalyticsPlayerReleased(jlong native_handle) {
+  WithBridgeHandle(native_handle, [&](JniExoPlayerBridge& bridge) {
+    bridge.OnAnalyticsPlayerReleased();
   });
 }
 

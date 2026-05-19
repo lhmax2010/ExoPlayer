@@ -11,6 +11,7 @@ import android.view.SurfaceView;
 import android.view.TextureView;
 import androidx.media3.common.C;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.test.utils.FakeMediaSourceFactory;
 import androidx.media3.test.utils.TestUtil;
 import androidx.media3.test.utils.WebServerDispatcher;
 import androidx.media3.ui.PlayerView;
@@ -18,8 +19,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -1183,6 +1186,50 @@ public final class CppBridgeNativePlayerInstrumentationTest {
   }
 
   @Test
+  public void nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+    String summary =
+        CppBridgeNativePlayerTestHelper.nativeAnalyticsStage4RemainingCallbacksSmokeTest(context);
+
+    assertCallbackStoppedAfterRemove(summary);
+    assertThat(summary).contains("beforeRemoveCb=25");
+    assertThat(summary).contains("playerStatePlayWhenReady=1");
+    assertThat(summary).contains("playerState=3");
+    assertThat(summary).contains("loading=1");
+    assertThat(summary).contains("trackTextLanguage=stage4-text");
+    assertThat(summary).contains("trackDisableText=1");
+    assertThat(summary).contains("loadCanceledSampleMimeType=audio/mp4");
+    assertThat(summary).contains("downstreamSampleMimeType=video/avc");
+    assertThat(summary).contains("upstreamSampleMimeType=text/vtt");
+    assertThat(summary).contains("audioEnabledInitCount=1");
+    assertThat(summary).contains("audioDisabledReleaseCount=9");
+    assertThat(summary).contains("audioSinkError=stage4 audio sink");
+    assertThat(summary).contains("audioCodecError=stage4 audio codec");
+    assertThat(summary).contains("audioTrackInitSampleRate=48000");
+    assertThat(summary).contains("audioTrackReleasedOffload=1");
+    assertThat(summary).contains("videoEnabledProcessingOffsetUs=22000");
+    assertThat(summary).contains("videoDisabledProcessingOffsetCount=28");
+    assertThat(summary).contains("videoCodecError=stage4 video codec");
+    assertThat(summary).contains("surfaceWidth=1280");
+    assertThat(summary).contains("surfaceHeight=720");
+    assertThat(summary).contains("drmAcquiredHasState=1");
+    assertThat(summary).contains("drmAcquiredState=4");
+    assertThat(summary).contains("drmKeysLoadedHasInfo=1");
+    assertThat(summary).contains("drmKeysLoadedLoadInfoCount=5");
+    assertThat(summary).contains("drmKeysLoadedSchemeDataCount=6");
+    assertThat(summary).contains("drmError=stage4 drm");
+    assertThat(summary).contains("drmRestoredCb=1");
+    assertThat(summary).contains("drmRemovedCb=1");
+    assertThat(summary).contains("drmReleasedCb=1");
+    assertThat(summary).contains("rendererIndex=2");
+    assertThat(summary).contains("rendererTrackType=2");
+    assertThat(summary).contains("rendererReady=1");
+    assertThat(summary).contains("droppedSeeks=7");
+    assertThat(summary).contains("playerReleasedCb=1");
+  }
+
+  @Test
   public void nativeAnalyticsSkipSilenceEnabledChangedSmokeTest_reportsConcreteAnalyticsEvent() {
     Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
@@ -1321,7 +1368,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertCallbackStoppedAfterRemove(summary);
     assertThat(summary).contains("eventCount=3");
     assertThat(summary).contains("firstEvent=7");
-    assertThat(summary).contains("contains9=1");
+    assertThat(summary).contains("contains9009=1");
   }
 
   @Test
@@ -1619,6 +1666,60 @@ public final class CppBridgeNativePlayerInstrumentationTest {
       assertThat(summary).contains("dashMimeType=application/dash+xml");
     } finally {
       server.shutdown();
+    }
+  }
+
+  @Test
+  public void nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig()
+      throws Exception {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    MockWebServer server = createStreamPlaybackServer(context);
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeHttpDataSourceConfigPlaybackSmokeTest(
+              context, server.url("/http/sample.audio.mp4").toString());
+
+      assertThat(summary).contains("headerCount=2");
+      assertThat(summary).contains("userAgent=cppbridge-stage5-agent");
+      assertThat(summary).contains("allowCrossProtocolRedirects=1");
+      assertThat(summary).contains("httpConfigPrepared=1");
+      assertThat(summary).contains("httpConfigAdvanced=1");
+      assertThat(summary).contains("httpConfigSourceType=5");
+      assertThat(summary).contains("httpConfigMimeType=audio/mp4");
+      assertThat(summary).contains("httpConfigErrorCode=0");
+
+      RecordedRequest request = server.takeRequest(5, TimeUnit.SECONDS);
+      assertThat(request).isNotNull();
+      assertThat(request.getHeader("X-CppBridge-Stage")).isEqualTo("5");
+      assertThat(request.getHeader("X-CppBridge-Source")).isEqualTo("http-config");
+      assertThat(request.getHeader("User-Agent")).isEqualTo("cppbridge-stage5-agent");
+    } finally {
+      server.shutdown();
+    }
+  }
+
+  @Test
+  public void nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig() {
+    Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+    String token = "stage5-custom-media-source-factory";
+    CppMediaSourceFactoryRegistry.register(token, new FakeMediaSourceFactory());
+    try {
+      String summary =
+          CppBridgeNativePlayerTestHelper.nativeCustomMediaSourceFactoryPlaybackSmokeTest(
+              context, token);
+
+      assertThat(summary).contains("factoryToken=stage5-custom-media-source-factory");
+      assertThat(summary).contains("injectedFactoryUsed=1");
+      assertThat(summary).contains("smoothPrepared=1");
+      assertThat(summary).contains("smoothErrorCode=0");
+      assertThat(summary).contains("smoothSourceType=3");
+      assertThat(summary).contains("smoothMimeType=application/vnd.ms-sstr+xml");
+      assertThat(summary).contains("rtspPrepared=1");
+      assertThat(summary).contains("rtspErrorCode=0");
+      assertThat(summary).contains("rtspSourceType=4");
+      assertThat(summary).contains("rtspMimeType=application/x-rtsp");
+    } finally {
+      CppMediaSourceFactoryRegistry.unregister(token);
     }
   }
 

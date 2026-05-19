@@ -334,6 +334,7 @@ class ExoPlayerSdkPlayer {
       const MediaMetadataSnapshot& metadata) = 0;
   virtual void SimulateVideoInputFormatChangedForTest(
       const VideoInputFormatChangedEvent& video_input_format_changed) = 0;
+  virtual void SimulateAnalyticsStage4RemainingEventsForTest() = 0;
   virtual void SimulateAudioCodecParametersChangedForTest(
       const CodecParametersDescriptor& codec_parameters) = 0;
   virtual void SimulateVideoCodecParametersChangedForTest(

@@ -3,7 +3,7 @@
 ## Snapshot
 
 - Workspace: `/home/linhao/Toolchain/development/ExoPlayer`
-- Date of this handoff memory: `2026-05-18`
+- Date of this handoff memory: `2026-05-19`
 - Module focus: `libraries/exoplayer_cppbridge`
 - Goal: Java-side ExoPlayer usage replaced by a reduced but usable C++ bridge/SDK surface, with smoke coverage and validation docs.
 
@@ -26,7 +26,7 @@ Important nuance:
 
 ## Validation status
 
-Latest local validation on this machine, refreshed on `2026-05-18`:
+Latest local validation on this machine, refreshed on `2026-05-19`:
 
 - Build/native link: `Pass`
 - JNI/value smoke: `Pass`
@@ -48,7 +48,7 @@ Commands that passed:
 Interpretation:
 
 - The current Android 16 emulator run verified the smoke suite end to end.
-- The current Android 16 emulator run reported `129/129` connected instrumentation tests passed.
+- The current Android 16 emulator run reported `132/132` connected instrumentation tests passed.
 - Passing smoke tests proves the reduced bridge surface described by the tests, not full Java
   `api.txt` parity.
 - The 2026-05-18 Stage 1 inventory report is now checked in at
@@ -64,7 +64,7 @@ Interpretation:
 Current androidTest count found in the workspace:
 
 - Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
-  `CppBridgeNativePlayerInstrumentationTest.java`: `129`
+  `CppBridgeNativePlayerInstrumentationTest.java`: `132`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -99,6 +99,15 @@ This is consistent with a large smoke-first validation strategy.
 - `CppBridgeConverters` now maps Media3 `CONTENT_TYPE_OTHER` back to C++
   `MediaSourceType::kProgressive`, so HTTP/progressive current-item snapshots no longer collapse
   back to `kDefault`
+- Stage 5 has started with a deterministic custom `MediaSource.Factory` playback smoke:
+  `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig` registers a
+  Java `FakeMediaSourceFactory`, passes the token through C++ `PlayerConfig`, and prepares
+  SmoothStreaming / RTSP `MediaItemDescriptor` source types via the C++ `SetMediaItem` /
+  `Prepare` / `Play` path.
+- Stage 5 also covers HTTP data-source config in real playback:
+  `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig` sets request headers,
+  user agent, timeout, and redirect config from C++, then verifies the local MockWebServer request
+  receives the expected headers and UA.
 - A follow-up C++ API / CppBridge coverage audit found no remaining exact public-method gaps after
   adding direct smoke markers for raw `Surface`, playlist mutation/navigation, tracks getters,
   device volume/mute setters, codec-parameter bridge registration/clear, builder
@@ -138,9 +147,12 @@ This is consistent with a large smoke-first validation strategy.
   C++ `OnIsLoadingChanged` and Java `nativeOnIsLoadingChanged`; current exact gap report shows
   `Player`/`ExoPlayer` method gaps `0`, direct `Player.Listener` callback gaps `0`, and one
   remaining `ExoPlayer.Builder` gap: `setAudioOutputProvider`.
-- Stage 4 has started with an independent reduced
-  `AnalyticsListener#onAudioAttributesChanged` callback, carrying `AudioAttributesDescriptor`
-  payload fields through Java dispatch, JNI, SDK forwarding, and a remove-listener lifecycle smoke.
+- Stage 4 has completed reduced `AnalyticsListener` method-name coverage. It started with the
+  independent `AnalyticsListener#onAudioAttributesChanged` callback carrying
+  `AudioAttributesDescriptor`, then added 25 remaining reduced analytics callbacks for load,
+  format, decoder-counters, audio/video error, DRM, renderer-ready, scrubbing, and player-release
+  events. Coverage includes `nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent`
+  and `nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents`.
 
 ## Practical conclusion
 
@@ -150,6 +162,6 @@ For the next AI:
 - Treat the current local environment as validated for the smoke suite on Android 16.
 - The highest-risk next work moved past the first callback-style bridge slice, the
   codec-parameter multi-listener immediate-notification edge case, the planned Stage 3 reduced
-  object/value-model slices, and the first Stage 4 analytics callback slice; remaining work is
-  deeper analytics callback completeness plus full-object parity for `MediaItem`, `Timeline`,
+  object/value-model slices, and Stage 4 reduced analytics callback completeness; remaining work is
+  Stage 5 playback/source integration plus full-object parity for `MediaItem`, `Timeline`,
   `MediaMetadata`, `Tracks`, and richer payload fidelity beyond the reduced descriptors.

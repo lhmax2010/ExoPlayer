@@ -981,6 +981,71 @@ struct VideoInputFormatChangedEvent {
   float frame_rate = 0.0f;
 };
 
+struct AnalyticsPlayerStateChangedEvent {
+  bool play_when_ready = false;
+  int playback_state = 0;
+};
+
+struct AnalyticsLoadingChangedEvent {
+  bool is_loading = false;
+};
+
+struct AnalyticsMediaLoadDataEvent {
+  std::string uri;
+  int data_type = 0;
+  int track_type = 0;
+  std::string sample_mime_type;
+  int track_selection_reason = 0;
+  int64_t media_start_time_ms = 0;
+  int64_t media_end_time_ms = 0;
+};
+
+struct AnalyticsDecoderCountersSnapshot {
+  int decoder_init_count = 0;
+  int decoder_release_count = 0;
+  int queued_input_buffer_count = 0;
+  int rendered_output_buffer_count = 0;
+  int dropped_buffer_count = 0;
+  int skipped_output_buffer_count = 0;
+  int video_frame_processing_offset_count = 0;
+  int64_t total_video_frame_processing_offset_us = 0;
+};
+
+struct AnalyticsExceptionEvent {
+  std::string class_name;
+  std::string message;
+};
+
+struct AnalyticsAudioTrackConfigSnapshot {
+  int encoding = 0;
+  int sample_rate = 0;
+  int channel_config = 0;
+  bool tunneling = false;
+  bool offload = false;
+  int buffer_size = 0;
+};
+
+struct AnalyticsDrmSessionAcquiredEvent {
+  bool has_state = false;
+  int state = 0;
+};
+
+struct AnalyticsDrmKeysLoadedEvent {
+  bool has_key_request_info = false;
+  int load_info_count = 0;
+  int scheme_data_count = 0;
+};
+
+struct AnalyticsRendererReadyChangedEvent {
+  int renderer_index = 0;
+  int renderer_track_type = 0;
+  bool is_renderer_ready = false;
+};
+
+struct AnalyticsDroppedSeeksWhileScrubbingEvent {
+  int dropped_seeks = 0;
+};
+
 struct PlayerError {
   int error_code = 0;
   std::string message;
@@ -1256,6 +1321,74 @@ class PlayerListener {
   virtual void OnVideoInputFormatChanged(
       const PlaybackSnapshot& snapshot,
       const VideoInputFormatChangedEvent& video_input_format_changed) {}
+  virtual void OnAnalyticsPlayerStateChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsPlayerStateChangedEvent& player_state_changed) {}
+  virtual void OnAnalyticsLoadingChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsLoadingChangedEvent& loading_changed) {}
+  virtual void OnAnalyticsTrackSelectionParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const TrackSelectionParametersDescriptor& parameters) {}
+  virtual void OnAnalyticsLoadCanceled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& load_canceled) {}
+  virtual void OnAnalyticsDownstreamFormatChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& downstream_format_changed) {}
+  virtual void OnAnalyticsUpstreamDiscarded(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& upstream_discarded) {}
+  virtual void OnAnalyticsAudioEnabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsAudioDisabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsAudioSinkError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsAudioCodecError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsAudioTrackInitialized(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) {}
+  virtual void OnAnalyticsAudioTrackReleased(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) {}
+  virtual void OnAnalyticsVideoEnabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsVideoDisabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) {}
+  virtual void OnAnalyticsVideoCodecError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsSurfaceSizeChanged(
+      const PlaybackSnapshot& snapshot,
+      int width,
+      int height) {}
+  virtual void OnAnalyticsDrmSessionAcquired(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDrmSessionAcquiredEvent& drm_session_acquired) {}
+  virtual void OnAnalyticsDrmKeysLoaded(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDrmKeysLoadedEvent& drm_keys_loaded) {}
+  virtual void OnAnalyticsDrmSessionManagerError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) {}
+  virtual void OnAnalyticsDrmKeysRestored(const PlaybackSnapshot& snapshot) {}
+  virtual void OnAnalyticsDrmKeysRemoved(const PlaybackSnapshot& snapshot) {}
+  virtual void OnAnalyticsDrmSessionReleased(const PlaybackSnapshot& snapshot) {}
+  virtual void OnAnalyticsRendererReadyChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsRendererReadyChangedEvent& renderer_ready_changed) {}
+  virtual void OnAnalyticsDroppedSeeksWhileScrubbing(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDroppedSeeksWhileScrubbingEvent& dropped_seeks) {}
+  virtual void OnAnalyticsPlayerReleased(const PlaybackSnapshot& snapshot) {}
   virtual void OnAudioCodecParametersChanged(
       const PlaybackSnapshot& snapshot,
       const CodecParametersDescriptor& codec_parameters) {}
@@ -1656,6 +1789,7 @@ class ExoPlayerBridge {
   virtual void SimulateVideoInputFormatChangedForTest(
       JNIEnv* env,
       const VideoInputFormatChangedEvent& video_input_format_changed) = 0;
+  virtual void SimulateAnalyticsStage4RemainingEventsForTest(JNIEnv* env) = 0;
   virtual void SimulateAudioCodecParametersChangedForTest(
       JNIEnv* env,
       const CodecParametersDescriptor& codec_parameters) = 0;

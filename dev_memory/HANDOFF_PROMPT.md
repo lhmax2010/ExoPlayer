@@ -45,8 +45,8 @@ Important context:
 - The legacy reduced endpoint tracker claims `Done: 99`, `Partial: 0`, `Not started: 0`; a
   2026-05-15 parity addendum adds more runtime/audio/scrubbing/codec/renderer getter APIs beyond
   that older row count.
-- Latest local validation passed on 2026-05-18 with Android 16 AVD `cppbridge_android16_api36`:
-  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`129/129`),
+- Latest local validation passed on 2026-05-19 with Android 16 AVD `cppbridge_android16_api36`:
+  `assembleDebugAndroidTest`, `testDebugUnitTest`, full `connectedDebugAndroidTest` (`132/132`),
   `:demo-cppbridge:assembleDebug`, and `git diff --check`.
 - Callback-style reduced C++ APIs now exist for `CodecParametersChangeListener`,
   `VideoFrameMetadataListener`, and `CameraMotionListener`, with
@@ -58,6 +58,15 @@ Important context:
   MockWebServer playback for HTTP progressive, HLS, and DASH through the C++ `SetMediaItem` /
   `Prepare` / `Play` path. It also verifies that `MediaItemDescriptor.source_type` now round-trips
   HTTP progressive sources as `kProgressive`.
+- Stage 5 has started with
+  `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig`, which
+  registers a Java `FakeMediaSourceFactory`, passes its token through C++ `PlayerConfig`, and
+  validates SmoothStreaming / RTSP source-type descriptors through the C++ `SetMediaItem` /
+  `Prepare` / `Play` path without relying on external network media.
+- Stage 5 also now covers HTTP data-source config in real playback:
+  `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig` sets custom request
+  headers, user agent, timeouts, and redirect config from C++, then verifies MockWebServer receives
+  the expected headers and UA.
 - A follow-up C++ API / CppBridge method audit found no remaining exact public-method gaps after
   adding direct smoke markers for raw `Surface`, playlist mutation/navigation, tracks getters,
   device volume/mute setters, codec-parameter bridge registration/clear, builder
@@ -115,15 +124,18 @@ Important context:
 - Direct `Player.Listener#onIsLoadingChanged` is now bridged through
   `OnIsLoadingChanged` / `nativeOnIsLoadingChanged`, with `nativeListenerSmokeTest` checking
   `isLoadingCb=1` and `isLoading=1`.
-- The planned Stage 3 reduced object/value-model slices are complete. The highest-value next
-  development work is continuing Stage 4 listener/analytics completeness or later-stage full Java
-  object parity for `MediaItem`, `Timeline`, `MediaMetadata`, `Tracks`, and `Cue` beyond the
-  reduced descriptors. Full Java/api.txt parity for non-player classes remains a later-stage
-  concern.
-- Stage 4 has started with an independent reduced analytics audio-attributes callback:
+- The planned Stage 3 reduced object/value-model slices are complete. Stage 4 reduced
+  listener/analytics method-name coverage is also complete; the highest-value next development
+  work is Stage 5 playback/source integration or later-stage full Java object parity for
+  `MediaItem`, `Timeline`, `MediaMetadata`, `Tracks`, and `Cue` beyond the reduced descriptors.
+  Full Java/api.txt parity for non-player classes remains a later-stage concern.
+- Stage 4 includes an independent reduced analytics audio-attributes callback:
   `OnAnalyticsAudioAttributesChanged` / `nativeOnAnalyticsAudioAttributesChanged` /
   `SimulateAnalyticsAudioAttributesChangedForTest`, covered by
   `nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent`.
+- Stage 4 then closes the remaining reduced `AnalyticsListener` method-name callbacks with
+  `nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents`, covering 25
+  additional analytics callbacks and remove-listener stop delivery.
 
 When you report status, separate these clearly:
 

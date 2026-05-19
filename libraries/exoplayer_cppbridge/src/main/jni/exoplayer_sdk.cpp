@@ -1249,6 +1249,199 @@ class ForwardingPlayerListener : public PlayerListener {
     }
   }
 
+  void OnAnalyticsPlayerStateChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsPlayerStateChangedEvent& player_state_changed) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsPlayerStateChanged(snapshot, player_state_changed);
+    });
+  }
+
+  void OnAnalyticsLoadingChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsLoadingChangedEvent& loading_changed) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsLoadingChanged(snapshot, loading_changed);
+    });
+  }
+
+  void OnAnalyticsTrackSelectionParametersChanged(
+      const PlaybackSnapshot& snapshot,
+      const TrackSelectionParametersDescriptor& parameters) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsTrackSelectionParametersChanged(snapshot, parameters);
+    });
+  }
+
+  void OnAnalyticsLoadCanceled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& load_canceled) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsLoadCanceled(snapshot, load_canceled);
+    });
+  }
+
+  void OnAnalyticsDownstreamFormatChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& downstream_format_changed) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDownstreamFormatChanged(snapshot, downstream_format_changed);
+    });
+  }
+
+  void OnAnalyticsUpstreamDiscarded(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsMediaLoadDataEvent& upstream_discarded) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsUpstreamDiscarded(snapshot, upstream_discarded);
+    });
+  }
+
+  void OnAnalyticsAudioEnabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsAudioEnabled(snapshot, decoder_counters);
+    });
+  }
+
+  void OnAnalyticsAudioDisabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsAudioDisabled(snapshot, decoder_counters);
+    });
+  }
+
+  void OnAnalyticsAudioSinkError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsAudioSinkError(snapshot, error);
+    });
+  }
+
+  void OnAnalyticsAudioCodecError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsAudioCodecError(snapshot, error);
+    });
+  }
+
+  void OnAnalyticsAudioTrackInitialized(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsAudioTrackInitialized(snapshot, audio_track_config);
+    });
+  }
+
+  void OnAnalyticsAudioTrackReleased(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsAudioTrackConfigSnapshot& audio_track_config) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsAudioTrackReleased(snapshot, audio_track_config);
+    });
+  }
+
+  void OnAnalyticsVideoEnabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsVideoEnabled(snapshot, decoder_counters);
+    });
+  }
+
+  void OnAnalyticsVideoDisabled(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDecoderCountersSnapshot& decoder_counters) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsVideoDisabled(snapshot, decoder_counters);
+    });
+  }
+
+  void OnAnalyticsVideoCodecError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsVideoCodecError(snapshot, error);
+    });
+  }
+
+  void OnAnalyticsSurfaceSizeChanged(
+      const PlaybackSnapshot& snapshot,
+      int width,
+      int height) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsSurfaceSizeChanged(snapshot, width, height);
+    });
+  }
+
+  void OnAnalyticsDrmSessionAcquired(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDrmSessionAcquiredEvent& drm_session_acquired) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDrmSessionAcquired(snapshot, drm_session_acquired);
+    });
+  }
+
+  void OnAnalyticsDrmKeysLoaded(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDrmKeysLoadedEvent& drm_keys_loaded) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDrmKeysLoaded(snapshot, drm_keys_loaded);
+    });
+  }
+
+  void OnAnalyticsDrmSessionManagerError(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsExceptionEvent& error) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDrmSessionManagerError(snapshot, error);
+    });
+  }
+
+  void OnAnalyticsDrmKeysRestored(const PlaybackSnapshot& snapshot) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDrmKeysRestored(snapshot);
+    });
+  }
+
+  void OnAnalyticsDrmKeysRemoved(const PlaybackSnapshot& snapshot) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDrmKeysRemoved(snapshot);
+    });
+  }
+
+  void OnAnalyticsDrmSessionReleased(const PlaybackSnapshot& snapshot) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDrmSessionReleased(snapshot);
+    });
+  }
+
+  void OnAnalyticsRendererReadyChanged(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsRendererReadyChangedEvent& renderer_ready_changed) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsRendererReadyChanged(snapshot, renderer_ready_changed);
+    });
+  }
+
+  void OnAnalyticsDroppedSeeksWhileScrubbing(
+      const PlaybackSnapshot& snapshot,
+      const AnalyticsDroppedSeeksWhileScrubbingEvent& dropped_seeks) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsDroppedSeeksWhileScrubbing(snapshot, dropped_seeks);
+    });
+  }
+
+  void OnAnalyticsPlayerReleased(const PlaybackSnapshot& snapshot) override {
+    NotifyAnalyticsDelegates([&](PlayerListener* listener) {
+      listener->OnAnalyticsPlayerReleased(snapshot);
+    });
+  }
+
   void OnAudioCodecParametersChanged(
       const PlaybackSnapshot& snapshot,
       const CodecParametersDescriptor& codec_parameters) override {
@@ -1318,6 +1511,19 @@ class ForwardingPlayerListener : public PlayerListener {
   }
 
  private:
+  template <typename Fn>
+  void NotifyAnalyticsDelegates(Fn&& fn) {
+    auto listeners = SnapshotListeners();
+    if (listeners.delegate != nullptr) {
+      fn(listeners.delegate);
+    }
+    for (PlayerListener* analytics_delegate : listeners.analytics_delegates) {
+      if (analytics_delegate != nullptr && analytics_delegate != listeners.delegate) {
+        fn(analytics_delegate);
+      }
+    }
+  }
+
   enum class ListenerSnapshotKind {
     kNormal,
     kAudioCodecParameters,
@@ -2942,6 +3148,12 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
       const VideoInputFormatChangedEvent& video_input_format_changed) override {
     WithEnv([&](JNIEnv* env) {
       bridge_->SimulateVideoInputFormatChangedForTest(env, video_input_format_changed);
+    });
+  }
+
+  void SimulateAnalyticsStage4RemainingEventsForTest() override {
+    WithEnv([&](JNIEnv* env) {
+      bridge_->SimulateAnalyticsStage4RemainingEventsForTest(env);
     });
   }
 

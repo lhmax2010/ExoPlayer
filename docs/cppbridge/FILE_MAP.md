@@ -1,6 +1,6 @@
 # File Map
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 This is the current file-to-responsibility map for the C++ bridge work. Use it to find the right
 place to read or modify code.

@@ -1,6 +1,6 @@
 # C++ Bridge Validation Guide
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 This guide is for moving the current `exoplayer_cppbridge` work to another machine and validating
 that the JNI bridge, C++ API surface, smoke coverage, and demo app all behave as expected.
@@ -30,11 +30,12 @@ Current readiness snapshot:
   developer-facing convenience helpers rather than a separately validated tester flow in this pass
 - repeatable API parity inventory is available through
   `python3 scripts/cppbridge/api_parity_inventory.py --check`
-- latest local validation on 2026-05-18 passed on the Android 16 AVD
+- latest local validation on 2026-05-19 passed on the Android 16 AVD
   `cppbridge_android16_api36`
-- the current connected suite contains 128 instrumentation tests after the runtime/audio/codec/
-  auxiliary-callback, TrackInfo format-payload, HTTP/HLS/DASH playback, decoded extras, and
-  Timeline / MediaItem / MediaMetadata object-value parity addenda
+- the current connected suite contains 132 instrumentation tests after the runtime/audio/codec/
+  auxiliary-callback, TrackInfo format-payload, HTTP/HLS/DASH playback, HTTP data-source config
+  playback, custom source-factory SmoothStreaming / RTSP playback, decoded extras, and Timeline /
+  MediaItem / MediaMetadata object-value parity addenda
 
 ## 1. Validation Goals
 
@@ -232,6 +233,8 @@ Current high-value parity smokes in this class include:
 - `nativeCodecParametersParitySmokeTest_setsAudioAndVideoCodecParameters`
 - `nativeRendererAndDeviceStateGetterSmokeTest_readsRendererAndDeviceState`
 - `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi`
+- `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig`
+- `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig`
 
 ## 6. Human Acceptance Checklist
 
@@ -355,7 +358,7 @@ Markers that should appear:
 - `commandCount=3`
 - `contains8=1`
 - `eventCount=3`
-- `contains9=1`
+- `contains9009=1`
 - `playbackType=1`
 - `routingControllerId=route-final`
 - `title=Analytics Media Final`
@@ -383,6 +386,7 @@ Markers that should appear:
 - `nativeAnalyticsCuesSmokeTest_reportsConcreteAnalyticsEvent` -> `cueCount=2`; `presentationTimeUs=654321`; `text0=Analytics Cue Final`; `text0TokenPresent=1`; `bitmap0TokenPresent=1`; `text1=Analytics Cue Final 2`; `text1TokenPresent=1`; `bitmap1TokenPresent=0`
 - `nativeAnalyticsMetadataSmokeTest_reportsConcreteAnalyticsEvent` -> `entryCount=2`; `firstEntryType=MdtaMetadataEntry`; `firstEntryText=analytics-metadata-final`
 - `nativeAnalyticsLoadErrorSmokeTest_reportsConcreteAnalyticsEvent` -> `uri=https://example.com/analytics-error-final.m3u8`; `dataType=4`; `trackType=2`; `message=analytics-load-final`; `wasCanceled=0`
+- `nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents` -> `beforeRemoveCb=25`; `trackTextLanguage=stage4-text`; `loadCanceledSampleMimeType=audio/mp4`; `drmAcquiredState=4`; `rendererReady=1`; `playerReleasedCb=1`
 - `imageCount=3`
 
 Additional high-signal markers worth checking for the newest reduced-scope work:

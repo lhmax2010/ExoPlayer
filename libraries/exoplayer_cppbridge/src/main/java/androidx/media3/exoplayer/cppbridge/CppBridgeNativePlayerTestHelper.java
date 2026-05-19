@@ -113,6 +113,8 @@ public final class CppBridgeNativePlayerTestHelper {
 
   public static native String nativeAnalyticsAudioAttributesChangedSmokeTest(Context context);
 
+  public static native String nativeAnalyticsStage4RemainingCallbacksSmokeTest(Context context);
+
   public static native String nativeAnalyticsSkipSilenceEnabledChangedSmokeTest(Context context);
 
   public static native String nativeAnalyticsDeviceVolumeChangedSmokeTest(Context context);
@@ -180,6 +182,12 @@ public final class CppBridgeNativePlayerTestHelper {
 
   public static native String nativeHttpHlsDashPlaybackSmokeTest(
       Context context, String httpUrl, String hlsUrl, String dashUrl);
+
+  public static native String nativeHttpDataSourceConfigPlaybackSmokeTest(
+      Context context, String httpUrl);
+
+  public static native String nativeCustomMediaSourceFactoryPlaybackSmokeTest(
+      Context context, String factoryToken);
 
   public static native String nativeMediaSourceFactoryConfigSmokeTest(Context context);
 

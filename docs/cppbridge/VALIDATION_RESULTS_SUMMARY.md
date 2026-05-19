@@ -1,6 +1,6 @@
 # C++ Bridge Validation Results Summary
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 Use this page after the new environment finishes build, device validation, and demo verification.
 Write raw run details into `TEST_RESULTS_TEMPLATE.md`, then summarize the final outcome here.
@@ -14,7 +14,7 @@ status notes in:
 | --- | --- | --- | --- | --- |
 | Build / native link | Pass | `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`; `:lib-exoplayer-cppbridge:testDebugUnitTest`; `:demo-cppbridge:assembleDebug` | Codex | Native testhooks and demo build linked successfully. |
 | JNI/value smoke | Pass | included in full `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` | Codex | Full Android 16 connected suite passed. |
-| Player/runtime smoke | Pass | `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` reported `129/129` tests passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track full-payload parity, decoded extras value-model markers, timeline / MediaItem / MediaMetadata object value metadata, Stage 4 analytics audio-attributes callback coverage, and HTTP/HLS/DASH C++ playback smoke. |
+| Player/runtime smoke | Pass | `:lib-exoplayer-cppbridge:connectedDebugAndroidTest` reported `132/132` tests passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track full-payload parity, decoded extras value-model markers, timeline / MediaItem / MediaMetadata object value metadata, Stage 4 analytics callback coverage, HTTP/HLS/DASH C++ playback smoke, Stage 5 HTTP data-source config smoke, and Stage 5 custom source-factory SmoothStreaming / RTSP smoke. |
 | API parity inventory | Pass | `python3 scripts/cppbridge/api_parity_inventory.py --check` | Codex | Generated report is current; exact `Player`/`ExoPlayer` and direct `Player.Listener` gaps are now `0`, with one remaining builder gap: `setAudioOutputProvider`. |
 | Demo manual validation | Pass with notes | `:demo-cppbridge:assembleDebug` | Codex | Demo compiled; manual UI playback was not separately exercised in this pass. |
 | Logcat review | Pass with notes | no test failure or JNI exception surfaced during Gradle instrumentation | Codex | Dedicated logcat audit was not separately captured. |
@@ -32,7 +32,7 @@ Status values:
 
 | Item | Value |
 | --- | --- |
-| Validation date | 2026-05-18 |
+| Validation date | 2026-05-19 |
 | Machine / host | `linhao-linux` |
 | Branch / package snapshot | local dirty git workspace at `/home/linhao/Toolchain/development/ExoPlayer` |
 | JDK | OpenJDK `17.0.18` |
@@ -47,7 +47,7 @@ Status values:
 | Suite | Result | Key evidence | Follow-up needed |
 | --- | --- | --- | --- |
 | `CppBridgeNativeSmokeTest` | Pass | covered by full `connectedDebugAndroidTest` | none for this pass |
-| `CppBridgeNativePlayerInstrumentationTest` | Pass | covered by full `connectedDebugAndroidTest`; total connected suite `129/129` passed | none for this pass |
+| `CppBridgeNativePlayerInstrumentationTest` | Pass | covered by full `connectedDebugAndroidTest`; total connected suite `132/132` passed | none for this pass |
 | `run_validation.sh` aggregate result | Pass with notes | equivalent manual Gradle commands were run directly instead of the wrapper | run wrapper later if a single archived transcript is needed |
 
 ## 3A. 2026-05-15 through 2026-05-18 Parity Addendum
@@ -67,6 +67,8 @@ Status values:
 | Codec-parameter multi-listener callbacks | `nativeCodecParametersMultiListenerParitySmokeTest_routesImmediateCallbacks` | Pass | Covers Java-style immediate delivery only to the newly added listener and suppresses synthetic callbacks on internal re-registration after removal. |
 | Renderer/device-state getters | `nativeRendererAndDeviceStateGetterSmokeTest_readsRendererAndDeviceState` | Pass | Covers renderer count/type, offload sleeping, tunneling enabled, and released state. |
 | HTTP/HLS/DASH C++ playback | `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi` | Pass | Covers local MockWebServer playback for HTTP progressive, HLS, and DASH via C++ `SetMediaItem` / `Prepare` / `Play`; verifies source type round-trip markers `5`, `2`, and `1`. |
+| Stage 5 HTTP data-source config playback | `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig` | Pass | Covers C++ `PlayerConfig` HTTP headers, user-agent, timeout, and redirect settings during real local progressive playback, with MockWebServer verifying the request headers and UA. |
+| Stage 5 custom source-factory playback | `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig` | Pass | Covers C++ `PlayerConfig` factory-token injection with a Java `FakeMediaSourceFactory`, then prepares SmoothStreaming and RTSP `MediaItemDescriptor` source types through C++ `SetMediaItem` / `Prepare` / `Play`. |
 | Coverage top-up | existing surface / playlist / query / device / builder / priority smokes | Pass | Direct coverage added for raw `Surface` overloads, `RemoveMediaItem`, `MoveMediaItems`, playlist navigation getters, SDK and bridge tracks getters, device volume/mute setters, builder `SetMediaSourceFactoryConfig`, codec-parameter bridge registration/clear, and SDK `ClearPriorityTaskManager`. |
 
 Recommended spot checks for the explicit opaque-token cleanup smoke:
@@ -86,7 +88,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | Second-batch closed | priority reduced wrapper/runtime state | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
 | Second-batch closed | preload target-duration behavior | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
 | Second-batch closed | builder-style reduced config/build path | Validation-first | Pass | Covered by full Android 16 `connectedDebugAndroidTest`. |
-| Needs new capability | full Java `AnalyticsListener` parity | Implementation-first | Pending |  |
+| Needs new capability | richer/full-object Java `AnalyticsListener` payload parity | Implementation-first | Pending | reduced method-name callback routing is covered by Stage 4 |
 | Needs new capability | broader preload ecosystem parity | Implementation-first | Pending |  |
 | Needs new capability | richer image output parity | Implementation-first | Pending |  |
 | Needs new capability | richer video effects parity | Implementation-first | Pending |  |
@@ -134,7 +136,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | Analytics video input format changed | `sampleMimeType=video/final` |  |  |  |
 | Analytics playback parameters changed | `speed=1.500000`; `pitch=0.750000` |  |  |  |
 | Analytics available commands changed | `commandCount=3`; `contains8=1` |  |  |  |
-| Analytics events batch | `eventCount=3`; `contains9=1` |  |  |  |
+| Analytics events batch | `eventCount=3`; `contains9009=1` |  |  |  |
 | Analytics device info changed | `playbackType=1`; `routingControllerId=route-final` |  |  |  |
 | Analytics media metadata changed | `title=Analytics Media Final`; `displayTitle=Analytics Display Final` |  |  |  |
 | Analytics playlist metadata changed | `title=Analytics Playlist Final`; `displayTitle=Analytics Playlist Display Final` |  |  |  |
@@ -169,6 +171,8 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | `nativePlaylistMetadataOpaqueTokenSmokeTest_resolvesRegisteredObjects` | `title=registered-title`; `albumTitle=registered-album-title`; `albumArtist=registered-album-artist`; `displayTitle=registered-display`; `subtitle=registered-subtitle`; `description=registered-description`; `writer=registered-writer`; `author=registered-author`; `composer=registered-composer`; `conductor=registered-conductor`; `genre=registered-genre`; `compilation=registered-compilation`; `station=registered-station`; `albumTitleTokenPresent=1`; `albumArtistTokenPresent=1`; `subtitleTokenPresent=1`; `descriptionTokenPresent=1`; `writerTokenPresent=1`; `authorTokenPresent=1`; `composerTokenPresent=1`; `conductorTokenPresent=1`; `genreTokenPresent=1`; `compilationTokenPresent=1`; `stationTokenPresent=1`; `extrasPresent=1`; `extrasKeyCount=1`; `extrasTokenPresent=1` | `API_MAPPING_STATUS.md` playlist metadata set/get; `DATA_STRUCTURE_MAPPING.md` `MediaMetadataSnapshot` | Playlist metadata opaque-token parity |
 | `nativeSourceTypeSmokeTest_returnsInferredMimeSummary` | `sourceType=2` | `API_MAPPING_STATUS.md` `getCurrentMediaItem`; `DATA_STRUCTURE_MAPPING.md` `MediaItemDescriptor` | URI-based source type inference |
 | `nativeHttpHlsDashPlaybackSmokeTest_preparesLocalStreamsThroughCppApi` | `httpPrepared=1`; `httpAdvanced=1`; `httpSourceType=5`; `hlsPrepared=1`; `hlsAdvanced=1`; `hlsSourceType=2`; `dashPrepared=1`; `dashAdvanced=1`; `dashSourceType=1` | `API_MAPPING_STATUS.md` `setMediaItem` / `prepare` / `play`; `DATA_STRUCTURE_MAPPING.md` `MediaItemDescriptor` | Local HTTP/HLS/DASH playback parity through C++ API |
+| `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig` | `headerCount=2`; `userAgent=cppbridge-stage5-agent`; `allowCrossProtocolRedirects=1`; `httpConfigPrepared=1`; `httpConfigAdvanced=1`; `httpConfigSourceType=5`; `httpConfigMimeType=audio/mp4`; request headers `X-CppBridge-Stage=5`, `X-CppBridge-Source=http-config`, `User-Agent=cppbridge-stage5-agent` | `API_MAPPING_STATUS.md` media source factory baseline config / `getCurrentMediaItem`; `DATA_STRUCTURE_MAPPING.md` `PlayerConfig::MediaSourceFactoryConfig` / `MediaItemDescriptor` | Stage 5 HTTP data-source config playback parity through C++ config |
+| `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig` | `factoryToken=stage5-custom-media-source-factory`; `injectedFactoryUsed=1`; `smoothPrepared=1`; `smoothSourceType=3`; `smoothMimeType=application/vnd.ms-sstr+xml`; `rtspPrepared=1`; `rtspSourceType=4`; `rtspMimeType=application/x-rtsp` | `API_MAPPING_STATUS.md` media source factory baseline config / `getCurrentMediaItem`; `DATA_STRUCTURE_MAPPING.md` `PlayerConfig::MediaSourceFactoryConfig` / `MediaItemDescriptor` | Stage 5 custom MediaSource.Factory playback parity for SmoothStreaming and RTSP descriptors |
 | `nativeAnalyticsAudioUnderrunSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `bufferSize=4096`; `bufferSizeMs=87`; `elapsedSinceLastFeedMs=23` | `API_MAPPING_STATUS.md` analytics audio underrun; `DATA_STRUCTURE_MAPPING.md` `AudioUnderrunEvent` | First concrete reduced analytics event |
 | `nativeAnalyticsDroppedVideoFramesSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `droppedFrames=8`; `elapsedMs=41` | `API_MAPPING_STATUS.md` analytics dropped video frames; `DATA_STRUCTURE_MAPPING.md` `DroppedVideoFramesEvent` | Second concrete reduced analytics event |
 | `nativeAnalyticsBandwidthEstimateSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `elapsedMs=34`; `bytesTransferred=67890`; `bitrateEstimate=999999` | `API_MAPPING_STATUS.md` analytics bandwidth estimate; `DATA_STRUCTURE_MAPPING.md` `BandwidthEstimateEvent` | Third concrete reduced analytics event |
@@ -186,6 +190,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | `nativeAnalyticsVolumeChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `volume=0.750000` | `API_MAPPING_STATUS.md` analytics volume changed; `DATA_STRUCTURE_MAPPING.md` `VolumeChangedEvent` | Fifteenth concrete reduced analytics event |
 | `nativeAnalyticsAudioSessionIdChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `audioSessionId=700042` | `API_MAPPING_STATUS.md` analytics audio session id changed; `DATA_STRUCTURE_MAPPING.md` `AudioSessionIdChangedEvent` | Sixteenth concrete reduced analytics event |
 | `nativeAnalyticsAudioAttributesChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `contentType=4`; `usage=5`; `flags=6`; `allowedCapturePolicy=2`; `spatializationBehavior=1` | `API_MAPPING_STATUS.md` analytics audio attributes changed; `DATA_STRUCTURE_MAPPING.md` `AudioAttributesDescriptor` | Forty-sixth concrete reduced analytics event |
+| `nativeAnalyticsStage4RemainingCallbacksSmokeTest_reportsConcreteAnalyticsEvents` | `beforeRemoveCb=25`; `callbackStopped=1`; `trackTextLanguage=stage4-text`; `loadCanceledSampleMimeType=audio/mp4`; `drmAcquiredState=4`; `rendererReady=1`; `playerReleasedCb=1` | `API_MAPPING_STATUS.md` analytics Stage 4 remaining callbacks; `DATA_STRUCTURE_MAPPING.md` Stage 4 analytics descriptors | Stage 4 batch covering twenty-five additional concrete reduced analytics callbacks |
 | `nativeAnalyticsSkipSilenceEnabledChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `skipSilenceEnabled=1` | `API_MAPPING_STATUS.md` analytics skip silence enabled changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsSkipSilenceEnabledChangedEvent` | Seventeenth concrete reduced analytics event |
 | `nativeAnalyticsDeviceVolumeChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `volume=7`; `muted=0` | `API_MAPPING_STATUS.md` analytics device volume changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsDeviceVolumeChangedEvent` | Eighteenth concrete reduced analytics event |
 | `nativeAnalyticsPlaybackStateChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `playbackState=3` | `API_MAPPING_STATUS.md` analytics playback state changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsPlaybackStateChangedEvent` | Nineteenth concrete reduced analytics event |
@@ -198,7 +203,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | `nativeAnalyticsVideoInputFormatChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `sampleMimeType=video/final`; `codecs=hvc1.1.6.L93.B0`; `width=1920`; `height=1080`; `frameRate=59.939999` | `API_MAPPING_STATUS.md` analytics video input format changed; `DATA_STRUCTURE_MAPPING.md` `VideoInputFormatChangedEvent` | Twenty-sixth concrete reduced analytics event |
 | `nativeAnalyticsPlaybackParametersChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `speed=1.500000`; `pitch=0.750000` | `API_MAPPING_STATUS.md` analytics playback parameters changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsPlaybackParametersChangedEvent` | Twenty-seventh concrete reduced analytics event |
 | `nativeAnalyticsAvailableCommandsChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `commandCount=3`; `firstCommand=3`; `contains8=1` | `API_MAPPING_STATUS.md` analytics available commands changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsAvailableCommandsChangedEvent` | Twenty-eighth concrete reduced analytics event |
-| `nativeAnalyticsEventsSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `eventCount=3`; `firstEvent=7`; `contains9=1` | `API_MAPPING_STATUS.md` analytics events batch; `DATA_STRUCTURE_MAPPING.md` `AnalyticsEventsEvent` | Twenty-ninth concrete reduced analytics event |
+| `nativeAnalyticsEventsSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `eventCount=3`; `firstEvent=7`; `contains9009=1` | `API_MAPPING_STATUS.md` analytics events batch; `DATA_STRUCTURE_MAPPING.md` `AnalyticsEventsEvent` | Twenty-ninth concrete reduced analytics event |
 | `nativeAnalyticsSeekBackIncrementChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `seekBackIncrementMs=15000` | `API_MAPPING_STATUS.md` analytics seek back increment changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsSeekBackIncrementChangedEvent` | Thirtieth concrete reduced analytics event |
 | `nativeAnalyticsSeekForwardIncrementChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `seekForwardIncrementMs=25000` | `API_MAPPING_STATUS.md` analytics seek forward increment changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsSeekForwardIncrementChangedEvent` | Thirty-first concrete reduced analytics event |
 | `nativeAnalyticsMaxSeekToPreviousPositionChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `maxSeekToPreviousPositionMs=12000` | `API_MAPPING_STATUS.md` analytics max seek to previous position changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsMaxSeekToPreviousPositionChangedEvent` | Thirty-second concrete reduced analytics event |

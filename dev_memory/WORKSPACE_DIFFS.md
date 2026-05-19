@@ -28,6 +28,10 @@ Notable current dirty areas:
   and `CameraMotionListener` C++ registration and smoke coverage
 - codec-parameter multi-listener immediate-callback routing fix and smoke coverage
 - HTTP progressive / HLS / DASH C++ playback smoke coverage and source-type inference fixes
+- Stage 5 custom source-factory playback smoke coverage for SmoothStreaming / RTSP descriptors
+  routed through C++ factory-token config and Java `FakeMediaSourceFactory`
+- Stage 5 HTTP data-source config playback smoke coverage proving C++ request headers and
+  User-Agent reach MockWebServer during real progressive playback
 - androidTest local media assets from small DASH/HLS test-data folders plus androidTest
   `INTERNET` / cleartext manifest permissions for MockWebServer validation
 - generated/local output folder: `artifacts/`
@@ -68,6 +72,12 @@ Notable current dirty areas:
   distinct C++ callback (`OnAnalyticsAudioAttributesChanged`) and simulation path carrying
   `AudioAttributesDescriptor` content type, usage, flags, allowed-capture policy, and
   spatialization behavior
+- Stage 4 remaining analytics callback closeout: 25 additional reduced `AnalyticsListener`
+  callbacks are now routed through Java, JNI, C++ bridge forwarding, SDK analytics delegates, and
+  native smoke coverage. The new batch covers player-state/loading aliases, track-selection
+  parameters, load canceled, downstream/upstream format events, decoder-counters enabled/disabled
+  events, audio/video codec and sink errors, audio-track init/release, surface size, DRM lifecycle
+  and key events, renderer-ready, dropped-seeks-while-scrubbing, and player-released callbacks.
 - Stage 1 full API inventory added `dev_memory/DEVELOPMENT_PLAN.md`,
   `scripts/cppbridge/api_parity_inventory.py`, parser unit tests, and
   `docs/cppbridge/API_PARITY_GAP_REPORT.md`; it also closed direct
@@ -122,14 +132,15 @@ Implication:
 
 ## 5. Validation status was closed locally on Android 16
 
-Older docs said validation was still open. The latest local pass on 2026-05-18 refreshed the main
-smoke loop on an Android 16 emulator after the TrackInfo format-payload expansion.
+Older docs said validation was still open. The latest local pass on 2026-05-19 refreshed the main
+smoke loop on an Android 16 emulator after the Stage 5 source-factory and HTTP data-source config
+smokes were added.
 
 Passed commands:
 
 - `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`129/129`)
+- `./gradlew :lib-exoplayer-cppbridge:connectedDebugAndroidTest` (`132/132`)
 - `./gradlew :demo-cppbridge:assembleDebug`
 - `git diff --check`
 
