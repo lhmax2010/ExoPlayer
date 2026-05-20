@@ -30,11 +30,28 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.core.app.ApplicationProvider;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.FutureTask;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public final class CppBridgeConvertersTest {
+
+  @Test
+  public void awaitTaskForTest_timesOutInsteadOfWaitingForever() {
+    FutureTask<String> neverRunTask = new FutureTask<>(() -> "unused");
+
+    try {
+      CppExoPlayerBridge.awaitTaskForTest(
+          neverRunTask, "queryOnPlayerThread", "unit-test", "blocked-player-thread", 10);
+    } catch (IllegalStateException e) {
+      assertThat(e).hasMessageThat().contains("timed out waiting for player thread");
+      assertThat(e).hasMessageThat().contains("unit-test");
+      return;
+    }
+
+    throw new AssertionError("Expected awaitTaskForTest to time out");
+  }
 
   @Test
   public void toMediaItem_mapsAdvancedFields() {

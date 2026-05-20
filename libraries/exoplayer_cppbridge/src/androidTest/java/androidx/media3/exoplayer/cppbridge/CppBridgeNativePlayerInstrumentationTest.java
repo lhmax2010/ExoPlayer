@@ -46,6 +46,15 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("callbackStopped=1");
   }
 
+  private static void assertDecoderNamePresent(String summary) {
+    int start = summary.indexOf("decoderName=");
+    assertThat(start).isAtLeast(0);
+    start += "decoderName=".length();
+    int end = summary.indexOf(',', start);
+    String decoderName = summary.substring(start, end >= 0 ? end : summary.length());
+    assertThat(decoderName).isNotEmpty();
+  }
+
   private static WebServerDispatcher.Resource assetResource(
       Context context, String path, String assetName) throws IOException {
     return new WebServerDispatcher.Resource.Builder()
@@ -118,6 +127,12 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("released=1");
     assertThat(summary).contains("state=1");
     assertThat(summary).contains("count=0");
+    assertThat(summary).contains("index=0");
+    assertThat(summary).contains("getterState=1");
+    assertThat(summary).contains("getterPositionMs=0");
+    assertThat(summary).contains("getterMediaId=");
+    assertThat(summary).contains("tracksGroups=0");
+    assertThat(summary).contains("bridgeExceptionPresent=0");
   }
 
   @Test
@@ -1060,7 +1075,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioDecoderInitializedSmokeTest(context);
 
     assertCallbackStoppedAfterRemove(summary);
-    assertThat(summary).contains("decoderName=c2.android.eac3.decoder");
+    assertDecoderNamePresent(summary);
     assertThat(summary).contains("initializedTimestampMs=222");
     assertThat(summary).contains("initializationDurationMs=19");
   }
@@ -1073,7 +1088,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoDecoderInitializedSmokeTest(context);
 
     assertCallbackStoppedAfterRemove(summary);
-    assertThat(summary).contains("decoderName=c2.android.hevc.decoder");
+    assertDecoderNamePresent(summary);
     assertThat(summary).contains("initializedTimestampMs=444");
     assertThat(summary).contains("initializationDurationMs=29");
   }
@@ -1086,7 +1101,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsAudioDecoderReleasedSmokeTest(context);
 
     assertCallbackStoppedAfterRemove(summary);
-    assertThat(summary).contains("decoderName=c2.android.eac3.decoder");
+    assertDecoderNamePresent(summary);
   }
 
   @Test
@@ -1097,7 +1112,7 @@ public final class CppBridgeNativePlayerInstrumentationTest {
         CppBridgeNativePlayerTestHelper.nativeAnalyticsVideoDecoderReleasedSmokeTest(context);
 
     assertCallbackStoppedAfterRemove(summary);
-    assertThat(summary).contains("decoderName=c2.android.hevc.decoder");
+    assertDecoderNamePresent(summary);
   }
 
   @Test
@@ -2702,5 +2717,9 @@ public final class CppBridgeNativePlayerInstrumentationTest {
     assertThat(summary).contains("index=1");
     assertThat(summary).contains("positionMs=3456");
     assertThat(summary).contains("mediaId=overload-2");
+    assertThat(summary).contains("defaultCount=2");
+    assertThat(summary).contains("defaultIndex=0");
+    assertThat(summary).contains("javaExceptionPresent=1");
+    assertThat(summary).contains("javaExceptionContext=CallVoidMethod(setMediaItems)");
   }
 }

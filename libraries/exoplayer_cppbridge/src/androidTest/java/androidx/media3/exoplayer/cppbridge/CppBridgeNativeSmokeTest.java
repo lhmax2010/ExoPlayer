@@ -52,6 +52,8 @@ public final class CppBridgeNativeSmokeTest {
     assertThat(summary).contains("otherString=object-value");
     assertThat(summary).contains("invalidDoubleType=3");
     assertThat(summary).contains("invalidDoubleDouble=0.000000");
+    assertThat(summary).contains("falseBoolType=4");
+    assertThat(summary).contains("falseBoolBool=0");
     assertThat(summary).contains("truncatedPresent=0");
     assertThat(summary).contains("truncatedType=0");
   }

@@ -427,6 +427,17 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
 
   void SetMediaItems(
       JNIEnv* env,
+      const std::vector<MediaItemDescriptor>& media_items) override {
+    jobjectArray items = CreateJavaMediaItemArray(env, media_items);
+    if (items == nullptr) {
+      return;
+    }
+    CallBridgeVoid(env, "setMediaItems", "([Landroidx/media3/exoplayer/cppbridge/CppMediaItem;)V", items);
+    env->DeleteLocalRef(items);
+  }
+
+  void SetMediaItems(
+      JNIEnv* env,
       const std::vector<MediaItemDescriptor>& media_items,
       bool reset_position) override {
     jobjectArray items = CreateJavaMediaItemArray(env, media_items);
@@ -2832,6 +2843,16 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     return snapshot;
   }
 
+  BridgeExceptionInfo GetLastBridgeException() override {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    return last_bridge_exception_;
+  }
+
+  void ClearLastBridgeException() override {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    last_bridge_exception_ = BridgeExceptionInfo();
+  }
+
   void Release(JNIEnv* env) override {
     LogInfo("ExoPlayerBridge::Release start");
     releasing_.store(true, std::memory_order_release);
@@ -3926,9 +3947,50 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     last_error_.message = message;
   }
 
+  void SetLastBridgeException(const std::string& context, const std::string& message) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    last_bridge_exception_.present = true;
+    last_bridge_exception_.context = context;
+    last_bridge_exception_.message = message;
+  }
+
   PlayerError GetLastErrorSnapshot() {
     std::lock_guard<std::mutex> lock(state_mutex_);
     return last_error_;
+  }
+
+  bool ClearBridgeCallExceptionIfPresent(JNIEnv* env, const std::string& context) {
+    if (env == nullptr || !env->ExceptionCheck()) {
+      return false;
+    }
+    jthrowable throwable = env->ExceptionOccurred();
+    LogError("JNI exception during " + context);
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+
+    std::string message = context;
+    if (throwable != nullptr) {
+      jclass throwable_class = env->GetObjectClass(throwable);
+      if (!ClearJniExceptionIfPresent(env, "GetObjectClass(Throwable)") &&
+          throwable_class != nullptr) {
+        jmethodID to_string =
+            env->GetMethodID(throwable_class, "toString", "()Ljava/lang/String;");
+        if (!ClearJniExceptionIfPresent(env, "GetMethodID(Throwable.toString)") &&
+            to_string != nullptr) {
+          jstring throwable_string =
+              static_cast<jstring>(env->CallObjectMethod(throwable, to_string));
+          if (!ClearJniExceptionIfPresent(env, "CallObjectMethod(Throwable.toString)") &&
+              throwable_string != nullptr) {
+            message = JStringToString(env, throwable_string);
+            DeleteLocalRefIfNotNull(env, throwable_string);
+          }
+        }
+      }
+      DeleteLocalRefIfNotNull(env, throwable_class);
+      DeleteLocalRefIfNotNull(env, throwable);
+    }
+    SetLastBridgeException(context, message);
+    return true;
   }
 
   jobject GetJavaBridgeLocalRef(JNIEnv* env) {
@@ -4079,7 +4141,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       return;
     }
     env->CallVoidMethod(bridge_object, method, args...);
-    ClearJniExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
+    ClearBridgeCallExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
     env->DeleteLocalRef(bridge_class);
     env->DeleteLocalRef(bridge_object);
   }
@@ -4194,7 +4256,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       return;
     }
     env->CallVoidMethod(bridge_object, method);
-    ClearJniExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
+    ClearBridgeCallExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
     env->DeleteLocalRef(bridge_class);
   }
 
@@ -4356,6 +4418,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
   int in_flight_listener_callback_count_ = 0;
   int in_flight_image_output_callback_count_ = 0;
   PlayerError last_error_;
+  BridgeExceptionInfo last_bridge_exception_;
 };
 
 class LoggingPlayerListener : public PlayerListener {

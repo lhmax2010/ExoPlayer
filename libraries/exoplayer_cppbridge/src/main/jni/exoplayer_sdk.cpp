@@ -1998,6 +1998,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   }
 
   void SetListener(PlayerListener* listener) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     forwarding_listener_->SetDelegate(listener);
   }
 
@@ -2008,6 +2011,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   }
 
   void SetImageOutputListener(ExoPlayerSdkImageOutputListener* listener) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     forwarding_image_output_listener_->SetDelegate(listener);
     WithEnv([&](JNIEnv* env) { bridge_->SetImageOutputEnabled(env, listener != nullptr); });
   }
@@ -2021,6 +2027,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   }
 
   void AddAnalyticsListener(PlayerListener* listener) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     forwarding_listener_->AddAnalyticsDelegate(listener);
   }
 
@@ -2031,6 +2040,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   void AddAudioCodecParametersChangeListener(
       PlayerListener* listener,
       const std::vector<std::string>& keys) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     if (listener == nullptr) {
       return;
     }
@@ -2062,6 +2074,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   void AddVideoCodecParametersChangeListener(
       PlayerListener* listener,
       const std::vector<std::string>& keys) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     if (listener == nullptr) {
       return;
     }
@@ -2091,6 +2106,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   }
 
   void SetVideoFrameMetadataListener(PlayerListener* listener) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     forwarding_listener_->SetVideoFrameMetadataDelegate(listener);
     WithEnv([&](JNIEnv* env) {
       if (listener != nullptr) {
@@ -2108,6 +2126,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   }
 
   void SetCameraMotionListener(PlayerListener* listener) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     forwarding_listener_->SetCameraMotionDelegate(listener);
     WithEnv([&](JNIEnv* env) {
       if (listener != nullptr) {
@@ -2193,6 +2214,10 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
     WithEnv([&](JNIEnv* env) {
       bridge_->SetMediaItems(env, media_items, start_index, start_position_ms);
     });
+  }
+
+  void SetMediaItems(const std::vector<MediaItemDescriptor>& media_items) override {
+    WithEnv([&](JNIEnv* env) { bridge_->SetMediaItems(env, media_items); });
   }
 
   void SetMediaItems(
@@ -3246,6 +3271,14 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   PlaybackSnapshot GetSnapshot() override {
     return WithEnvOrDefault<PlaybackSnapshot>(
         [&](JNIEnv* env) { return bridge_->GetSnapshot(env); });
+  }
+
+  BridgeExceptionInfo GetLastBridgeException() override {
+    return bridge_->GetLastBridgeException();
+  }
+
+  void ClearLastBridgeException() override {
+    bridge_->ClearLastBridgeException();
   }
 
   ~ExoPlayerSdkPlayerImpl() override { Release(); }

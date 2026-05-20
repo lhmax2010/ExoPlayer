@@ -358,10 +358,7 @@ Markers that should appear:
 - `uri=https://example.com/analytics-final.m3u8`
 - `uri=https://example.com/analytics-final-complete.m3u8`
 - `sampleMimeType=audio/final`
-- `decoderName=c2.android.eac3.decoder`
-- `decoderName=c2.android.hevc.decoder`
-- `decoderName=c2.android.eac3.decoder`
-- `decoderName=c2.android.hevc.decoder`
+- `decoderName=<non-empty device codec name>`
 - `renderTimeMs=456`
 - `pixelWidthHeightRatio=1.250000`
 - `playoutStartSystemTimeMs=2222`

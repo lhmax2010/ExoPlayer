@@ -2812,11 +2812,21 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeP
   player->Play();
   player->Pause();
   PlaybackSnapshot snapshot = player->GetSnapshot();
+  PlaybackState getter_state = player->GetPlaybackState();
+  int64_t getter_position_ms = player->GetCurrentPosition();
+  MediaItemDescriptor getter_media_item = player->GetCurrentMediaItem();
+  TracksSnapshot tracks = player->GetTracks();
+  BridgeExceptionInfo bridge_exception = player->GetLastBridgeException();
   std::string debug_summary = player->GetCurrentMediaItemDebugSummary();
   std::string summary = "released=1";
   summary += ",state=" + std::to_string(static_cast<int>(snapshot.playback_state));
   summary += ",count=" + std::to_string(snapshot.media_item_count);
   summary += ",index=" + std::to_string(snapshot.current_media_item_index);
+  summary += ",getterState=" + std::to_string(static_cast<int>(getter_state));
+  summary += ",getterPositionMs=" + std::to_string(getter_position_ms);
+  summary += ",getterMediaId=" + getter_media_item.media_id;
+  summary += ",tracksGroups=" + std::to_string(tracks.groups.size());
+  summary += ",bridgeExceptionPresent=" + std::to_string(bridge_exception.present ? 1 : 0);
   summary += ",debugSummary=" + debug_summary;
   return NewStringUtfChecked(env, summary, "nativePostReleaseCallSafetySmokeTest");
 }
@@ -4761,6 +4771,8 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeM
   third_item.uri = "https://example.com/overload-three.mp4";
   third_item.media_id = "overload-3";
 
+  player->SetMediaItems({first_item, second_item});
+  PlaybackSnapshot default_overload_snapshot = player->GetSnapshot();
   player->SetMediaItem(first_item, static_cast<int64_t>(2345));
   player->SetMediaItem(second_item, false);
   player->SetMediaItems({first_item, second_item, third_item}, false);
@@ -4770,7 +4782,14 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativePlayerTestHelper_nativeM
   std::string summary = "count=" + std::to_string(snapshot.media_item_count);
   summary += ",index=" + std::to_string(snapshot.current_media_item_index);
   summary += ",positionMs=" + std::to_string(snapshot.current_position_ms);
+  summary += ",defaultCount=" + std::to_string(default_overload_snapshot.media_item_count);
+  summary += ",defaultIndex=" + std::to_string(default_overload_snapshot.current_media_item_index);
   summary += "," + player->GetCurrentMediaItemDebugSummary();
+  player->ClearLastBridgeException();
+  player->SetMediaItems({first_item}, 4, 0);
+  BridgeExceptionInfo bridge_exception = player->GetLastBridgeException();
+  summary += ",javaExceptionPresent=" + std::to_string(bridge_exception.present ? 1 : 0);
+  summary += ",javaExceptionContext=" + bridge_exception.context;
   return NewStringUtfChecked(env, summary, "nativeMediaSetOverloadsSmokeTest");
 }
 

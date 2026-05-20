@@ -81,6 +81,7 @@ Behavior note: pure lifecycle, listener-registration, and seek-navigation smoke 
 | no standalone Java DTO | `AvailableCommandsSnapshot` | none | bridge-side command array parsing | `nativeAvailableCommandsSmokeTest_returnsContainsStyleSummary` |  |  | Reduced command-code list used for contains-style availability checks. |
 | `CppPlayerEvents` | `PlayerEventsSnapshot` | none | bridge-side event array parsing | `nativeListenerCallbackDetailSmokeTest_reportsSupplementalCallbacks`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |  |  | Reduced event-code list used for listener payload capture and validation. |
 | no standalone Java DTO | `PlayerError` | none | bridge-side error assembly | `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` |  |  | Reduced playback-exception shape containing core error code and message fields. |
+| no standalone Java DTO | `BridgeExceptionInfo` | none | bridge-side JNI exception capture | `nativeMediaSetOverloadsSmokeTest_returnsUpdatedPlaylistSummary`; `nativePostReleaseCallSafetySmokeTest_doesNotCrashOrHang` |  |  | Reduced bridge-call exception state containing presence, call context, and Java throwable string for void JNI calls. |
 | no standalone Java DTO | `PositionInfoSnapshot` | none | bridge-side callback parsing | `nativeListenerMetadataCueDetailSmokeTest_reportsSupplementalPayloads` |  |  | Reduced listener position snapshot containing item indices, positions, and ad markers. |
 
 ## 6. Message / Effect / Image Structures

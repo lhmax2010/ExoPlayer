@@ -338,13 +338,15 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeOb
       "1", "java.lang.Boolean", "4", "", "0", "0.0", "1",
       "0", "", "0", "", "0", "0.0", "0",
       "1", "java.lang.Object", "5", "object-value", "0", "0.0", "0",
-      "1", "java.lang.Double", "3", "", "0", "bad-double", "0"};
+      "1", "java.lang.Double", "3", "", "0", "bad-double", "0",
+      "1", "java.lang.Boolean", "4", "", "0", "0.0", "0"};
   ObjectValueInfo long_value = ParseObjectValueInfo(scalar_fields, 0);
   ObjectValueInfo double_value = ParseObjectValueInfo(scalar_fields, 7);
   ObjectValueInfo boolean_value = ParseObjectValueInfo(scalar_fields, 14);
   ObjectValueInfo null_value = ParseObjectValueInfo(scalar_fields, 21);
   ObjectValueInfo other_value = ParseObjectValueInfo(scalar_fields, 28);
   ObjectValueInfo invalid_double_value = ParseObjectValueInfo(scalar_fields, 35);
+  ObjectValueInfo false_boolean_value = ParseObjectValueInfo(scalar_fields, 42);
   ObjectValueInfo truncated_value = ParseObjectValueInfo({"1"}, 0);
 
   std::string summary = "objectValueParsing=1";
@@ -355,6 +357,7 @@ Java_androidx_media3_exoplayer_cppbridge_CppBridgeNativeSmokeTestHelper_nativeOb
   AppendObjectValueSummary(&summary, "null", null_value);
   AppendObjectValueSummary(&summary, "other", other_value);
   AppendObjectValueSummary(&summary, "invalidDouble", invalid_double_value);
+  AppendObjectValueSummary(&summary, "falseBool", false_boolean_value);
   AppendObjectValueSummary(&summary, "truncated", truncated_value);
   return NewStringUtfChecked(env, summary, "nativeObjectValueInfoParsingSmokeTest");
 }
