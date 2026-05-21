@@ -1,322 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+  <androidx.media3.ui.PlayerView
+      android:id="@+id/player_view"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:keepScreenOn="true"
+      app:resize_mode="fit"
+      app:show_buffering="when_playing"
+      app:use_controller="false" />
+
+  <TextView
+      android:id="@+id/current_source_label"
+      android:layout_width="wrap_content"
+      android:layout_height="32dp"
+      android:layout_gravity="top|start"
+      android:layout_margin="16dp"
+      android:background="#AA000000"
+      android:gravity="center"
+      android:minWidth="112dp"
+      android:paddingLeft="14dp"
+      android:paddingRight="14dp"
+      android:text="@string/current_source_default"
+      android:textColor="#FFFFFFFF"
+      android:textSize="14sp"
+      android:textStyle="bold" />
 
   <LinearLayout
+      android:id="@+id/player_controls"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
+      android:layout_gravity="bottom"
+      android:background="#B0000000"
       android:orientation="vertical"
-      android:padding="16dp">
+      android:paddingLeft="16dp"
+      android:paddingTop="8dp"
+      android:paddingRight="16dp"
+      android:paddingBottom="14dp">
 
-    <androidx.media3.ui.PlayerView
-        android:id="@+id/player_view"
+    <SeekBar
+        android:id="@+id/playback_seek_bar"
         android:layout_width="match_parent"
-        android:layout_height="220dp"
-        android:keepScreenOn="true"
-        app:show_buffering="when_playing"
-        app:use_controller="false" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:text="@string/source_type_label"
-        android:textStyle="bold" />
-
-    <Spinner
-        android:id="@+id/source_type_spinner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
-
-    <EditText
-        android:id="@+id/url_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/media_url_hint"
-        android:inputType="textUri" />
-
-    <EditText
-        android:id="@+id/subtitle_url_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/subtitle_url_hint"
-        android:inputType="textUri" />
-
-    <EditText
-        android:id="@+id/seek_input"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="@string/seek_seconds_hint"
-        android:inputType="numberDecimal" />
+        android:layout_height="32dp"
+        android:max="1000"
+        android:paddingLeft="0dp"
+        android:paddingRight="0dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal">
 
       <Button
-          android:id="@+id/load_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/load_source" />
-
-      <Button
-          android:id="@+id/load_subtitle_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/load_subtitle" />
-
-      <Button
-          android:id="@+id/pick_usb_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/pick_usb_file" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/http_sample_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/http_sample" />
-
-      <Button
-          android:id="@+id/dash_sample_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/dash_sample" />
-
-      <Button
-          android:id="@+id/hls_sample_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/hls_sample" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/playlist_button"
-          android:layout_width="match_parent"
-          android:layout_height="wrap_content"
-          android:text="@string/load_demo_playlist" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/play_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
+          android:id="@+id/play_pause_button"
+          style="@style/PlayerPrimaryButton"
           android:text="@string/play" />
 
-      <Button
-          android:id="@+id/pause_button"
+      <TextView
+          android:id="@+id/playback_time_text"
           android:layout_width="0dp"
-          android:layout_height="wrap_content"
+          android:layout_height="match_parent"
+          android:layout_marginLeft="14dp"
+          android:layout_marginRight="14dp"
           android:layout_weight="1"
-          android:text="@string/pause" />
+          android:gravity="center_vertical"
+          android:text="@string/time_unset"
+          android:textColor="#FFFFFFFF"
+          android:textSize="14sp" />
 
       <Button
-          android:id="@+id/stop_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/stop" />
+          android:id="@+id/player_menu_button"
+          style="@style/PlayerMenuButton"
+          android:text="@string/player_menu" />
+
     </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/seek_to_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/seek_to" />
-
-      <Button
-          android:id="@+id/seek_back_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/seek_back" />
-
-      <Button
-          android:id="@+id/seek_forward_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/seek_forward" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/previous_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/previous_item" />
-
-      <Button
-          android:id="@+id/next_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/next_item" />
-
-      <Button
-          android:id="@+id/text_pref_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/prefer_text" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/speed_half_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/speed_half" />
-
-      <Button
-          android:id="@+id/speed_normal_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/speed_normal" />
-
-      <Button
-          android:id="@+id/speed_one_half_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/speed_one_half" />
-
-      <Button
-          android:id="@+id/speed_two_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/speed_two" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/audio_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/cycle_audio" />
-
-      <Button
-          android:id="@+id/text_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/cycle_text" />
-
-      <Button
-          android:id="@+id/playback_info_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/show_playback" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/tracks_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/show_tracks" />
-
-      <Button
-          android:id="@+id/current_item_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/show_current_item" />
-
-      <Button
-          android:id="@+id/timeline_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/show_timeline" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-      <Button
-          android:id="@+id/metadata_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/show_metadata" />
-
-      <Button
-          android:id="@+id/cues_button"
-          android:layout_width="0dp"
-          android:layout_height="wrap_content"
-          android:layout_weight="1"
-          android:text="@string/show_cues" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/status_text"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:background="#11000000"
-        android:gravity="top|start"
-        android:minLines="10"
-        android:padding="12dp"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:textIsSelectable="true" />
 
   </LinearLayout>
-</ScrollView>
+
+</FrameLayout>

@@ -66,4 +66,7 @@ public final class CppBridgeNativeSmokeTestHelper {
   public static native String nativeVideoEffectsConversionSmokeTest(Context context);
 
   public static native String nativeBuildPlaylistIdsForTest(String[] urls);
+
+  public static native String nativeBuildSubtitleConfigurationsForTest(
+      String[] urls, String[] mimeTypes, String[] languages, String[] labels);
 }

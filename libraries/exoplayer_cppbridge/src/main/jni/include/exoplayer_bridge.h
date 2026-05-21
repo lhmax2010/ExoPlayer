@@ -1054,6 +1054,12 @@ struct PlayerError {
   std::string message;
 };
 
+struct BridgeExceptionInfo {
+  bool present = false;
+  std::string context;
+  std::string message;
+};
+
 struct PlaybackSnapshot {
   PlaybackState playback_state = PlaybackState::kIdle;
   bool play_when_ready = false;
@@ -1450,6 +1456,9 @@ class ExoPlayerBridge {
       int64_t start_position_ms) = 0;
   virtual void SetMediaItems(
       JNIEnv* env,
+      const std::vector<MediaItemDescriptor>& media_items) = 0;
+  virtual void SetMediaItems(
+      JNIEnv* env,
       const std::vector<MediaItemDescriptor>& media_items,
       bool reset_position) = 0;
   virtual void AddMediaItem(JNIEnv* env, const MediaItemDescriptor& media_item) = 0;
@@ -1818,6 +1827,8 @@ class ExoPlayerBridge {
   virtual CueSnapshot GetCurrentCues(JNIEnv* env) = 0;
   virtual std::string GetCurrentMediaItemDebugSummary(JNIEnv* env) = 0;
   virtual PlaybackSnapshot GetSnapshot(JNIEnv* env) = 0;
+  virtual BridgeExceptionInfo GetLastBridgeException() = 0;
+  virtual void ClearLastBridgeException() = 0;
   virtual void Release(JNIEnv* env) = 0;
 };
 

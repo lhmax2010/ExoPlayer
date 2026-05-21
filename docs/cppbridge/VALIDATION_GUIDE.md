@@ -23,7 +23,8 @@ Current readiness snapshot:
 - test entry points are present for JNI/value smoke and player/runtime smoke
 - negative smoke coverage now includes double-release and listener lifecycle mutation checks
 - helper scripts are present for full validation and demo launch
-- demo now exposes manual queries for tracks, current item, timeline, metadata, and cues
+- demo now uses a single-screen player surface with a compact bottom overlay and a small
+  bottom-right `Menu` for sources, speed, seek shortcuts, playlist/file, audio, and subtitle actions
 - Stage 5 playback-path smoke now covers C++ `MediaItem.customCacheKey` preservation and reduced
   DRM descriptor preservation through token-injected fake `MediaSource.Factory` preparation
 - Stage 6 builder smoke now covers token-injected `AudioOutputProvider` selection through
@@ -41,13 +42,12 @@ Current readiness snapshot:
   complete
 - repeatable API parity inventory is available through
   `python3 scripts/cppbridge/api_parity_inventory.py --check`
-- latest Android 16 emulator validation on 2026-05-19 used AVD
-  `cppbridge_android16_api36` on serial `emulator-5554` and passed the connected smoke suite:
-  `CppBridgeNativeSmokeTest` `26/26`, `CppBridgeNativePlayerInstrumentationTest` `112/112`,
-  connected total `138/138`
+- current Android 16 connected validation passed on AVD `emulator-5554`:
+  `CppBridgeNativeSmokeTest` `27/27`, `CppBridgeNativePlayerInstrumentationTest` `112/112`,
+  connected total `139/139`
 - RPI4 board validation is intentionally deferred until the board is reachable; use
   `RPI4_TESTING_GUIDE.md` for that manual pass
-- the current source tree contains 168 `@Test` methods across the cppbridge unit and
+- the current source tree contains 170 `@Test` methods across the cppbridge unit and
   instrumentation sources after the runtime/audio/codec/auxiliary-callback, TrackInfo
   format-payload, HTTP/HLS/DASH playback, HTTP data-source config playback, custom source-factory
   SmoothStreaming / RTSP playback, decoded extras, Timeline / MediaItem / MediaMetadata
@@ -189,7 +189,7 @@ Recommended execution order for a fresh environment:
 
 1. Run one full validation script variant.
 2. If smoke passes, launch the demo.
-3. Compare the observed demo status output against the checklist below.
+3. Compare the observed simple-player demo controls against the checklist below.
 4. Write raw outputs into `TEST_RESULTS_TEMPLATE.md`.
 5. Write the overall pass/fail judgment into `VALIDATION_RESULTS_SUMMARY.md`.
 
@@ -277,22 +277,23 @@ The run is acceptable if all of the following are true:
 1. Both instrumentation classes pass without crashes or hangs.
 2. No JNI exception spam appears in logcat for the bridge tag.
 3. Demo app launches and renders media in `PlayerView`.
-4. Demo buttons complete without native crash:
-   - `Play`
-   - `Pause`
-   - `Seek 30s`
+4. The demo stays in a compact player layout with no scroll view and no visible debug log panel.
+5. Bottom controls complete without native crash:
+   - `Play` / `Pause`
+   - progress-bar scrub
+   - `Menu`
+6. Menu actions complete without native crash:
+   - `HTTP`
+   - `DASH`
+   - `HLS`
+   - `File`
    - `Playlist`
-   - `Volume`
-   - `Speed`
-   - `Load Subtitle`
-   - `Prefer Text`
-   - `Tracks`
-   - `Item`
-   - `Timeline`
-   - `Metadata`
-   - `Cues`
-5. `Tracks` button prints a non-empty summary in the demo status area.
-6. `Item`, `Timeline`, `Metadata`, and `Cues` each print a non-empty summary in the demo status area.
+   - speed entries
+   - `Back 10s`
+   - `Forward 10s`
+   - `Audio +`
+   - `Text +`
+   - `Text EN`
 
 ## 7. Demo Validation Checklist
 
@@ -302,19 +303,17 @@ Demo path:
 Manual steps:
 
 1. Launch the app.
-2. Confirm the default URL is prefilled.
-3. Tap `Play` and confirm video starts.
-4. Tap `Pause` and confirm playback stops.
-5. Tap `Seek` and confirm playback jumps near 30 seconds.
-6. Tap `Playlist` and confirm no crash and playback remains usable.
-7. Tap `Load Subtitle` and confirm status text updates.
-8. Tap `Prefer Text` and confirm status text updates.
-9. Tap `Tracks` and confirm the returned summary is not empty.
-10. Tap `Item` and confirm the returned summary contains at least `mediaId=` and `uri=`.
-11. Tap `Timeline` and confirm the returned summary contains at least `windowCount=` and `window0MediaId=`.
-12. Tap `Metadata` and confirm the returned summary contains at least `title=` and `artworkUri=`.
-13. Tap `Cues` after loading subtitles and confirm the returned summary contains at least `cueCount=`.
-14. Close the app and confirm no teardown crash.
+2. Confirm the player view occupies the screen and the bottom overlay is compact.
+3. Confirm default HTTP playback starts, or open `Menu` -> `HTTP`.
+4. Tap `Pause`, then `Play`, and confirm playback toggles.
+5. Scrub the progress bar, then use `Menu` -> `Back 10s` and `Forward 10s`; confirm seeking works.
+6. Open `Menu` -> `DASH`; confirm playback loads and starts.
+7. Open `Menu` -> `HLS`; confirm playback loads and starts.
+8. Open `Menu` -> speed entries and confirm the speed label changes.
+9. Open `Menu` -> `Playlist`; confirm playback remains usable.
+10. Open `Menu` -> `Audio +`, `Text +`, and `Text EN`; confirm no crash.
+11. Open `Menu` -> `File` when local/USB content validation is required.
+12. Close the app and confirm no teardown crash.
 
 ## 8. Expected High-Signal Output Examples
 
@@ -359,10 +358,7 @@ Markers that should appear:
 - `uri=https://example.com/analytics-final.m3u8`
 - `uri=https://example.com/analytics-final-complete.m3u8`
 - `sampleMimeType=audio/final`
-- `decoderName=c2.android.eac3.decoder`
-- `decoderName=c2.android.hevc.decoder`
-- `decoderName=c2.android.eac3.decoder`
-- `decoderName=c2.android.hevc.decoder`
+- `decoderName=<non-empty device codec name>`
 - `renderTimeMs=456`
 - `pixelWidthHeightRatio=1.250000`
 - `playoutStartSystemTimeMs=2222`

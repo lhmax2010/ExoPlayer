@@ -39,6 +39,8 @@ class ExoPlayerSdkPlayer {
   virtual ~ExoPlayerSdkPlayer() = default;
 
   virtual void Release() = 0;
+  // Single standard-listener slot. Calling SetListener replaces the previous
+  // delegate; pass nullptr or call RemoveListener to detach it.
   virtual void SetListener(PlayerListener* listener) = 0;
   virtual void RemoveListener(PlayerListener* listener) = 0;
   virtual void SetImageOutputListener(ExoPlayerSdkImageOutputListener* listener) = 0;
@@ -82,6 +84,7 @@ class ExoPlayerSdkPlayer {
       const std::vector<MediaItemDescriptor>& media_items,
       int start_index,
       int64_t start_position_ms) = 0;
+  virtual void SetMediaItems(const std::vector<MediaItemDescriptor>& media_items) = 0;
   virtual void SetMediaItems(
       const std::vector<MediaItemDescriptor>& media_items,
       bool reset_position) = 0;
@@ -355,6 +358,8 @@ class ExoPlayerSdkPlayer {
   virtual CueSnapshot GetCurrentCues() = 0;
   virtual std::string GetCurrentMediaItemDebugSummary() = 0;
   virtual PlaybackSnapshot GetSnapshot() = 0;
+  virtual BridgeExceptionInfo GetLastBridgeException() = 0;
+  virtual void ClearLastBridgeException() = 0;
 };
 
 template <typename SnapshotType>

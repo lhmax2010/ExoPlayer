@@ -86,6 +86,7 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
   private static final int OBJECT_VALUE_DOUBLE = 3;
   private static final int OBJECT_VALUE_BOOLEAN = 4;
   private static final int OBJECT_VALUE_OTHER = 5;
+  private static final long PLAYER_THREAD_AWAIT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(30);
 
   private final ExoPlayer player;
   private final Handler playerHandler;
@@ -508,11 +509,35 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
 
   private static <T> T awaitTask(
       FutureTask<T> task, String operation, String caller, String playerThreadName) {
+    return awaitTaskForTest(task, operation, caller, playerThreadName, PLAYER_THREAD_AWAIT_TIMEOUT_MS);
+  }
+
+  static <T> T awaitTaskForTest(
+      FutureTask<T> task,
+      String operation,
+      String caller,
+      String playerThreadName,
+      long timeoutMs) {
     long startNs = System.nanoTime();
+    long timeoutNs = TimeUnit.MILLISECONDS.toNanos(timeoutMs);
     try {
       while (true) {
+        long elapsedNs = System.nanoTime() - startNs;
+        long remainingNs = timeoutNs - elapsedNs;
+        if (remainingNs <= 0) {
+          throw new IllegalStateException(
+              operation
+                  + " timed out waiting for player thread"
+                  + " caller="
+                  + caller
+                  + " timeoutMs="
+                  + timeoutMs
+                  + " playerThread="
+                  + playerThreadName);
+        }
         try {
-          return task.get(2, TimeUnit.SECONDS);
+          return task.get(
+              Math.min(TimeUnit.SECONDS.toNanos(2), remainingNs), TimeUnit.NANOSECONDS);
         } catch (TimeoutException e) {
           debugLogWaiting(
               operation
@@ -622,6 +647,14 @@ public final class CppExoPlayerBridge implements Player.Listener, AnalyticsListe
       converted.add(CppBridgeConverters.toMediaItem(mediaItem));
     }
     runOnPlayerThread(() -> player.setMediaItems(converted, startIndex, startPositionMs));
+  }
+
+  public void setMediaItems(CppMediaItem[] mediaItems) {
+    List<MediaItem> converted = new ArrayList<>(mediaItems.length);
+    for (CppMediaItem mediaItem : mediaItems) {
+      converted.add(CppBridgeConverters.toMediaItem(mediaItem));
+    }
+    runOnPlayerThread(() -> player.setMediaItems(converted));
   }
 
   public void setMediaItems(CppMediaItem[] mediaItems, boolean resetPosition) {

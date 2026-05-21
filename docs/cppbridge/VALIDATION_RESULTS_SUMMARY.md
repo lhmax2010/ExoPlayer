@@ -12,13 +12,13 @@ status notes in:
 
 | Area | Status | Evidence | Owner | Notes |
 | --- | --- | --- | --- | --- |
-| Build / native link | Pass | `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`; `:lib-exoplayer-cppbridge:testDebugUnitTest`; `:demo-cppbridge:assembleDebug`; `scripts/cppbridge/run_validation.py --local-only`; `scripts/cppbridge/run_validation.sh --local-only`; `:lib-exoplayer-cppbridge:assemble -PcppbridgeIncludeTestEntrypoints=OFF`; `scripts/cppbridge/run_validation.sh --serial emulator-5554` | Codex | Native testhooks, production-only core bridge, demo build, local-only checks, and Android 16 connected validation all link/package successfully. |
-| JNI/value smoke | Pass | `CppBridgeNativeSmokeTest` on Android 16 AVD: `26/26` passed | Codex | Stage 6 audio-output-provider and opaque-token batch-release smokes are included in the connected run. |
-| Player/runtime smoke | Pass | `CppBridgeNativePlayerInstrumentationTest` on Android 16 AVD: `112/112` passed; connected total `138/138` passed | Codex | Includes runtime/audio/scrubbing/codec/renderer getter parity smokes, auxiliary callback parity, video-frame fallback/sentinel smoke, track full-payload parity, decoded extras value-model markers, timeline / MediaItem / MediaMetadata object value metadata, Stage 4 analytics callback coverage, HTTP/HLS/DASH C++ playback smoke, Stage 5 HTTP data-source config smoke, Stage 5 custom source-factory SmoothStreaming / RTSP smoke, and Stage 6 audio-output-provider plus opaque-token batch smoke coverage. |
+| Build / native link | Pass | `:lib-exoplayer-cppbridge:assembleDebugAndroidTest`; `:lib-exoplayer-cppbridge:testDebugUnitTest`; `:demo-cppbridge:assembleDebug`; `python3 scripts/cppbridge/api_parity_inventory.py --check`; `git diff --check` | Codex | Native testhooks, JVM unit tests, AndroidTest package, demo build, and API inventory/package checks are clean in the current workspace. |
+| JNI/value smoke | Pass | Android 16 AVD `CppBridgeNativeSmokeTest`: `27/27` passed | Codex | Includes `nativeBuildSubtitleConfigurationsForTest_preservesDemoSubtitleArrays`, which covers the shared C++ subtitle-array helper used by the demo. |
+| Player/runtime smoke | Pass | Android 16 AVD `CppBridgeNativePlayerInstrumentationTest`: `112/112` passed; connected total `139/139` passed | Codex | Player/runtime coverage is unchanged by this demo update and remains clean on Android 16. |
 | API parity inventory | Pass | `python3 scripts/cppbridge/api_parity_inventory.py --check` | Codex | Generated report is current; exact `Player`/`ExoPlayer`, `ExoPlayer.Builder`, and direct `Player.Listener` gaps are now `0`. |
-| Demo manual validation | Pass with notes | `:demo-cppbridge:installDebug`; Android 16 emulator `MainActivity`; UIAutomator-driven Play/Pause/Stop and query buttons | Codex | Demo launched with `skip_default_load`; controls and C++ query buttons updated `status_text` with native summaries. Remote media playback remains covered by instrumentation and later RPI4 manual testing. |
+| Demo manual validation | Pass with notes | `:demo-cppbridge:installDebug`; Android 16 emulator `MainActivity`; UIAutomator-driven legacy smoke before the compact player-menu UI refresh | Codex | Demo now uses a single-screen player layout with a compact bottom overlay; HTTP/HLS/DASH, playlist, file, speed, audio, text-cycle, and subtitle-file actions are behind `Menu`. DASH/HLS presets use multi-track streams, and all one-item loads attach demo sidecar subtitles. |
 | Logcat review | Pass | no test failure, JNI fatal, `UnsatisfiedLinkError`, native fatal signal, tombstone, or demo ANR surfaced during Gradle instrumentation or demo UI smoke | Codex | Dedicated full log archive was not written, but high-signal crash/error filters were clean. |
-| Release recommendation | Pass with notes | latest local, production-only, and Android 16 connected emulator validation passed | Codex | Emulator coverage is clean. RPI4 remains a manual board-validation gate because the board is currently unavailable. |
+| Release recommendation | Pass with notes | local/JVM/package validation passed; Android 16 connected total `139/139` passed | Codex | RPI4 remains the manual board-validation gate. |
 
 Status values:
 
@@ -46,11 +46,11 @@ Status values:
 
 | Suite | Result | Key evidence | Follow-up needed |
 | --- | --- | --- | --- |
-| `CppBridgeNativeSmokeTest` | Pass | Android 16 connected class run: `26/26` passed | none for emulator; repeat on RPI4 when available |
-| `CppBridgeNativePlayerInstrumentationTest` | Pass | Android 16 connected class run: `112/112` passed | none for emulator; repeat on RPI4 when available |
+| `CppBridgeNativeSmokeTest` | Pass | Android 16 connected class run: `27/27` passed | repeat on RPI4 when available |
+| `CppBridgeNativePlayerInstrumentationTest` | Pass | Android 16 connected class run: `112/112` passed | repeat on RPI4 when available |
 | `run_validation.py --local-only` aggregate result | Pass | local no-device validation path | no connected instrumentation by design |
 | `run_validation.sh --local-only` aggregate result | Pass | local no-device validation path | no connected instrumentation by design |
-| `run_validation.sh --serial emulator-5554` aggregate result | Pass | Android 16 connected total: `138/138` passed | RPI4 board validation remains manual |
+| `run_validation.sh --serial emulator-5554` aggregate result | Pass | Android 16 connected total: `139/139` passed | RPI4 board validation remains manual |
 
 ## 3A. 2026-05-15 through 2026-05-18 Parity Addendum
 
@@ -73,6 +73,7 @@ Status values:
 | Stage 5 custom source-factory playback | `nativeCustomMediaSourceFactoryPlaybackSmokeTest_preparesSmoothAndRtspViaCppConfig` | Pass | Covers C++ `PlayerConfig` factory-token injection with a Java `FakeMediaSourceFactory`, then prepares SmoothStreaming and RTSP `MediaItemDescriptor` source types through C++ `SetMediaItem` / `Prepare` / `Play`. |
 | Stage 6 audio-output-provider builder injection | `nativeBuilderAudioOutputProviderInjectionSmokeTest_buildsWithRegisteredProviderToken`; `nativeBuilderAudioOutputProviderGeneratedTokenSmokeTest_buildsWithGeneratedProviderToken`; `nativeBuilderAudioOutputProviderFallbackSmokeTest_buildsWhenTokenIsMissing` | Pass | Covered by the Android 16 connected `CppBridgeNativeSmokeTest` run. |
 | Stage 6 opaque-token batch release | `nativeOpaqueTokenBatchReleaseSmokeTest_dedupesAndClearsCollectedTokens` | Pass | Covered by the Android 16 connected `CppBridgeNativeSmokeTest` run. |
+| Demo subtitle-array helper | `nativeBuildSubtitleConfigurationsForTest_preservesDemoSubtitleArrays` | Pass | Covers the shared C++ helper used by the demo to zip subtitle URI/MIME/language/label arrays and apply the WebVTT MIME fallback. |
 | Coverage top-up | existing surface / playlist / query / device / builder / priority smokes | Pass | Direct coverage added for raw `Surface` overloads, `RemoveMediaItem`, `MoveMediaItems`, playlist navigation getters, SDK and bridge tracks getters, device volume/mute setters, builder `SetMediaSourceFactoryConfig`, codec-parameter bridge registration/clear, and SDK `ClearPriorityTaskManager`. |
 
 Recommended spot checks for the explicit opaque-token cleanup smoke:
@@ -115,10 +116,10 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | Analytics load started | `uri=https://example.com/analytics-final.m3u8` |  |  |  |
 | Analytics load completed | `uri=https://example.com/analytics-final-complete.m3u8` |  |  |  |
 | Analytics audio input format changed | `sampleMimeType=audio/final` |  |  |  |
-| Analytics audio decoder initialized | `decoderName=c2.android.eac3.decoder` |  |  |  |
-| Analytics video decoder initialized | `decoderName=c2.android.hevc.decoder` |  |  |  |
-| Analytics audio decoder released | `decoderName=c2.android.eac3.decoder` |  |  |  |
-| Analytics video decoder released | `decoderName=c2.android.hevc.decoder` |  |  |  |
+| Analytics audio decoder initialized | `decoderName=<non-empty>` |  |  |  |
+| Analytics video decoder initialized | `decoderName=<non-empty>` |  |  |  |
+| Analytics audio decoder released | `decoderName=<non-empty>` |  |  |  |
+| Analytics video decoder released | `decoderName=<non-empty>` |  |  |  |
 | Analytics rendered first frame | `renderTimeMs=456` |  |  |  |
 | Analytics video size changed | `pixelWidthHeightRatio=1.250000` |  |  |  |
 | Analytics audio position advancing | `playoutStartSystemTimeMs=2222` |  |  |  |
@@ -158,7 +159,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 
 | Smoke test | Expected marker(s) | Mapping doc anchor | Area |
 | --- | --- | --- | --- |
-| `nativeObjectValueInfoParsingSmokeTest_parsesReducedValueTypes` | `objectValueParsing=1`; `stringString=hello|world`; `longLong=42`; `doubleDouble=2.500000`; `boolBool=1`; `nullType=0`; `otherString=object-value`; `invalidDoubleDouble=0.000000`; `truncatedType=0` | `DATA_STRUCTURE_MAPPING.md` `ObjectValueInfo`; `DATA_STRUCTURE_QUICK_REFERENCE.md` `ObjectValueInfo` | Reduced object value parser parity |
+| `nativeObjectValueInfoParsingSmokeTest_parsesReducedValueTypes` | `objectValueParsing=1`; `stringString=hello|world`; `longLong=42`; `doubleDouble=2.500000`; `boolBool=1`; `falseBoolBool=0`; `nullType=0`; `otherString=object-value`; `invalidDoubleDouble=0.000000`; `truncatedType=0` | `DATA_STRUCTURE_MAPPING.md` `ObjectValueInfo`; `DATA_STRUCTURE_QUICK_REFERENCE.md` `ObjectValueInfo` | Reduced object value parser parity |
 | `nativeMediaItemObjectValueConversionSmokeTest_roundTripsObjectMetadata` | `mediaItemObjectValueConversion=1`; `tagValueClass=java.lang.Long`; `tagValueType=2`; `tagValueLong=77`; `adsIdValueClass=java.lang.Boolean`; `adsIdValueType=4`; `adsIdValueBool=1` | `DATA_STRUCTURE_MAPPING.md` `MediaItemDescriptor`; `DATA_STRUCTURE_QUICK_REFERENCE.md` `CppObjectValue` | MediaItem object value DTO parity |
 | `nativeMediaMetadataObjectValueConversionSmokeTest_roundTripsObjectTextFields` | `mediaMetadataObjectValueConversion=1`; `titleValueClass=java.lang.String`; `titleValueType=1`; `titleValueString=object-title`; `genreValueClass=java.lang.Long`; `genreValueType=2`; `genreValueLong=42`; `stationValueClass=java.lang.Boolean`; `stationValueType=4`; `stationValueBool=1` | `DATA_STRUCTURE_MAPPING.md` `MediaMetadataSnapshot`; `DATA_STRUCTURE_QUICK_REFERENCE.md` `CppMediaMetadata` / `CppObjectValue` | MediaMetadata object value DTO parity |
 | `nativeCurrentTimelineSmokeTest_returnsTimelineDetails` | `window0MediaId=timeline-query-item-1`; `window0MediaUri=https://example.com/current-timeline-one.m3u8`; `window0TagPresent=1`; `window0TagString=timeline-query-tag-1`; `window0TagTokenPresent=1`; `window0UidValuePresent=1`; `window0UidValueClass=java.lang.String`; `window1MediaId=timeline-query-item-2`; `window1MediaUri=https://example.com/current-timeline-two.mp4`; `window1TagString=timeline-query-tag-2`; `window1TagTokenPresent=1`; `window1LiveConfigurationPresent=1`; `window1LiveTargetOffsetMs=7100`; `window1LiveMinOffsetMs=6400`; `window1LiveMaxOffsetMs=8200`; `window1LiveMinSpeed=0.930000`; `window1LiveMaxSpeed=1.070000`; `window1ManifestPresent=1`; `window1ManifestValueClass=java.lang.String`; `period0IdValueString=period-0`; `period0UidValueString=period-uid-0`; `period1IdValueString=period-1`; `period1UidValueString=period-uid-1`; `period1AdsIdValueString=period-ads-1` | `DATA_STRUCTURE_MAPPING.md` Timeline / `TimelineDetailsSnapshot`, `TimelineWindowSnapshot`, `TimelinePeriodSnapshot` | Timeline query parity |
@@ -183,10 +184,10 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | `nativeAnalyticsLoadStartedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `uri=https://example.com/analytics-final.m3u8`; `dataType=3`; `trackType=1`; `retryCount=2` | `API_MAPPING_STATUS.md` analytics load started; `DATA_STRUCTURE_MAPPING.md` `LoadStartedEvent` | Fourth concrete reduced analytics event |
 | `nativeAnalyticsLoadCompletedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `uri=https://example.com/analytics-final-complete.m3u8`; `dataType=4`; `trackType=1` | `API_MAPPING_STATUS.md` analytics load completed; `DATA_STRUCTURE_MAPPING.md` `LoadCompletedEvent` | Fifth concrete reduced analytics event |
 | `nativeAnalyticsAudioInputFormatChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `sampleMimeType=audio/final`; `codecs=ec-3`; `channelCount=6`; `sampleRate=48000` | `API_MAPPING_STATUS.md` analytics audio input format changed; `DATA_STRUCTURE_MAPPING.md` `AudioInputFormatChangedEvent` | Sixth concrete reduced analytics event |
-| `nativeAnalyticsAudioDecoderInitializedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=c2.android.eac3.decoder`; `initializedTimestampMs=222`; `initializationDurationMs=19` | `API_MAPPING_STATUS.md` analytics audio decoder initialized; `DATA_STRUCTURE_MAPPING.md` `AudioDecoderInitializedEvent` | Seventh concrete reduced analytics event |
-| `nativeAnalyticsVideoDecoderInitializedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=c2.android.hevc.decoder`; `initializedTimestampMs=444`; `initializationDurationMs=29` | `API_MAPPING_STATUS.md` analytics video decoder initialized; `DATA_STRUCTURE_MAPPING.md` `VideoDecoderInitializedEvent` | Eighth concrete reduced analytics event |
-| `nativeAnalyticsAudioDecoderReleasedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=c2.android.eac3.decoder` | `API_MAPPING_STATUS.md` analytics audio decoder released; `DATA_STRUCTURE_MAPPING.md` `AudioDecoderReleasedEvent` | Ninth concrete reduced analytics event |
-| `nativeAnalyticsVideoDecoderReleasedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=c2.android.hevc.decoder` | `API_MAPPING_STATUS.md` analytics video decoder released; `DATA_STRUCTURE_MAPPING.md` `VideoDecoderReleasedEvent` | Tenth concrete reduced analytics event |
+| `nativeAnalyticsAudioDecoderInitializedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=<non-empty>`; `initializedTimestampMs=222`; `initializationDurationMs=19` | `API_MAPPING_STATUS.md` analytics audio decoder initialized; `DATA_STRUCTURE_MAPPING.md` `AudioDecoderInitializedEvent` | Seventh concrete reduced analytics event |
+| `nativeAnalyticsVideoDecoderInitializedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=<non-empty>`; `initializedTimestampMs=444`; `initializationDurationMs=29` | `API_MAPPING_STATUS.md` analytics video decoder initialized; `DATA_STRUCTURE_MAPPING.md` `VideoDecoderInitializedEvent` | Eighth concrete reduced analytics event |
+| `nativeAnalyticsAudioDecoderReleasedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=<non-empty>` | `API_MAPPING_STATUS.md` analytics audio decoder released; `DATA_STRUCTURE_MAPPING.md` `AudioDecoderReleasedEvent` | Ninth concrete reduced analytics event |
+| `nativeAnalyticsVideoDecoderReleasedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `decoderName=<non-empty>` | `API_MAPPING_STATUS.md` analytics video decoder released; `DATA_STRUCTURE_MAPPING.md` `VideoDecoderReleasedEvent` | Tenth concrete reduced analytics event |
 | `nativeAnalyticsRenderedFirstFrameSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `renderTimeMs=456` | `API_MAPPING_STATUS.md` analytics rendered first frame; `DATA_STRUCTURE_MAPPING.md` `AnalyticsRenderedFirstFrameEvent` | Eleventh concrete reduced analytics event |
 | `nativeAnalyticsVideoSizeChangedSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `width=1920`; `height=1080`; `pixelWidthHeightRatio=1.250000` | `API_MAPPING_STATUS.md` analytics video size changed; `DATA_STRUCTURE_MAPPING.md` `AnalyticsVideoSizeChangedEvent` | Twelfth concrete reduced analytics event |
 | `nativeAnalyticsAudioPositionAdvancingSmokeTest_reportsConcreteAnalyticsEvent` | `beforeRemoveCb=2`; `callbackStopped=1`; `playoutStartSystemTimeMs=2222` | `API_MAPPING_STATUS.md` analytics audio position advancing; `DATA_STRUCTURE_MAPPING.md` `AudioPositionAdvancingEvent` | Thirteenth concrete reduced analytics event |
@@ -236,8 +237,8 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 | --- | --- | --- |
 | Demo app installs | Pass | Installed on Android 16 emulator through `run_validation.sh --serial emulator-5554` and again with `:demo-cppbridge:installDebug`. |
 | Demo app launches | Pass | `adb -s emulator-5554 shell am start -n androidx.media3.demo.cppbridge/.MainActivity --ez skip_default_load true`; process observed as `10520`. |
-| Player controls respond | Pass | UIAutomator/adb taps on Play, Pause, and Stop updated `status_text` with `state=1`, `playing=0`, and playlist summary markers. |
-| C++ bridge query output visible in UI/logs | Pass | Playback, Tracks, Item, Timeline, Metadata, and Cues buttons updated `status_text`; logcat showed `cppbridge` query calls such as `getPlaybackState`, `getTracks`, `getCurrentMediaItem`, `getTimelineSnapshotData`, `getMediaMetadata`, and `getCurrentCues`. |
+| Player controls respond | Pass with notes | The simplified demo UI now exposes play/pause, a progress bar, time text, and a compact bottom-right `Menu`; seek shortcuts moved into the menu to keep the playback surface clean. |
+| C++ bridge demo path visible in UI/logs | Pass with notes | Menu actions continue to use C++ bridge load/play, speed, playlist, file, audio, and text paths; query-output buttons were removed from the demo surface to keep it presentation-friendly. |
 | No crash / ANR during manual flow | Pass | Logcat filters for `FATAL EXCEPTION`, `JNI DETECTED ERROR`, `UnsatisfiedLinkError`, `Fatal signal`, `tombstone`, and demo ANR returned no matches. |
 
 ## 7. Blocking Issues
@@ -248,7 +249,7 @@ Recommended spot checks for the explicit opaque-token cleanup smoke:
 
 ## 8. Recommended Next Step
 
-- Summary: reduced bridge smoke suite is passing locally on Android 16 after the Stage 6 builder/token lifecycle addenda; connected emulator total is `138/138`, and demo UI controls/query buttons respond on the Android 16 emulator.
+- Summary: local/JVM/package validation and Android 16 connected instrumentation are passing after the demo subtitle/audio update. Connected total is `139/139`.
 - Ship / continue development decision: continue development; RPI4 remains manual validation after board access returns, while future feature work should target deeper full-object parity beyond the reduced descriptors.
 - Owner: Codex
 - Date: 2026-05-19

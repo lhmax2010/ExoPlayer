@@ -532,6 +532,32 @@ std::vector<std::string> JStringArrayToVector(JNIEnv* env, jobjectArray values) 
   return result;
 }
 
+std::vector<MediaItemDescriptor::SubtitleConfigurationDescriptor> BuildSubtitleConfigurations(
+    const std::vector<std::string>& urls,
+    const std::vector<std::string>& mime_types,
+    const std::vector<std::string>& languages,
+    const std::vector<std::string>& labels) {
+  std::vector<MediaItemDescriptor::SubtitleConfigurationDescriptor> subtitles;
+  subtitles.reserve(urls.size());
+  for (size_t i = 0; i < urls.size(); ++i) {
+    if (urls[i].empty()) {
+      continue;
+    }
+    MediaItemDescriptor::SubtitleConfigurationDescriptor subtitle;
+    subtitle.uri = urls[i];
+    subtitle.mime_type =
+        i < mime_types.size() && !mime_types[i].empty() ? mime_types[i] : "text/vtt";
+    subtitle.language = i < languages.size() ? languages[i] : "";
+    subtitle.label = i < labels.size() ? labels[i] : "";
+    subtitle.id =
+        subtitle.language.empty()
+            ? "subtitle-" + std::to_string(i)
+            : "subtitle-" + subtitle.language;
+    subtitles.push_back(subtitle);
+  }
+  return subtitles;
+}
+
 jobjectArray CreateJavaStringArray(JNIEnv* env, const std::vector<std::string>& values) {
   jclass string_class = FindClassChecked(env, "java/lang/String");
   if (string_class == nullptr) {

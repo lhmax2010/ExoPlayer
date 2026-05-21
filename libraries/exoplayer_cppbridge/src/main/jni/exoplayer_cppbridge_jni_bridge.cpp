@@ -427,6 +427,17 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
 
   void SetMediaItems(
       JNIEnv* env,
+      const std::vector<MediaItemDescriptor>& media_items) override {
+    jobjectArray items = CreateJavaMediaItemArray(env, media_items);
+    if (items == nullptr) {
+      return;
+    }
+    CallBridgeVoid(env, "setMediaItems", "([Landroidx/media3/exoplayer/cppbridge/CppMediaItem;)V", items);
+    env->DeleteLocalRef(items);
+  }
+
+  void SetMediaItems(
+      JNIEnv* env,
       const std::vector<MediaItemDescriptor>& media_items,
       bool reset_position) override {
     jobjectArray items = CreateJavaMediaItemArray(env, media_items);
@@ -977,15 +988,12 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     DeleteLocalRefIfNotNull(env, values);
     ScrubbingModeParametersDescriptor parameters;
     if (fields.size() >= 9) {
-      auto parse_double_or_default = [](const std::string& value, double fallback) {
-        return value.empty() ? fallback : std::stod(value);
-      };
       int disabled_track_type_count = ParseIntOrDefault(fields[0], 0);
       parameters.has_fractional_seek_tolerance = fields[1] == "1";
       parameters.fractional_seek_tolerance_before =
-          parse_double_or_default(fields[2], 0.0);
+          ParseDoubleOrDefault(fields[2], 0.0);
       parameters.fractional_seek_tolerance_after =
-          parse_double_or_default(fields[3], 0.0);
+          ParseDoubleOrDefault(fields[3], 0.0);
       parameters.should_increase_codec_operating_rate = fields[4] == "1";
       parameters.allow_skipping_media_codec_flush = fields[5] == "1";
       parameters.allow_skipping_key_frame_reset = fields[6] == "1";
@@ -2574,8 +2582,8 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
           ParseLongOrDefault(fields[7], -9223372036854775807LL);
       config.live_max_offset_ms =
           ParseLongOrDefault(fields[8], -9223372036854775807LL);
-      config.live_min_speed = fields[9].empty() ? -3.4028235e38f : std::stof(fields[9]);
-      config.live_max_speed = fields[10].empty() ? -3.4028235e38f : std::stof(fields[10]);
+      config.live_min_speed = ParseFloatOrDefault(fields[9], -3.4028235e38f);
+      config.live_max_speed = ParseFloatOrDefault(fields[10], -3.4028235e38f);
     }
     jobjectArray header_names = static_cast<jobjectArray>(
         CallObjectNoArgs(env, "getMediaSourceFactoryHeaderNames", "()[Ljava/lang/String;"));
@@ -2832,6 +2840,16 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     return snapshot;
   }
 
+  BridgeExceptionInfo GetLastBridgeException() override {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    return last_bridge_exception_;
+  }
+
+  void ClearLastBridgeException() override {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    last_bridge_exception_ = BridgeExceptionInfo();
+  }
+
   void Release(JNIEnv* env) override {
     LogInfo("ExoPlayerBridge::Release start");
     releasing_.store(true, std::memory_order_release);
@@ -2840,6 +2858,8 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       std::unique_lock<std::mutex> lock(state_mutex_);
       if (java_bridge_ == nullptr) {
         LogInfo("ExoPlayerBridge::Release skip missingBridge");
+        lock.unlock();
+        UnregisterBridge(this);
         return;
       }
       listener_ = nullptr;
@@ -3926,9 +3946,50 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     last_error_.message = message;
   }
 
+  void SetLastBridgeException(const std::string& context, const std::string& message) {
+    std::lock_guard<std::mutex> lock(state_mutex_);
+    last_bridge_exception_.present = true;
+    last_bridge_exception_.context = context;
+    last_bridge_exception_.message = message;
+  }
+
   PlayerError GetLastErrorSnapshot() {
     std::lock_guard<std::mutex> lock(state_mutex_);
     return last_error_;
+  }
+
+  bool ClearBridgeCallExceptionIfPresent(JNIEnv* env, const std::string& context) {
+    if (env == nullptr || !env->ExceptionCheck()) {
+      return false;
+    }
+    jthrowable throwable = env->ExceptionOccurred();
+    LogError("JNI exception during " + context);
+    env->ExceptionDescribe();
+    env->ExceptionClear();
+
+    std::string message = context;
+    if (throwable != nullptr) {
+      jclass throwable_class = env->GetObjectClass(throwable);
+      if (!ClearJniExceptionIfPresent(env, "GetObjectClass(Throwable)") &&
+          throwable_class != nullptr) {
+        jmethodID to_string =
+            env->GetMethodID(throwable_class, "toString", "()Ljava/lang/String;");
+        if (!ClearJniExceptionIfPresent(env, "GetMethodID(Throwable.toString)") &&
+            to_string != nullptr) {
+          jstring throwable_string =
+              static_cast<jstring>(env->CallObjectMethod(throwable, to_string));
+          if (!ClearJniExceptionIfPresent(env, "CallObjectMethod(Throwable.toString)") &&
+              throwable_string != nullptr) {
+            message = JStringToString(env, throwable_string);
+            DeleteLocalRefIfNotNull(env, throwable_string);
+          }
+        }
+      }
+      DeleteLocalRefIfNotNull(env, throwable_class);
+      DeleteLocalRefIfNotNull(env, throwable);
+    }
+    SetLastBridgeException(context, message);
+    return true;
   }
 
   jobject GetJavaBridgeLocalRef(JNIEnv* env) {
@@ -4079,7 +4140,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       return;
     }
     env->CallVoidMethod(bridge_object, method, args...);
-    ClearJniExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
+    ClearBridgeCallExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
     env->DeleteLocalRef(bridge_class);
     env->DeleteLocalRef(bridge_object);
   }
@@ -4194,7 +4255,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       return;
     }
     env->CallVoidMethod(bridge_object, method);
-    ClearJniExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
+    ClearBridgeCallExceptionIfPresent(env, std::string("CallVoidMethod(") + method_name + ")");
     env->DeleteLocalRef(bridge_class);
   }
 
@@ -4356,6 +4417,7 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
   int in_flight_listener_callback_count_ = 0;
   int in_flight_image_output_callback_count_ = 0;
   PlayerError last_error_;
+  BridgeExceptionInfo last_bridge_exception_;
 };
 
 class LoggingPlayerListener : public PlayerListener {

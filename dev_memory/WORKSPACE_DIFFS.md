@@ -140,7 +140,8 @@ Passed commands:
 
 - `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest`
 - `./gradlew :lib-exoplayer-cppbridge:testDebugUnitTest`
-- `bash scripts/cppbridge/run_validation.sh --serial emulator-5554` (`138/138`)
+- current connected instrumentation is verified on Android 16 AVD `emulator-5554`: `139/139`
+  (`27/27` JNI/value smoke plus `112/112` player/runtime smoke)
 - `./gradlew :demo-cppbridge:assembleDebug`
 - `./gradlew :lib-exoplayer-cppbridge:assemble -PcppbridgeIncludeTestEntrypoints=OFF`
 - `python3 -m unittest discover -s scripts/cppbridge -p '*_test.py'`

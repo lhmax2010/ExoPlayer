@@ -3,10 +3,11 @@
 Last updated: 2026-05-19
 
 This guide is the manual Raspberry Pi 4 validation pass for `exoplayer_cppbridge`. The board is not
-currently connected in the Codex environment, so the latest automated gate is Android 16 emulator
-validation. Run this guide on the host machine when the RPI4 is reachable.
+currently connected in the Codex environment, so run this guide on the host machine when the RPI4 is
+reachable.
 
-Use absolute dates in reports. The current emulator baseline was refreshed on 2026-05-19.
+Use absolute dates in reports. The current Android 16 connected baseline was refreshed on
+2026-05-19 and passed on AVD `emulator-5554`.
 
 ## 1. Scope
 
@@ -17,13 +18,13 @@ Validate that the `exoplayer_cppbridge` Android app and native bridge work on th
 3. The demo launches and can exercise HTTP progressive, HLS, and DASH playback through the C++ API.
 4. Board-specific decoder, audio, network, and rendering issues are captured with useful evidence.
 
-The expected Android 16 emulator baseline before RPI4 validation is:
+The expected Android 16 connected baseline before RPI4 validation is:
 
-- `CppBridgeNativeSmokeTest`: `26/26` passed
-- `CppBridgeNativePlayerInstrumentationTest`: `112/112` passed
-- connected total: `138/138` passed
-- demo UI smoke: Play/Pause/Stop plus Playback/Tracks/Item/Timeline/Metadata/Cues status queries
-  updated native `status_text`
+- `CppBridgeNativeSmokeTest`: `27/27`
+- `CppBridgeNativePlayerInstrumentationTest`: `112/112`
+- connected total: `139/139`
+- demo UI target: single-screen player with no scroll/log panel; source, speed, playlist, file,
+  audio, subtitle-cycle, and subtitle-file choices live behind the bottom-right `Menu` button
 
 ## 1A. Quick Start
 
@@ -57,6 +58,16 @@ grep -iE "cppbridge|ExoPlayer|MediaCodec|AndroidRuntime|FATAL|tombstone|Unsatisf
 
 If `run_validation.sh` passes and the demo can play HTTP/HLS/DASH manually, collect the files in
 `$RPI4_OUT` with the board facts from section 3.
+
+For a one-command UT pass that runs the host-side checks, board-side connected instrumentation, and
+log collection, use:
+
+```bash
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial "$RPI4_SERIAL"
+```
+
+The script runs on the host machine connected to the board. The connected instrumentation tests
+execute on the RPI4 through adb.
 
 ## 2. Host Prerequisites
 
@@ -174,6 +185,83 @@ bash scripts/cppbridge/run_validation.sh --local-only | tee "$RPI4_OUT/local_onl
 
 This does not touch the board and does not replace connected validation.
 
+## 4A. One-Command UT Validation Script
+
+Use this when the goal is to answer "do all cppbridge UT and board-side instrumentation tests pass
+on the RPI4?":
+
+```bash
+cd /home/linhao/Toolchain/development/ExoPlayer
+
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export ANDROID_SDK_ROOT=$HOME/Android/Sdk
+export PATH=$JAVA_HOME/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/emulator:$PATH
+
+adb devices
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial>
+```
+
+What it runs:
+
+- `bash scripts/cppbridge/run_validation.sh --local-only`
+- `./gradlew :lib-exoplayer-cppbridge:assembleDebugAndroidTest --console=plain`
+- `adb install -r -t` for the cppbridge androidTest APK
+- `adb shell am instrument` for `CppBridgeNativeSmokeTest` and
+  `CppBridgeNativePlayerInstrumentationTest`
+- board facts capture into `board_facts.txt`
+- full and high-signal logcat capture after the connected run
+
+The RPI4 script uses direct adb instrumentation by default so the board-side phase does not depend
+on Gradle's Unified Test Platform host plugins. This avoids failures where Gradle tries to download
+`com.android.tools.utp:*` before it can talk to the board. If you need to compare with the standard
+Gradle connected task, pass `--gradle-connected`.
+
+The script does not fail fast between phases. If the host-side local JVM checks fail because
+Robolectric cannot download its runtime artifacts, it still runs the board-side connected
+instrumentation phase and writes both phase statuses to `summary.txt`. The final exit code remains
+non-zero if either phase fails.
+
+Useful options:
+
+```bash
+# Skip host-side local checks and run only board-side instrumentation.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --connected-only
+
+# Run one board-side instrumentation class.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --connected-only \
+  --test-class androidx.media3.exoplayer.cppbridge.CppBridgeNativeSmokeTest
+
+# Run only local checks without touching the board.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --local-only
+
+# Pick the output folder explicitly.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --out "$PWD/buildout/my-rpi4-run"
+
+# Launch the demo after UT passes.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --launch-demo
+
+# Use Gradle connectedDebugAndroidTest instead of direct adb instrumentation.
+bash scripts/cppbridge/run_rpi4_ut_validation.sh --serial <rpi4-serial> --gradle-connected
+```
+
+Default output path:
+
+```text
+buildout/cppbridge-rpi4-ut-YYYYMMDD-HHMMSS/
+```
+
+Important files in the output folder:
+
+- `summary.txt`
+- `local_validation.txt`
+- `connected_validation.txt`
+- `instrument-CppBridgeNativeSmokeTest.txt`
+- `instrument-CppBridgeNativePlayerInstrumentationTest.txt`
+- `board_facts.txt`
+- `logcat-full.txt`
+- `logcat-high-signal.txt`
+- `tombstones-list.txt`
+
 ## 5. Connected Validation
 
 Run the same full validation flow used for the Android 16 emulator, replacing the serial:
@@ -200,8 +288,8 @@ Useful targeted fallback commands:
 
 Expected result:
 
-- `CppBridgeNativeSmokeTest`: all tests pass. The current emulator baseline is `26/26`.
-- `CppBridgeNativePlayerInstrumentationTest`: all tests pass. The current emulator baseline is
+- `CppBridgeNativeSmokeTest`: all tests pass. The current expected connected baseline is `27/27`.
+- `CppBridgeNativePlayerInstrumentationTest`: all tests pass. The current expected connected baseline is
   `112/112`.
 - No `UnsatisfiedLinkError`, JNI exception, native crash, or instrumentation timeout.
 - HTTP/HLS/DASH instrumentation smoke passes through
@@ -227,25 +315,18 @@ adb -s "$RPI4_SERIAL" shell pidof androidx.media3.demo.cppbridge \
 
 Manual playback focus:
 
-1. Press `HTTP`, then `Play`.
-2. Confirm video renders and audio behaves as expected for the board.
-3. Press `Pause`, `Play`, `Seek Fwd`, `Seek Back`, `Seek To`, and `Stop`.
-4. Press `Playback`, `Tracks`, `Item`, `Timeline`, `Metadata`, and `Cues`; confirm the status panel
-   changes after each press.
-5. Press `HLS`, then `Play`; confirm playback starts.
-6. Press `DASH`, then `Play`; confirm playback starts.
-7. Press `Mixed Playlist`, then use `Next` and `Prev`; confirm item transitions.
-8. If subtitles are required, use `Load + Subtitle` and then `Text EN` / `Text +`.
-
-Expected status markers:
-
-- HTTP loaded through C++: status contains `Loaded media via C++ API`.
-- Playback query: status contains `state=`, `playing=`, `itemIndex=`, `itemCount=`, and `sourceType=`.
-- Tracks query: status contains track group details, or `No track groups` before media is prepared.
-- Item query: status contains `mediaId=`, `uri=`, `sourceType=`, and `mimeType=`.
-- Timeline query: status contains `windowCount=`, `periodCount=`, and `empty=`.
-- Metadata query: status contains `title=`, `artist=`, and `extrasKeyCount=`.
-- Cues query: status contains `cueCount=` and `presentationTimeUs=`.
+1. Confirm the app opens as a single-screen player. There should be no scroll area and no visible
+   debug log/status panel.
+2. Confirm the bottom overlay is compact: `Play/Pause`, progress, time, and `Menu`.
+3. Use `Menu` -> `HTTP`; playback should load and start immediately.
+4. Press `Pause`, then `Play`; confirm playback pauses and resumes.
+5. Scrub the progress bar, then use `Menu` -> `Back 10s` and `Forward 10s`; confirm seeking works.
+6. Use `Menu` -> `0.5x`, `1.0x`, `1.5x`, and `2.0x`; confirm speed changes take effect.
+7. Use `Menu` -> `HLS`; playback should load and start immediately.
+8. Use `Menu` -> `DASH`; playback should load and start immediately.
+9. Use `Menu` -> `Playlist`; confirm playback remains usable.
+10. If track selection is required, use `Menu` -> `Audio +`, `Text +`, and `Text EN`.
+11. Use `Menu` -> `File` for a local/USB content URI progressive playback check when needed.
 
 The instrumentation suite already validates deterministic local HTTP/HLS/DASH, HTTP data-source
 configuration, and custom source-factory SmoothStreaming / RTSP paths. The RPI4 manual demo check is
@@ -330,24 +411,25 @@ Fill this during board testing:
 
 | Media type | URL / source | Expected | Result | Notes |
 | --- | --- | --- | --- | --- |
-| HTTP progressive | default HTTP button | starts video/audio; controls respond |  |  |
-| HLS | default HLS button | manifest loads; playback starts |  |  |
-| DASH | default DASH button | manifest loads; playback starts |  |  |
-| Mixed playlist | `Mixed Playlist` button | `Next` / `Prev` switch items |  |  |
-| External subtitle | `Load + Subtitle` | subtitle track visible or selectable |  |  |
-| USB/local file | `Pick USB/File` | content URI loads as progressive |  |  |
+| HTTP progressive | `Menu` -> `HTTP` | starts video/audio; `Text +` cycles demo sidecar subtitles; `Audio +` reports selected audio or single-track status |  |  |
+| HLS | `Menu` -> `HLS` | manifest loads; playback starts; `Audio +` and `Text +` cycle available tracks |  |  |
+| DASH | `Menu` -> `DASH` | manifest loads; playback starts; `Audio +` and `Text +` cycle available tracks |  |  |
+| Playlist | `Menu` -> `Playlist` | playback remains usable |  |  |
+| Track controls | `Menu` -> `Audio +`, `Text +`, `Text EN`, `Sub File` | track selection controls respond without crash; subtitle picker reloads current media with the selected subtitle |  |  |
+| USB/local file | `Menu` -> `File` | content URI loads as progressive with demo subtitles; audio switching works when the file contains multiple audio tracks |  |  |
 
 ## 9. Pass Criteria
 
 RPI4 validation is considered pass when:
 
-- Full connected validation passes on the board. Use the current emulator baseline as reference:
-  `26/26`, `112/112`, `138/138`.
+- Full connected validation passes on the board. Use the current connected baseline expectation as
+  reference:
+  `27/27`, `112/112`, `139/139`.
 - Demo installs and launches.
 - HTTP progressive, HLS, and DASH playback start through the demo without native crash or JNI error.
-- Basic controls respond: play, pause, seek, stop/release.
-- Query buttons respond: Playback, Tracks, Item, Timeline, Metadata, and Cues all update the status
-  panel.
+- Basic controls respond: play/pause, progress-bar scrub, menu seek shortcuts, menu source selection,
+  speed selection, playlist, track-selection actions, and stop.
+- The demo remains a single-screen player with no scrolling and no visible debug log/status panel.
 - Logcat has no bridge crash, `UnsatisfiedLinkError`, fatal JNI exception, or repeated decoder crash.
 
 RPI4 validation is considered blocked when:

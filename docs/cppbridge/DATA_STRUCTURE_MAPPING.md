@@ -127,6 +127,7 @@ Field observability conventions:
 | --- | --- | --- | --- | --- |
 | synthetic player state aggregate | `PlaybackSnapshot` | Done | state, playWhenReady, isPlaying, loading, shuffle, index/count, repeat, positions, duration, volume, speed, last error | `nativeCreateConfiguredPlayerSnapshotForTest_returnsConfiguredState`; `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary` |
 | `PlaybackException` | `PlayerError` | Done | error code, message | `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; listener smoke |
+| synthetic bridge exception state | `BridgeExceptionInfo` | Done | last void JNI call Java-exception presence, call context, throwable string | `nativeMediaSetOverloadsSmokeTest_returnsUpdatedPlaylistSummary`; `nativePostReleaseCallSafetySmokeTest_doesNotCrashOrHang` |
 | `PlaybackParameters` | `PlaybackParametersSnapshot` | Done | speed, pitch | `nativeAudioAndQuerySmokeTest_returnsAudioAndStateSummary`; `nativeListenerSmokeTest_reportsExtendedCallbacks` |
 | `SeekParameters` | `SeekParametersDescriptor` | Done | tolerance before/after | `nativeSeekParametersSmokeTest_roundTripsSeekParameters` |
 | `Player.PositionInfo` | `PositionInfoSnapshot` | Done | media item index, reduced media item plus nested tag opaque token baseline, period index, position, content position, ad indices | `nativeListenerSmokeTest_reportsExtendedCallbacks`; `CppBridgeNativeSmokeTest.nativeListenerPayloadCaptureSmokeTest_returnsStructuredSummary` |
