@@ -15,7 +15,7 @@ Last updated: 2026-05-19
 | Play / Pause / Stop | Supported | Wired to `Play`, `Pause`, and `Stop`. |
 | Seek to custom position | Supported | Wired to `SeekTo`. |
 | Seek back / forward increments | Supported | Wired to `SeekBack` and `SeekForward`. |
-| Previous / next media item | Supported | Wired to `SeekToPreviousMediaItem` and `SeekToNextMediaItem`. |
+| Previous / next media item | API available, not exposed in demo UI | C++ SDK/JNI support exists, but the compact demo UI currently exposes seek back/forward rather than playlist previous/next controls. |
 | Trick play by speed | Supported | Demo exposes `0.5x`, `1.0x`, `1.5x`, and `2.0x` through `SetPlaybackSpeed`. |
 | External subtitle loading | Supported | Demo exposes built-in sidecar subtitles for every HTTP/DASH/HLS/file load plus a `Sub File` picker that reloads the current media with an external subtitle URI. |
 | Preferred text language | Supported | Wired to `SetTrackSelectionParameters`. |

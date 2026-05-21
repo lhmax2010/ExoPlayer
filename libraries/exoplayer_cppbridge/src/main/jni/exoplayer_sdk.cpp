@@ -2005,6 +2005,9 @@ class ExoPlayerSdkPlayerImpl : public ExoPlayerSdkPlayer {
   }
 
   void RemoveListener(PlayerListener* listener) override {
+    if (released_.load(std::memory_order_acquire)) {
+      return;
+    }
     if (listener == nullptr || listener == forwarding_listener_->delegate()) {
       forwarding_listener_->SetDelegate(nullptr);
     }

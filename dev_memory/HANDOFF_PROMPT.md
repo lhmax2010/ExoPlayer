@@ -72,7 +72,8 @@ Important context:
   `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig` sets custom request
   headers, user agent, timeouts, and redirect config from C++, then verifies MockWebServer receives
   the expected headers and UA.
-- A follow-up C++ API / CppBridge method audit found no remaining exact public-method gaps after
+- A follow-up C++ API / CppBridge method audit found no remaining exact public-method gaps
+  at the method-name / alias level after
   adding direct smoke markers for raw `Surface`, playlist mutation/navigation, tracks getters,
   device volume/mute setters, codec-parameter bridge registration/clear, builder
   `SetMediaSourceFactoryConfig`, and SDK `ClearPriorityTaskManager`.

@@ -47,7 +47,7 @@ Current readiness snapshot:
   connected total `139/139`
 - RPI4 board validation is intentionally deferred until the board is reachable; use
   `RPI4_TESTING_GUIDE.md` for that manual pass
-- the current source tree contains 169 `@Test` methods across the cppbridge unit and
+- the current source tree contains 170 `@Test` methods across the cppbridge unit and
   instrumentation sources after the runtime/audio/codec/auxiliary-callback, TrackInfo
   format-payload, HTTP/HLS/DASH playback, HTTP data-source config playback, custom source-factory
   SmoothStreaming / RTSP playback, decoded extras, Timeline / MediaItem / MediaMetadata

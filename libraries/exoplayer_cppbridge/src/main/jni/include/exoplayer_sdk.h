@@ -39,6 +39,8 @@ class ExoPlayerSdkPlayer {
   virtual ~ExoPlayerSdkPlayer() = default;
 
   virtual void Release() = 0;
+  // Single standard-listener slot. Calling SetListener replaces the previous
+  // delegate; pass nullptr or call RemoveListener to detach it.
   virtual void SetListener(PlayerListener* listener) = 0;
   virtual void RemoveListener(PlayerListener* listener) = 0;
   virtual void SetImageOutputListener(ExoPlayerSdkImageOutputListener* listener) = 0;

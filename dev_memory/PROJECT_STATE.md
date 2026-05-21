@@ -69,7 +69,7 @@ Current androidTest count found in the workspace:
 
 - Total `@Test` count across `CppBridgeNativeSmokeTest.java` and
   `CppBridgeNativePlayerInstrumentationTest.java`: `139`
-- Total `@Test` count across cppbridge Android instrumentation and JVM unit sources: `169`
+- Total `@Test` count across cppbridge Android instrumentation and JVM unit sources: `170`
 
 This is consistent with a large smoke-first validation strategy.
 
@@ -113,7 +113,8 @@ This is consistent with a large smoke-first validation strategy.
   `nativeHttpDataSourceConfigPlaybackSmokeTest_sendsHeadersThroughCppConfig` sets request headers,
   user agent, timeout, and redirect config from C++, then verifies the local MockWebServer request
   receives the expected headers and UA.
-- A follow-up C++ API / CppBridge coverage audit found no remaining exact public-method gaps after
+- A follow-up C++ API / CppBridge coverage audit found no remaining exact public-method gaps
+  at the method-name / alias level after
   adding direct smoke markers for raw `Surface`, playlist mutation/navigation, tracks getters,
   device volume/mute setters, codec-parameter bridge registration/clear, builder
   `SetMediaSourceFactoryConfig`, and SDK `ClearPriorityTaskManager`

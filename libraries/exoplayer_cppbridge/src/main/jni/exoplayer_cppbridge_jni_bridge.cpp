@@ -988,15 +988,12 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
     DeleteLocalRefIfNotNull(env, values);
     ScrubbingModeParametersDescriptor parameters;
     if (fields.size() >= 9) {
-      auto parse_double_or_default = [](const std::string& value, double fallback) {
-        return value.empty() ? fallback : std::stod(value);
-      };
       int disabled_track_type_count = ParseIntOrDefault(fields[0], 0);
       parameters.has_fractional_seek_tolerance = fields[1] == "1";
       parameters.fractional_seek_tolerance_before =
-          parse_double_or_default(fields[2], 0.0);
+          ParseDoubleOrDefault(fields[2], 0.0);
       parameters.fractional_seek_tolerance_after =
-          parse_double_or_default(fields[3], 0.0);
+          ParseDoubleOrDefault(fields[3], 0.0);
       parameters.should_increase_codec_operating_rate = fields[4] == "1";
       parameters.allow_skipping_media_codec_flush = fields[5] == "1";
       parameters.allow_skipping_key_frame_reset = fields[6] == "1";
@@ -2585,8 +2582,8 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
           ParseLongOrDefault(fields[7], -9223372036854775807LL);
       config.live_max_offset_ms =
           ParseLongOrDefault(fields[8], -9223372036854775807LL);
-      config.live_min_speed = fields[9].empty() ? -3.4028235e38f : std::stof(fields[9]);
-      config.live_max_speed = fields[10].empty() ? -3.4028235e38f : std::stof(fields[10]);
+      config.live_min_speed = ParseFloatOrDefault(fields[9], -3.4028235e38f);
+      config.live_max_speed = ParseFloatOrDefault(fields[10], -3.4028235e38f);
     }
     jobjectArray header_names = static_cast<jobjectArray>(
         CallObjectNoArgs(env, "getMediaSourceFactoryHeaderNames", "()[Ljava/lang/String;"));
@@ -2861,6 +2858,8 @@ class JniExoPlayerBridge : public ExoPlayerBridge {
       std::unique_lock<std::mutex> lock(state_mutex_);
       if (java_bridge_ == nullptr) {
         LogInfo("ExoPlayerBridge::Release skip missingBridge");
+        lock.unlock();
+        UnregisterBridge(this);
         return;
       }
       listener_ = nullptr;
